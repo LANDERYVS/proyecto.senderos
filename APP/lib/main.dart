@@ -289,7 +289,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.real_time_map_app',
+                  userAgentPackageName: 'com.example.proyecto',
                   tileProvider: widget.tileProvider ?? NetworkTileProvider(),
                 ),
                 MarkerLayer(markers: _markers),

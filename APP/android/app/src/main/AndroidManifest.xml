@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="real_time_map_app"
+        android:label="Proyecto"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
