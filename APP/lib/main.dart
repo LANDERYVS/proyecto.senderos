@@ -39,7 +39,10 @@ class _HomePageState extends State<HomePage> {
   final LatLng _initialPosition = const LatLng(20.6736, -103.344);
 
   final List<Marker> _markers = [];
+  final List<LatLng> _recordedRoute = [];
+  bool _isRecording = false;
   String _status = 'Esperando ubicación...';
+  String _recordingStatus = 'Selecciona "Grabar" para iniciar un trayecto';
   StreamSubscription<Position>? _positionSubscription;
   int _selectedIndex = 0;
 
@@ -135,6 +138,11 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               );
+            if (_isRecording) {
+              _recordedRoute.add(LatLng(position.latitude, position.longitude));
+              _recordingStatus =
+                  'Grabando trayecto: ${_recordedRoute.length} puntos';
+            }
           });
         });
   }
@@ -160,12 +168,31 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           );
+        if (_isRecording) {
+          _recordedRoute.add(LatLng(position.latitude, position.longitude));
+          _recordingStatus =
+              'Grabando trayecto: ${_recordedRoute.length} puntos';
+        }
       });
     } catch (_) {
       setState(() {
         _status = 'No se pudo obtener la ubicación';
       });
     }
+  }
+
+  void _toggleRecording() {
+    setState(() {
+      if (_isRecording) {
+        _isRecording = false;
+        _recordingStatus =
+            'Trayecto detenido con ${_recordedRoute.length} puntos';
+      } else {
+        _recordedRoute.clear();
+        _isRecording = true;
+        _recordingStatus = 'Grabando trayecto...';
+      }
+    });
   }
 
   Future<void> _updateCamera(Position position) async {
@@ -200,6 +227,37 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
+          if (_selectedIndex == 2)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                children: [
+                  Text(
+                    _recordingStatus,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: _toggleRecording,
+                      icon: Icon(
+                        _isRecording ? Icons.stop : Icons.fiber_manual_record,
+                      ),
+                      label: Text(
+                        _isRecording
+                            ? 'Detener grabación'
+                            : 'Iniciar grabación',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isRecording ? Colors.red : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: FlutterMap(
               mapController: _mapController,
@@ -214,6 +272,16 @@ class _HomePageState extends State<HomePage> {
                   tileProvider: widget.tileProvider ?? NetworkTileProvider(),
                 ),
                 MarkerLayer(markers: _markers),
+                if (_recordedRoute.length > 1)
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: _recordedRoute,
+                        color: Colors.blueAccent,
+                        strokeWidth: 5,
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
