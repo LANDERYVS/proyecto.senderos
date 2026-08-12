@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -7,7 +8,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -32,10 +32,6 @@ class HomePage extends StatefulWidget {
 
   @override
   State<HomePage> createState() => _HomePageState();
-}
-
-class TestTileProvider extends TileProvider {
-  TestTileProvider();
 }
 
 class _HomePageState extends State<HomePage> {
@@ -89,15 +85,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _requestPermissionAndStartTracking() async {
-    final status = await Permission.locationWhenInUse.request();
+    final status = await Permission.location.request();
     if (!mounted) return;
 
     if (status.isGranted) {
       await _startLocationUpdates();
-    } else if (status.isPermanentlyDenied) {
-      setState(() {
-        _status = 'Permiso de ubicación denegado permanentemente. Activa el permiso en ajustes.';
-      });
     } else {
       setState(() {
         _status = 'Permiso de ubicación denegado';
@@ -212,8 +204,8 @@ class _HomePageState extends State<HomePage> {
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(
-                center: _initialPosition,
-                zoom: 14,
+                initialCenter: _initialPosition,
+                initialZoom: 14,
               ),
               children: [
                 TileLayer(
