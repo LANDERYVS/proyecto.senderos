@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -88,10 +87,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _requestPermissionAndStartTracking() async {
+    // Solicitar permisos de ubicación
     final status = await Permission.location.request();
     if (!mounted) return;
 
     if (status.isGranted) {
+      // En Android 12+, también solicitar permiso de ubicación en segundo plano
+      await Permission.locationAlways.request();
       await _startLocationUpdates();
     } else {
       setState(() {
@@ -103,12 +105,15 @@ class _HomePageState extends State<HomePage> {
   Future<void> _startLocationUpdates() async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
+      // Intentar activar servicios de ubicación
+      await Geolocator.openLocationSettings();
       setState(() {
         _status = 'Activa la ubicación del dispositivo';
       });
       return;
     }
 
+    // Obtener posición actual
     final position = await Geolocator.getCurrentPosition();
     _updateCamera(position);
 
@@ -218,11 +223,6 @@ class _HomePageState extends State<HomePage> {
                     _status,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _refreshLocation,
-                  icon: const Icon(Icons.my_location),
-                  label: const Text('Actualizar ubicación'),
                 ),
               ],
             ),
