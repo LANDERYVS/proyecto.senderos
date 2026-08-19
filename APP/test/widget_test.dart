@@ -3,13 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto/main.dart';
 
 void main() {
-  testWidgets('muestra el mapa y el botón de ubicación', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(home: HomePage(tileProvider: TestTileProvider())),
-    );
-    await tester.pumpAndSettle();
+  testWidgets('muestra el login al abrir la app', (tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.pump();
 
-    expect(find.text('Mapa en tiempo real'), findsOneWidget);
-    expect(find.text('Actualizar ubicación'), findsOneWidget);
+    expect(find.text('Iniciar sesión'), findsNWidgets(2));
+    expect(
+      find.widgetWithText(ElevatedButton, 'Iniciar sesión'),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(TextField, 'Correo'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Contraseña'), findsOneWidget);
   });
 }

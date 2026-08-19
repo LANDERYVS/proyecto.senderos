@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'login.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       title: 'Mapa en tiempo real',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const HomePage(),
+      home: AuthGate(home: const HomePage()),
     );
   }
 }
@@ -150,40 +151,6 @@ class _HomePageState extends State<HomePage> {
             }
           });
         });
-  }
-
-  Future<void> _refreshLocation() async {
-    try {
-      final position = await Geolocator.getCurrentPosition();
-      _updateCamera(position);
-      setState(() {
-        _status =
-            'Lat: ${position.latitude.toStringAsFixed(5)} | Lon: ${position.longitude.toStringAsFixed(5)}';
-        _markers
-          ..clear()
-          ..add(
-            Marker(
-              width: 60,
-              height: 60,
-              point: LatLng(position.latitude, position.longitude),
-              child: const Icon(
-                Icons.location_pin,
-                color: Colors.red,
-                size: 40,
-              ),
-            ),
-          );
-        if (_isRecording) {
-          _recordedRoute.add(LatLng(position.latitude, position.longitude));
-          _recordingStatus =
-              'Grabando trayecto: ${_recordedRoute.length} puntos';
-        }
-      });
-    } catch (_) {
-      setState(() {
-        _status = 'No se pudo obtener la ubicación';
-      });
-    }
   }
 
   void _toggleRecording() {
