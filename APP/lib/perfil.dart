@@ -1,39 +1,15 @@
 import 'package:flutter/material.dart';
 
+import 'grabar.dart';
+import 'navegacion.dart';
+
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
-
-  static const List<NavigationDestination> _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.explore_outlined),
-      selectedIcon: Icon(Icons.explore),
-      label: 'Explorar',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.map_outlined),
-      selectedIcon: Icon(Icons.map),
-      label: 'Mapas',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.videocam_outlined),
-      selectedIcon: Icon(Icons.videocam),
-      label: 'Grabar',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.groups_outlined),
-      selectedIcon: Icon(Icons.groups),
-      label: 'Comunidad',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.person_outline),
-      selectedIcon: Icon(Icons.person),
-      label: 'Perfil',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(title: const Text('Perfil')),
       body: ListView(
         padding: const EdgeInsets.all(24),
@@ -87,12 +63,18 @@ class ProfilePage extends StatelessWidget {
           ),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: buildNavigationBar(
         selectedIndex: 4,
         onDestinationSelected: (index) {
-          if (index != 4) Navigator.pop(context);
+          if (index == 2) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const GrabarPage()),
+            );
+          } else if (index != 4) {
+            Navigator.pop(context);
+          }
         },
-        destinations: _destinations,
       ),
     );
   }
