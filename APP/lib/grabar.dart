@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,6 +21,7 @@ class _GrabarPageState extends State<GrabarPage> {
   final LatLng _initialPosition = const LatLng(20.6736, -103.344);
   final List<LatLng> _recordedRoute = [];
   final List<Marker> _markers = [];
+  final List<_InterestPoint> _interestPoints = [];
 
   StreamSubscription<Position>? _positionSubscription;
   static const double _userWeightKg = 70;
@@ -48,6 +50,7 @@ class _GrabarPageState extends State<GrabarPage> {
 
     if (status.isGranted) {
       await Permission.locationAlways.request();
+      await Permission.notification.request();
       await _startLocationUpdates();
     } else {
       setState(() => _status = 'Permiso de ubicación denegado');
@@ -66,9 +69,15 @@ class _GrabarPageState extends State<GrabarPage> {
     final position = await Geolocator.getCurrentPosition();
     _updateLocation(position);
     _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
+      locationSettings: AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
+        foregroundNotificationConfig: ForegroundNotificationConfig(
+          notificationTitle: 'Grabando trayecto',
+          notificationText: 'La ubicación continúa activa en segundo plano',
+          enableWakeLock: true,
+          enableWifiLock: true,
+        ),
       ),
     ).listen(_updateLocation);
   }
@@ -134,6 +143,99 @@ class _GrabarPageState extends State<GrabarPage> {
           : 'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
                 '${_estimatedCalories.toStringAsFixed(0)} kcal';
     });
+  }
+
+  Future<void> _addInterestPoint(LatLng point) async {
+    final routePoint = _nearestRoutePoint(point);
+    if (routePoint == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El punto debe estar sobre el camino trazado'),
+          ),
+        );
+      }
+      return;
+    }
+
+    final nameController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Agregar punto de interés'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Nombre del lugar',
+            hintText: 'Ej. Mirador',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, nameController.text),
+            child: const Text('Agregar'),
+          ),
+        ],
+      ),
+    );
+    nameController.dispose();
+
+    final trimmedName = name?.trim();
+    if (!mounted || trimmedName == null || trimmedName.isEmpty) return;
+
+    setState(() {
+      _interestPoints.add(_InterestPoint(point: routePoint, name: trimmedName));
+    });
+  }
+
+  LatLng? _nearestRoutePoint(LatLng point) {
+    if (_recordedRoute.length < 2) return null;
+
+    LatLng? nearestPoint;
+    var nearestDistance = double.infinity;
+    final latitudeScale = 111320.0;
+    final longitudeScale = 111320.0 * math.cos(point.latitude * math.pi / 180);
+
+    for (var index = 0; index < _recordedRoute.length - 1; index++) {
+      final start = _recordedRoute[index];
+      final end = _recordedRoute[index + 1];
+      final startX = start.longitude * longitudeScale;
+      final startY = start.latitude * latitudeScale;
+      final endX = end.longitude * longitudeScale;
+      final endY = end.latitude * latitudeScale;
+      final pointX = point.longitude * longitudeScale;
+      final pointY = point.latitude * latitudeScale;
+      final deltaX = endX - startX;
+      final deltaY = endY - startY;
+      final segmentLengthSquared = deltaX * deltaX + deltaY * deltaY;
+      final projection = segmentLengthSquared == 0
+          ? 0.0
+          : ((pointX - startX) * deltaX + (pointY - startY) * deltaY) /
+                segmentLengthSquared;
+      final clampedProjection = projection.clamp(0.0, 1.0);
+      final candidate = LatLng(
+        start.latitude + (end.latitude - start.latitude) * clampedProjection,
+        start.longitude + (end.longitude - start.longitude) * clampedProjection,
+      );
+      final distance = _distanceCalculator.as(
+        LengthUnit.Meter,
+        point,
+        candidate,
+      );
+
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestPoint = candidate;
+      }
+    }
+
+    return nearestDistance <= 40 ? nearestPoint : null;
   }
 
   void _selectDestination(int index) {
@@ -226,6 +328,7 @@ class _GrabarPageState extends State<GrabarPage> {
               options: MapOptions(
                 initialCenter: _initialPosition,
                 initialZoom: 14,
+                onLongPress: (_, point) => _addInterestPoint(point),
               ),
               children: [
                 TileLayer(
@@ -233,6 +336,42 @@ class _GrabarPageState extends State<GrabarPage> {
                   userAgentPackageName: 'com.example.proyecto',
                 ),
                 MarkerLayer(markers: _markers),
+                MarkerLayer(
+                  markers: [
+                    for (final interestPoint in _interestPoints)
+                      Marker(
+                        width: 120,
+                        height: 70,
+                        point: interestPoint.point,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.place,
+                              color: Colors.deepPurple,
+                              size: 34,
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              color: Colors.white,
+                              child: Text(
+                                interestPoint.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
                 if (_recordedRoute.length > 1)
                   PolylineLayer(
                     polylines: [
@@ -254,6 +393,13 @@ class _GrabarPageState extends State<GrabarPage> {
       ),
     );
   }
+}
+
+class _InterestPoint {
+  const _InterestPoint({required this.point, required this.name});
+
+  final LatLng point;
+  final String name;
 }
 
 class _MetricIndicator extends StatelessWidget {
