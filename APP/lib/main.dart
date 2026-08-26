@@ -39,7 +39,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final MapController _mapController = MapController();
-  final LatLng _initialPosition = const LatLng(20.6736, -103.344);
+  final LatLng _initialPosition = const LatLng(-37.3167, -59.1333);
 
   final List<Marker> _markers = [];
   String _status = 'Esperando ubicación...';
@@ -134,19 +134,6 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _status,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: FlutterMap(
               mapController: _mapController,
