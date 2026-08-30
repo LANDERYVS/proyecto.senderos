@@ -7,9 +7,9 @@ const navigationDestinations = <NavigationDestination>[
     label: 'Explorar',
   ),
   NavigationDestination(
-    icon: Icon(Icons.map_outlined),
-    selectedIcon: Icon(Icons.map),
-    label: 'Mapas',
+    icon: Icon(Icons.route_outlined),
+    selectedIcon: Icon(Icons.route),
+    label: 'Guardados',
   ),
   NavigationDestination(
     icon: Icon(Icons.videocam_outlined),

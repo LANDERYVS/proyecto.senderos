@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'inicio.dart';
+import 'localizacion.dart';
 import 'navegacion.dart';
 import 'perfil.dart';
+import 'utils/route_calculator.dart';
 
 class GrabarPage extends StatefulWidget {
   const GrabarPage({super.key});
@@ -18,10 +20,12 @@ class GrabarPage extends StatefulWidget {
 class _GrabarPageState extends State<GrabarPage> {
   final MapController _mapController = MapController();
   final Distance _distanceCalculator = const Distance();
+  final RouteCalculator _routeCalculator = RouteCalculator();
   final LatLng _initialPosition = const LatLng(20.6736, -103.344);
   final List<LatLng> _recordedRoute = [];
   final List<Marker> _markers = [];
   final List<_InterestPoint> _interestPoints = [];
+  final LocalizacionService _localizacionService = LocalizacionService();
 
   StreamSubscription<Position>? _positionSubscription;
   static const double _userWeightKg = 70;
@@ -41,16 +45,16 @@ class _GrabarPageState extends State<GrabarPage> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _localizacionService.dispose();
     super.dispose();
   }
 
   Future<void> _requestPermissionAndStartTracking() async {
-    final status = await Permission.location.request();
+    final granted = await _localizacionService
+        .requestPermissionAndStartTracking();
     if (!mounted) return;
 
-    if (status.isGranted) {
-      await Permission.locationAlways.request();
-      await Permission.notification.request();
+    if (granted) {
       await _startLocationUpdates();
     } else {
       setState(() => _status = 'Permiso de ubicación denegado');
@@ -58,28 +62,24 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Future<void> _startLocationUpdates() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      await Geolocator.openLocationSettings();
+    final position = await _localizacionService.getCurrentPosition();
+
+    if (position == null) {
       if (mounted) {
         setState(() => _status = 'Activa la ubicación del dispositivo');
       }
       return;
     }
 
-    final position = await Geolocator.getCurrentPosition();
     _updateLocation(position);
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: AndroidSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5,
-        foregroundNotificationConfig: ForegroundNotificationConfig(
-          notificationTitle: 'Grabando trayecto',
-          notificationText: 'La ubicación continúa activa en segundo plano',
-          enableWakeLock: true,
-          enableWifiLock: true,
-        ),
-      ),
-    ).listen(_updateLocation);
+    _startLocationStream(showNotification: false);
+  }
+
+  void _startLocationStream({required bool showNotification}) {
+    _positionSubscription?.cancel();
+    _positionSubscription = _localizacionService
+        .getPositionStream(showNotification: showNotification)
+        .listen(_updateLocation);
   }
 
   void _updateLocation(Position position) {
@@ -123,12 +123,16 @@ class _GrabarPageState extends State<GrabarPage> {
         _isPaused = false;
         _recordingStatus =
             'Trayecto detenido con ${_recordedRoute.length} puntos';
+        // Detener notificación cuando se deja de grabar
+        _startLocationStream(showNotification: false);
       } else {
         _recordedRoute.clear();
         _distanceKm = 0;
         _isRecording = true;
         _isPaused = false;
         _recordingStatus = 'Grabando trayecto...';
+        // Mostrar notificación cuando se inicia grabación
+        _startLocationStream(showNotification: true);
       }
     });
   }
@@ -146,7 +150,10 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Future<void> _addInterestPoint(LatLng point) async {
-    final routePoint = _nearestRoutePoint(point);
+    final routePoint = _routeCalculator.findNearestRoutePoint(
+      point,
+      _recordedRoute,
+    );
     if (routePoint == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -194,59 +201,20 @@ class _GrabarPageState extends State<GrabarPage> {
     });
   }
 
-  LatLng? _nearestRoutePoint(LatLng point) {
-    if (_recordedRoute.length < 2) return null;
-
-    LatLng? nearestPoint;
-    var nearestDistance = double.infinity;
-    final latitudeScale = 111320.0;
-    final longitudeScale = 111320.0 * math.cos(point.latitude * math.pi / 180);
-
-    for (var index = 0; index < _recordedRoute.length - 1; index++) {
-      final start = _recordedRoute[index];
-      final end = _recordedRoute[index + 1];
-      final startX = start.longitude * longitudeScale;
-      final startY = start.latitude * latitudeScale;
-      final endX = end.longitude * longitudeScale;
-      final endY = end.latitude * latitudeScale;
-      final pointX = point.longitude * longitudeScale;
-      final pointY = point.latitude * latitudeScale;
-      final deltaX = endX - startX;
-      final deltaY = endY - startY;
-      final segmentLengthSquared = deltaX * deltaX + deltaY * deltaY;
-      final projection = segmentLengthSquared == 0
-          ? 0.0
-          : ((pointX - startX) * deltaX + (pointY - startY) * deltaY) /
-                segmentLengthSquared;
-      final clampedProjection = projection.clamp(0.0, 1.0);
-      final candidate = LatLng(
-        start.latitude + (end.latitude - start.latitude) * clampedProjection,
-        start.longitude + (end.longitude - start.longitude) * clampedProjection,
-      );
-      final distance = _distanceCalculator.as(
-        LengthUnit.Meter,
-        point,
-        candidate,
-      );
-
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestPoint = candidate;
-      }
-    }
-
-    return nearestDistance <= 40 ? nearestPoint : null;
-  }
-
   void _selectDestination(int index) {
+    if (index == 2) return;
     if (index == 4) {
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const ProfilePage()),
       );
-    } else if (index != 2) {
-      Navigator.pop(context);
+      return;
     }
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
+      (route) => false,
+    );
   }
 
   @override

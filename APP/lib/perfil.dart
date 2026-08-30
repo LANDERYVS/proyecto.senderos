@@ -1,16 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'grabar.dart';
+import 'inicio.dart';
+import 'login.dart';
 import 'navegacion.dart';
+
+class _Achievement {
+  const _Achievement({
+    required this.title,
+    required this.description,
+    required this.requirement,
+    required this.icon,
+  });
+
+  final String title;
+  final String description;
+  final String requirement;
+  final IconData icon;
+}
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
+
+  static const _achievements = [
+    _Achievement(
+      title: 'Primer sendero',
+      description: 'Completa tu primer trayecto',
+      requirement: 'Completa un trayecto para desbloquearlo',
+      icon: Icons.emoji_events,
+    ),
+    _Achievement(
+      title: 'Explorador',
+      description: 'Descubre nuevos lugares',
+      requirement: 'Descubre 5 lugares para desbloquearlo',
+      icon: Icons.explore,
+    ),
+  ];
+
+  Future<void> _logOut(BuildContext context) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool('isLoggedIn', false);
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen(home: HomePage())),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(title: const Text('Perfil')),
+      appBar: AppBar(
+        title: const Text('Perfil'),
+        actions: [
+          PopupMenuButton<String>(
+            tooltip: 'Ajustes',
+            icon: const Icon(Icons.settings_outlined),
+            onSelected: (value) {
+              if (value == 'logout') _logOut(context);
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem<String>(
+                value: 'logout',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.logout),
+                  title: Text('Cerrar sesión'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -41,20 +106,8 @@ class ProfilePage extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.emoji_events, color: Colors.amber),
-              title: Text('Primer sendero'),
-              subtitle: Text('Completaste tu primer trayecto'),
-            ),
-          ),
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.explore, color: Colors.green),
-              title: Text('Explorador'),
-              subtitle: Text('Descubre nuevos lugares'),
-            ),
-          ),
+          for (final achievement in _achievements)
+            _LockedAchievementCard(achievement: achievement),
           const SizedBox(height: 8),
           ListTile(
             leading: const Icon(Icons.arrow_back),
@@ -72,9 +125,45 @@ class ProfilePage extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const GrabarPage()),
             );
           } else if (index != 4) {
-            Navigator.pop(context);
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
+              (route) => false,
+            );
           }
         },
+      ),
+    );
+  }
+}
+
+class _LockedAchievementCard extends StatelessWidget {
+  const _LockedAchievementCard({required this.achievement});
+
+  final _Achievement achievement;
+
+  @override
+  Widget build(BuildContext context) {
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return Card(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: mutedColor.withValues(alpha: 0.12),
+          child: Icon(Icons.lock_outline, color: mutedColor),
+        ),
+        title: Row(
+          children: [
+            Expanded(child: Text(achievement.title)),
+            Icon(achievement.icon, size: 20, color: mutedColor),
+          ],
+        ),
+        subtitle: Text(
+          '${achievement.description}\nBloqueado · ${achievement.requirement}',
+          style: TextStyle(color: mutedColor),
+        ),
+        isThreeLine: true,
       ),
     );
   }

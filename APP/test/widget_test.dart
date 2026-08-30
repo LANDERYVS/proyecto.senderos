@@ -45,6 +45,12 @@ void main() {
 
     expect(find.text('Mi perfil'), findsOneWidget);
     expect(find.text('Correo electrónico'), findsOneWidget);
+    expect(find.textContaining('Bloqueado'), findsOneWidget);
+    expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.text('Explorador'), 200);
+    expect(find.textContaining('Bloqueado'), findsNWidgets(2));
+    expect(find.byIcon(Icons.lock_outline), findsNWidgets(2));
   });
 
   testWidgets('permite iniciar sesión con el nombre de usuario', (
