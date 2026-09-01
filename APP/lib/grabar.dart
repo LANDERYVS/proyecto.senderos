@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -98,14 +97,24 @@ class _GrabarPageState extends State<GrabarPage> {
           ),
         );
       if (_isRecording && !_isPaused) {
+        // Calcular distancia solo si hay puntos previos
         if (_recordedRoute.isNotEmpty) {
-          _distanceKm += _distanceCalculator.as(
+          final lastPoint = _recordedRoute.last;
+          // Solo agregar si la distancia es mayor a 1 metro (para evitar ruido GPS)
+          final distance = _distanceCalculator.as(
             LengthUnit.Kilometer,
-            _recordedRoute.last,
+            lastPoint,
             point,
           );
+          if (distance > 0.001) {
+            // 1 metro en km
+            _distanceKm += distance;
+            _recordedRoute.add(point);
+          }
+        } else {
+          // Primer punto de la grabación
+          _recordedRoute.add(point);
         }
-        _recordedRoute.add(point);
         _recordingStatus =
             'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
             '${_estimatedCalories.toStringAsFixed(0)} kcal';
