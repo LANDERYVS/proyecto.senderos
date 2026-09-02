@@ -16,9 +16,16 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        brightness: Brightness.dark,
-        colorSchemeSeed: const Color(0xff8cf56e),
-        scaffoldBackgroundColor: const Color(0xff09100c),
+        brightness: Brightness.light,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xff4f8f3a),
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: Colors.white,
+        textTheme: ThemeData.light().textTheme.apply(
+          bodyColor: Colors.black,
+          displayColor: Colors.black,
+        ),
       ),
       home: AuthGate(home: const HomePage()),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
 import 'login.dart';
@@ -57,22 +58,15 @@ class ProfilePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Perfil'),
         actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Ajustes',
+          IconButton(
+            tooltip: 'Configuración',
             icon: const Icon(Icons.settings_outlined),
-            onSelected: (value) {
-              if (value == 'logout') _logOut(context);
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
+              );
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem<String>(
-                value: 'logout',
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.logout),
-                  title: Text('Cerrar sesión'),
-                ),
-              ),
-            ],
           ),
         ],
       ),

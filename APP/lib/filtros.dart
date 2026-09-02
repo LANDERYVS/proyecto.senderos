@@ -39,7 +39,7 @@ class _FilterBarState extends State<FilterBar> {
   void _chooseFilter(String filter, List<String> options) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xff151b17),
+      backgroundColor: Colors.white,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -72,54 +72,57 @@ class _FilterBarState extends State<FilterBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xff09100c),
-      child: ListView(
+      color: Colors.white,
+      child: Padding(
         padding: const EdgeInsets.fromLTRB(26, 18, 26, 24),
-        children: [
-          // Campo de búsqueda
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'Encontrar senderos',
-              prefixIcon: const Icon(Icons.search, size: 30),
-              filled: true,
-              fillColor: const Color(0xff151b17),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(32),
-                borderSide: BorderSide.none,
+        child: Column(
+          children: [
+            // Campo de búsqueda
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Encontrar senderos',
+                prefixIcon: const Icon(Icons.search, size: 30),
+                filled: true,
+                fillColor: const Color(0xfff2f2f2),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(32),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 26),
-          // Barra de filtros horizontal
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                // Botón de filtros general (ícono de tunning)
-                _FilterButton(icon: Icons.tune, label: '', onPressed: () {}),
-                const SizedBox(width: 10),
-                // Botón de dificultad
-                _FilterButton(
-                  label: _difficulty,
-                  onPressed: () =>
-                      _chooseFilter(_difficulty, _difficultyOptions),
-                ),
-                const SizedBox(width: 10),
-                // Botón de longitud
-                _FilterButton(
-                  label: _length,
-                  onPressed: () => _chooseFilter(_length, _lengthOptions),
-                ),
-                const SizedBox(width: 10),
-                // Botón de desnivel
-                _FilterButton(
-                  label: _elevation,
-                  onPressed: () => _chooseFilter(_elevation, _elevationOptions),
-                ),
-              ],
+            const SizedBox(height: 26),
+            // Barra de filtros horizontal
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  // Botón de filtros general (ícono de tunning)
+                  _FilterButton(icon: Icons.tune, label: '', onPressed: () {}),
+                  const SizedBox(width: 10),
+                  // Botón de dificultad
+                  _FilterButton(
+                    label: _difficulty,
+                    onPressed: () =>
+                        _chooseFilter(_difficulty, _difficultyOptions),
+                  ),
+                  const SizedBox(width: 10),
+                  // Botón de longitud
+                  _FilterButton(
+                    label: _length,
+                    onPressed: () => _chooseFilter(_length, _lengthOptions),
+                  ),
+                  const SizedBox(width: 10),
+                  // Botón de desnivel
+                  _FilterButton(
+                    label: _elevation,
+                    onPressed: () =>
+                        _chooseFilter(_elevation, _elevationOptions),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

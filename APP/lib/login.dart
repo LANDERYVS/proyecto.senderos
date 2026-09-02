@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'services/auth_service.dart';
+
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.home});
 
@@ -48,27 +50,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   bool isCreatingAccount = false;
-  String registeredEmail = 'admin@gmail.com';
-  String registeredUsername = 'admin';
-  String registeredPassword = '123456';
 
   @override
   void initState() {
     super.initState();
-    _loadRegisteredAccount();
-  }
-
-  Future<void> _loadRegisteredAccount() async {
-    final preferences = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      registeredEmail =
-          preferences.getString('registeredEmail') ?? registeredEmail;
-      registeredUsername =
-          preferences.getString('registeredUsername') ?? registeredUsername;
-      registeredPassword =
-          preferences.getString('registeredPassword') ?? registeredPassword;
-    });
+    AuthService.loadRegisteredAccount();
   }
 
   @override
@@ -84,21 +70,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final loginIdentifier = emailController.text.trim();
     final password = passwordController.text;
 
-    final validIdentifier =
-        loginIdentifier == registeredEmail ||
-        loginIdentifier == registeredUsername;
+    final success = await AuthService.login(loginIdentifier, password);
 
-    if (validIdentifier && password == registeredPassword) {
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setBool('isLoggedIn', true);
+    if (success) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => widget.home),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Correo o contraseña incorrectos')),
-      );
+      _showMessage('Correo o contraseña incorrectos');
     }
   }
 
@@ -108,44 +88,30 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
 
-    if (email.isEmpty || !email.contains('@')) {
-      _showMessage('Escribe un correo válido');
-      return;
-    }
-    if (username.isEmpty) {
-      _showMessage('Escribe un nombre de usuario');
-      return;
-    }
-    if (password.length < 6) {
-      _showMessage('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    if (password != confirmPassword) {
-      _showMessage('Las contraseñas no coinciden');
-      return;
-    }
+    final error = await AuthService.createAccount(
+      email,
+      username,
+      password,
+      confirmPassword,
+    );
 
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setString('registeredEmail', email);
-    await preferences.setString('registeredUsername', username);
-    await preferences.setString('registeredPassword', password);
-    if (!mounted) return;
-    setState(() {
-      registeredEmail = email;
-      registeredUsername = username;
-      registeredPassword = password;
-      isCreatingAccount = false;
-      usernameController.clear();
-      passwordController.clear();
-      confirmPasswordController.clear();
-    });
-    _showMessage('Cuenta creada. Ya puedes iniciar sesión');
+    if (error != null) {
+      _showMessage(error);
+    } else {
+      setState(() {
+        isCreatingAccount = false;
+        usernameController.clear();
+        passwordController.clear();
+        confirmPasswordController.clear();
+      });
+      _showMessage('Cuenta creada. Ya puedes iniciar sesión');
+    }
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override

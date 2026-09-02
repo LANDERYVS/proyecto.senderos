@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:path_provider/path_provider.dart';
 import 'inicio.dart';
 import 'localizacion.dart';
 import 'navegacion.dart';
@@ -125,7 +127,7 @@ class _GrabarPageState extends State<GrabarPage> {
   double get _estimatedCalories =>
       _distanceKm * _userWeightKg * _caloriesPerKgKm;
 
-  void _toggleRecording() {
+  Future<void> _toggleRecording() async {
     setState(() {
       if (_isRecording) {
         _isRecording = false;
@@ -144,6 +146,51 @@ class _GrabarPageState extends State<GrabarPage> {
         _startLocationStream(showNotification: true);
       }
     });
+
+    if (!_isRecording) {
+      await _saveRouteAsGpx();
+    }
+  }
+
+  Future<bool> _saveRouteAsGpx() async {
+    if (_recordedRoute.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay puntos para guardar')),
+        );
+      }
+      return false;
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final file = File('${directory.path}/trayecto_$timestamp.gpx');
+    final points = _recordedRoute
+        .map(
+          (point) =>
+              '      <trkpt lat="${point.latitude}" lon="${point.longitude}"/>',
+        )
+        .join('\n');
+    final gpx =
+        '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Proyecto Senderos"
+     xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Trayecto $timestamp</name>
+    <trkseg>
+$points
+    </trkseg>
+  </trk>
+</gpx>
+''';
+
+    await file.writeAsString(gpx);
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('GPX guardado en ${file.path}')));
+    }
+    return true;
   }
 
   void _togglePause() {

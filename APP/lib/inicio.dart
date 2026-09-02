@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage> {
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(navigationDestinations[_selectedIndex].label),
-        backgroundColor: const Color(0xff09100c),
+        backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       ),
       body: _buildBody(),
       bottomNavigationBar: buildNavigationBar(
