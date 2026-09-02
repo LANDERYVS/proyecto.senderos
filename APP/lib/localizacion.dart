@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Color;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -7,14 +8,23 @@ class LocalizacionService {
 
   /// Solicita permisos de ubicación y comienza a rastrear
   Future<bool> requestPermissionAndStartTracking() async {
-    final status = await Permission.location.request();
+    final locationStatus = await Permission.location.request();
 
-    if (status.isGranted) {
-      await Permission.locationAlways.request();
-      await Permission.notification.request();
-      return true;
+    if (!locationStatus.isGranted) {
+      return false;
     }
-    return false;
+
+    var alwaysStatus = await Permission.locationAlways.status;
+    if (!alwaysStatus.isGranted) {
+      alwaysStatus = await Permission.locationAlways.request();
+    }
+
+    if (!alwaysStatus.isGranted) {
+      return false;
+    }
+
+    await Permission.notification.request();
+    return true;
   }
 
   /// Inicia las actualizaciones de ubicación
@@ -44,8 +54,15 @@ class LocalizacionService {
                 notificationTitle: 'Grabando trayecto',
                 notificationText:
                     'La ubicación continúa activa en segundo plano',
+                notificationChannelName: 'Grabación de trayectos',
+                notificationIcon: const AndroidResource(
+                  name: 'ic_notification',
+                  defType: 'drawable',
+                ),
+                color: const Color(0xff4f8f3a),
                 enableWakeLock: true,
                 enableWifiLock: true,
+                setOngoing: true,
               )
             : null,
       ),
