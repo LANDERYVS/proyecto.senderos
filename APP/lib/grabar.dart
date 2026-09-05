@@ -1,15 +1,15 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:path_provider/path_provider.dart';
 import 'inicio.dart';
 import 'localizacion.dart';
 import 'navegacion.dart';
 import 'perfil.dart';
+import 'services/route_storage_service.dart';
 import 'utils/route_calculator.dart';
+import 'widgets/save_route_dialog.dart';
 
 class GrabarPage extends StatefulWidget {
   const GrabarPage({super.key});
@@ -22,6 +22,7 @@ class _GrabarPageState extends State<GrabarPage> {
   final MapController _mapController = MapController();
   final Distance _distanceCalculator = const Distance();
   final RouteCalculator _routeCalculator = RouteCalculator();
+  final RouteStorageService _routeStorageService = RouteStorageService();
   final LatLng _initialPosition = const LatLng(20.6736, -103.344);
   final List<LatLng> _recordedRoute = [];
   final List<Marker> _markers = [];
@@ -29,6 +30,7 @@ class _GrabarPageState extends State<GrabarPage> {
   final LocalizacionService _localizacionService = LocalizacionService();
 
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _locationRefreshTimer;
   static const double _userWeightKg = 70;
   static const double _caloriesPerKgKm = 0.75;
   bool _isRecording = false;
@@ -46,6 +48,7 @@ class _GrabarPageState extends State<GrabarPage> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _locationRefreshTimer?.cancel();
     _localizacionService.dispose();
     super.dispose();
   }
@@ -63,7 +66,12 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Future<void> _startLocationUpdates() async {
-    final position = await _localizacionService.getCurrentPosition();
+    Position? position;
+    try {
+      position = await _localizacionService.getCurrentPosition();
+    } catch (error) {
+      _handleLocationError(error);
+    }
 
     if (position == null) {
       if (mounted) {
@@ -80,13 +88,33 @@ class _GrabarPageState extends State<GrabarPage> {
     _positionSubscription?.cancel();
     _positionSubscription = _localizacionService
         .getPositionStream(showNotification: showNotification)
-        .listen(_updateLocation);
+        .listen(_updateLocation, onError: _handleLocationError);
+
+    _locationRefreshTimer?.cancel();
+    _locationRefreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _refreshCurrentLocation();
+    });
+  }
+
+  Future<void> _refreshCurrentLocation() async {
+    if (!mounted || (!_isRecording && _positionSubscription == null)) return;
+
+    try {
+      final position = await _localizacionService.getCurrentPosition();
+      if (position != null) _updateLocation(position);
+    } catch (error) {
+      _handleLocationError(error);
+    }
+  }
+
+  void _handleLocationError(Object error) {
+    if (!mounted) return;
+    setState(() => _status = 'Error de ubicación: $error');
   }
 
   void _updateLocation(Position position) {
     if (!mounted) return;
     final point = LatLng(position.latitude, position.longitude);
-    _mapController.move(point, 16);
     setState(() {
       _markers
         ..clear()
@@ -108,20 +136,28 @@ class _GrabarPageState extends State<GrabarPage> {
             lastPoint,
             point,
           );
-          if (distance > 0.001) {
+          if (distance >= 0.001) {
             // 1 metro en km
             _distanceKm += distance;
             _recordedRoute.add(point);
           }
+          // Actualiza el estado en cada emisión del stream mientras caminás
+          _recordingStatus =
+              'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
+              '${_estimatedCalories.toStringAsFixed(0)} kcal';
         } else {
-          // Primer punto de la grabación
+          // Primer punto de la grabación: confirma que ya arrancó
           _recordedRoute.add(point);
+          _recordingStatus = 'Grabando trayecto...';
         }
-        _recordingStatus =
-            'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
-            '${_estimatedCalories.toStringAsFixed(0)} kcal';
       }
     });
+
+    try {
+      _mapController.move(point, 16);
+    } on StateError {
+      // The map controller may still be mounting on the first update.
+    }
   }
 
   double get _estimatedCalories =>
@@ -134,63 +170,59 @@ class _GrabarPageState extends State<GrabarPage> {
         _isPaused = false;
         _recordingStatus =
             'Trayecto detenido con ${_recordedRoute.length} puntos';
-        // Detener notificación cuando se deja de grabar
-        _startLocationStream(showNotification: false);
+        _positionSubscription?.cancel();
+        _positionSubscription = null;
       } else {
         _recordedRoute.clear();
         _distanceKm = 0;
         _isRecording = true;
         _isPaused = false;
-        _recordingStatus = 'Grabando trayecto...';
-        // Mostrar notificación cuando se inicia grabación
-        _startLocationStream(showNotification: true);
+        // Todavía no llegó ninguna posición del stream: se confirma
+        // "Grabando trayecto..." recién en _updateLocation cuando
+        // se reciba el primer punto real.
+        _recordingStatus = 'Obteniendo ubicación...';
       }
     });
 
     if (!_isRecording) {
-      await _saveRouteAsGpx();
+      _positionSubscription?.cancel();
+      _positionSubscription = null;
+      _locationRefreshTimer?.cancel();
+      _locationRefreshTimer = null;
+      await _finishAndSaveRoute();
+      return;
     }
+
+    _startLocationStream(showNotification: true);
+    await _refreshCurrentLocation();
   }
 
-  Future<bool> _saveRouteAsGpx() async {
+  Future<void> _finishAndSaveRoute() async {
     if (_recordedRoute.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No hay puntos para guardar')),
         );
       }
-      return false;
+      return;
     }
 
-    final directory = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final file = File('${directory.path}/trayecto_$timestamp.gpx');
-    final points = _recordedRoute
-        .map(
-          (point) =>
-              '      <trkpt lat="${point.latitude}" lon="${point.longitude}"/>',
-        )
-        .join('\n');
-    final gpx =
-        '''<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Proyecto Senderos"
-     xmlns="http://www.topografix.com/GPX/1/1">
-  <trk>
-    <name>Trayecto $timestamp</name>
-    <trkseg>
-$points
-    </trkseg>
-  </trk>
-</gpx>
-''';
+    final details = await showSaveRouteDialog(context);
+    if (!mounted || details == null) return;
 
-    await file.writeAsString(gpx);
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('GPX guardado en ${file.path}')));
+    final saved = await _routeStorageService.saveRoute(
+      points: _recordedRoute,
+      routeName: details.name,
+      description: details.description,
+      difficulty: details.difficulty,
+      photos: details.photos,
+      distanceKm: _distanceKm,
+    );
+    if (saved && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Trayecto "${details.name}" guardado')),
+      );
     }
-    return true;
   }
 
   void _togglePause() {
@@ -401,9 +433,25 @@ $points
                     polylines: [
                       Polyline(
                         points: _recordedRoute,
-                        color: Colors.blueAccent,
-                        strokeWidth: 5,
+                        color: const Color(0xffec1768),
+                        strokeWidth: 7,
                       ),
+                    ],
+                  ),
+                if (_recordedRoute.isNotEmpty)
+                  MarkerLayer(
+                    markers: [
+                      if (_recordedRoute.length > 1)
+                        Marker(
+                          width: 42,
+                          height: 48,
+                          point: _recordedRoute.last,
+                          child: const Icon(
+                            Icons.flag,
+                            color: Colors.red,
+                            size: 34,
+                          ),
+                        ),
                     ],
                   ),
               ],

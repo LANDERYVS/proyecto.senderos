@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
-import 'login.dart';
 import 'navegacion.dart';
 
 class _Achievement {
@@ -38,18 +36,6 @@ class ProfilePage extends StatelessWidget {
       icon: Icons.explore,
     ),
   ];
-
-  Future<void> _logOut(BuildContext context) async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setBool('isLoggedIn', false);
-    if (!context.mounted) return;
-
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen(home: HomePage())),
-      (route) => false,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {

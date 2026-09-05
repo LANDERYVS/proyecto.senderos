@@ -8,21 +8,17 @@ class LocalizacionService {
 
   /// Solicita permisos de ubicación y comienza a rastrear
   Future<bool> requestPermissionAndStartTracking() async {
-    final locationStatus = await Permission.location.request();
+    var locationPermission = await Geolocator.checkPermission();
+    if (locationPermission == LocationPermission.denied) {
+      locationPermission = await Geolocator.requestPermission();
+    }
 
-    if (!locationStatus.isGranted) {
+    if (locationPermission == LocationPermission.denied ||
+        locationPermission == LocationPermission.deniedForever) {
       return false;
     }
 
-    var alwaysStatus = await Permission.locationAlways.status;
-    if (!alwaysStatus.isGranted) {
-      alwaysStatus = await Permission.locationAlways.request();
-    }
-
-    if (!alwaysStatus.isGranted) {
-      return false;
-    }
-
+    // El permiso normal basta para seguir la ruta mientras la app está abierta.
     await Permission.notification.request();
     return true;
   }
@@ -34,11 +30,12 @@ class LocalizacionService {
       return null;
     }
 
-    try {
-      return await Geolocator.getCurrentPosition();
-    } catch (e) {
-      return null;
-    }
+    return Geolocator.getCurrentPosition(
+      locationSettings: AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 1,
+      ),
+    );
   }
 
   /// Inicia el stream de posiciones con o sin notificación
@@ -49,6 +46,7 @@ class LocalizacionService {
       locationSettings: AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 1, // Actualiza cada metro para más precisión
+        intervalDuration: const Duration(seconds: 1),
         foregroundNotificationConfig: showNotification
             ? ForegroundNotificationConfig(
                 notificationTitle: 'Grabando trayecto',

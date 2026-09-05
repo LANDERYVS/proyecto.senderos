@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'guardados.dart';
 import 'explorar.dart';
 import 'grabar.dart';
 import 'navegacion.dart';
@@ -25,6 +26,10 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildBody() {
     switch (_selectedIndex) {
+      case 0:
+        return const ExploreContent();
+      case 1:
+        return const SavedContent();
       case 3:
         return const Center(child: Text('Comunidad'));
       default:

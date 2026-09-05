@@ -53,20 +53,14 @@ class ConfiguracionScreen extends StatelessWidget {
         ConfigCard(
           icon: Icons.brightness_medium,
           title: 'Tema',
-          subtitle: 'Oscuro',
-          onTap: () => _showMessage(context, 'Tema: Oscuro (fijo)'),
+          subtitle: 'Claro (fijo)',
+          onTap: () => _showMessage(context, 'Tema: Claro (fijo)'),
         ),
         ConfigCard(
           icon: Icons.notifications_outlined,
           title: 'Notificaciones',
           subtitle: 'Activadas',
           onTap: () => _showMessage(context, 'Notificaciones activadas'),
-        ),
-        ConfigCard(
-          icon: Icons.language_outlined,
-          title: 'Idioma',
-          subtitle: 'Español',
-          onTap: () => _showMessage(context, 'Idioma: Español'),
         ),
         ConfigCard(
           icon: Icons.location_on_outlined,

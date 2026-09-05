@@ -44,9 +44,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_map: ^6.0.0
   geolocator: 13.0.2
+  image_picker: ^1.2.3
   latlong2: ^0.9.0
   permission_handler: ^12.0.3
   path_provider: ^2.1.5
+  share_plus: ^13.3.0
   shared_preferences: ^2.5.3
 
 dev_dependencies:
@@ -69,6 +71,7 @@ flutter:
 
   assets:
     - assets/Logo.png
+    - assets/arbol.jpg
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

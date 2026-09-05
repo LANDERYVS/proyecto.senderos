@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 
 class FilterBar extends StatefulWidget {
-  const FilterBar({super.key});
+  const FilterBar({
+    super.key,
+    this.onSearch,
+    this.onDifficultyChanged,
+    this.onLengthChanged,
+    this.onElevationChanged,
+  });
+
+  final ValueChanged<String>? onSearch;
+  final ValueChanged<String>? onDifficultyChanged;
+  final ValueChanged<String>? onLengthChanged;
+  final ValueChanged<String>? onElevationChanged;
 
   @override
   State<FilterBar> createState() => _FilterBarState();
@@ -58,6 +69,13 @@ class _FilterBarState extends State<FilterBar> {
                     if (options == _lengthOptions) _length = option;
                     if (options == _elevationOptions) _elevation = option;
                   });
+                  if (options == _difficultyOptions) {
+                    widget.onDifficultyChanged?.call(option);
+                  } else if (options == _lengthOptions) {
+                    widget.onLengthChanged?.call(option);
+                  } else if (options == _elevationOptions) {
+                    widget.onElevationChanged?.call(option);
+                  }
                   // Cierra el BottomSheet
                   Navigator.pop(context);
                 },
@@ -79,6 +97,7 @@ class _FilterBarState extends State<FilterBar> {
           children: [
             // Campo de búsqueda
             TextField(
+              onChanged: widget.onSearch,
               decoration: InputDecoration(
                 hintText: 'Encontrar senderos',
                 prefixIcon: const Icon(Icons.search, size: 30),
