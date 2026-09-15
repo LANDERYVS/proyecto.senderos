@@ -4,8 +4,22 @@ import 'package:latlong2/latlong.dart';
 class RouteCalculator {
   static const double _maxDistanceMeters = 40.0;
   static const double _latitudeScale = 111320.0;
+  static const double _minimumMeaningfulDistanceMeters = 3.0;
 
   final Distance _distanceCalculator = const Distance();
+
+  /// Devuelve la distancia real entre dos puntos, ignorando ruido GPS muy pequeño.
+  double calculateIncrementMeters(LatLng previousPoint, LatLng currentPoint) {
+    final distanceMeters = _distanceCalculator.as(
+      LengthUnit.Meter,
+      previousPoint,
+      currentPoint,
+    );
+
+    return distanceMeters < _minimumMeaningfulDistanceMeters
+        ? 0.0
+        : distanceMeters;
+  }
 
   /// Encuentra el punto más cercano en la ruta a un punto dado
   /// Retorna null si no hay punto dentro de la distancia máxima (40 metros)

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'services/auth_service.dart';
 
@@ -22,10 +22,9 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _loadSession() async {
-    final preferences = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _isLoggedIn = preferences.getBool('isLoggedIn') ?? false;
+      _isLoggedIn = Supabase.instance.client.auth.currentSession != null;
     });
   }
 
@@ -54,7 +53,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    AuthService.loadRegisteredAccount();
   }
 
   @override
@@ -71,6 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text;
 
     final success = await AuthService.login(loginIdentifier, password);
+
+    if (!mounted) return;
 
     if (success) {
       Navigator.pushReplacement(
@@ -95,6 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
       confirmPassword,
     );
 
+    if (!mounted) return;
+
     if (error != null) {
       _showMessage(error);
     } else {
@@ -109,9 +111,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'configuracion.dart';
 import 'grabar.dart';
@@ -19,8 +20,17 @@ class _Achievement {
   final IconData icon;
 }
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  Map<String, dynamic>? _profile;
+  bool _isLoading = true;
+  String? _error;
 
   static const _achievements = [
     _Achievement(
@@ -36,6 +46,62 @@ class ProfilePage extends StatelessWidget {
       icon: Icons.explore,
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user == null) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = 'No hay una sesión iniciada';
+      });
+      return;
+    }
+
+    try {
+      final profile = await Supabase.instance.client
+          .from('usuarios')
+          .select('name, email, user_photo, premium')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _isLoading = false;
+      });
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = error.message;
+      });
+    }
+  }
+
+  String get _name {
+    final name = _profile?['name'] as String?;
+    return name?.trim().isNotEmpty == true ? name! : 'Usuario';
+  }
+
+  String get _email {
+    final profileEmail = _profile?['email'] as String?;
+    return profileEmail?.trim().isNotEmpty == true
+        ? profileEmail!
+        : Supabase.instance.client.auth.currentUser?.email ?? '';
+  }
+
+  String? get _photoUrl {
+    final photo = _profile?['user_photo'] as String?;
+    return photo?.trim().isNotEmpty == true ? photo : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,25 +125,50 @@ class ProfilePage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
-          const CircleAvatar(radius: 48, child: Icon(Icons.person, size: 56)),
-          const SizedBox(height: 16),
-          Text(
-            'Mi perfil',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '@senderista',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 24),
-          const ListTile(
-            leading: Icon(Icons.email_outlined),
-            title: Text('Correo electrónico'),
-            subtitle: Text('admin@gmail.com'),
-          ),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else ...[
+            Center(
+              child: CircleAvatar(
+                radius: 48,
+                backgroundImage: _photoUrl == null
+                    ? null
+                    : NetworkImage(_photoUrl!),
+                child: _photoUrl == null
+                    ? const Icon(Icons.person, size: 56)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _name,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '@$_name',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: const Icon(Icons.email_outlined),
+              title: const Text('Correo electrónico'),
+              subtitle: Text(_email),
+            ),
+            if (_profile?['premium'] == true)
+              const ListTile(
+                leading: Icon(Icons.workspace_premium_outlined),
+                title: Text('Cuenta premium'),
+              ),
+            if (_error != null)
+              ListTile(
+                leading: const Icon(Icons.error_outline),
+                title: const Text('No se pudo cargar el perfil'),
+                subtitle: Text(_error!),
+              ),
+          ],
           const Divider(),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -105,10 +196,9 @@ class ProfilePage extends StatelessWidget {
               MaterialPageRoute(builder: (_) => const GrabarPage()),
             );
           } else if (index != 4) {
-            Navigator.pushAndRemoveUntil(
+            Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
-              (route) => false,
             );
           }
         },

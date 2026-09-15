@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'comunidad.dart';
 import 'guardados.dart';
 import 'explorar.dart';
 import 'grabar.dart';
@@ -31,7 +32,7 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return const SavedContent();
       case 3:
-        return const Center(child: Text('Comunidad'));
+        return const ComunidadContent();
       default:
         return const ExploreContent();
     }

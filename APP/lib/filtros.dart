@@ -22,7 +22,7 @@ class _FilterBarState extends State<FilterBar> {
   // Variables que guardan el estado actual de cada filtro
   String _difficulty = 'Dificultad';
   String _length = 'Longitud';
-  String _elevation = 'Desnivel positivo';
+  String _duration = 'Duración';
 
   // Listas de opciones para cada filtro
   static const _difficultyOptions = [
@@ -31,17 +31,18 @@ class _FilterBarState extends State<FilterBar> {
     'Moderada',
     'Difícil',
   ];
+
+  static const _durationOptions = [
+    'Duración',
+    'Menos de 1 hora',
+    '1 a 3 horas',
+    'Más de 3 horas',
+  ];
   static const _lengthOptions = [
     'Longitud',
     'Menos de 3 km',
     '3 a 8 km',
     'Más de 8 km',
-  ];
-  static const _elevationOptions = [
-    'Desnivel positivo',
-    'Bajo',
-    'Medio',
-    'Alto',
   ];
 
   /// Muestra un BottomSheet con las opciones del filtro seleccionado
@@ -67,13 +68,13 @@ class _FilterBarState extends State<FilterBar> {
                     // Actualiza el valor del filtro correspondiente
                     if (options == _difficultyOptions) _difficulty = option;
                     if (options == _lengthOptions) _length = option;
-                    if (options == _elevationOptions) _elevation = option;
+                    if (options == _durationOptions) _duration = option;
                   });
                   if (options == _difficultyOptions) {
                     widget.onDifficultyChanged?.call(option);
                   } else if (options == _lengthOptions) {
                     widget.onLengthChanged?.call(option);
-                  } else if (options == _elevationOptions) {
+                  } else if (options == _durationOptions) {
                     widget.onElevationChanged?.call(option);
                   }
                   // Cierra el BottomSheet
@@ -115,9 +116,6 @@ class _FilterBarState extends State<FilterBar> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // Botón de filtros general (ícono de tunning)
-                  _FilterButton(icon: Icons.tune, label: '', onPressed: () {}),
-                  const SizedBox(width: 10),
                   // Botón de dificultad
                   _FilterButton(
                     label: _difficulty,
@@ -131,11 +129,10 @@ class _FilterBarState extends State<FilterBar> {
                     onPressed: () => _chooseFilter(_length, _lengthOptions),
                   ),
                   const SizedBox(width: 10),
-                  // Botón de desnivel
+                  // Botón de duración
                   _FilterButton(
-                    label: _elevation,
-                    onPressed: () =>
-                        _chooseFilter(_elevation, _elevationOptions),
+                    label: _duration,
+                    onPressed: () => _chooseFilter(_duration, _durationOptions),
                   ),
                 ],
               ),

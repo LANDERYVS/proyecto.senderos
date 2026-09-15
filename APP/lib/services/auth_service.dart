@@ -1,44 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../grabar.dart';
 import '../inicio.dart';
 import '../login.dart';
 
 /// Servicio centralizado para TODAS las operaciones de autenticación
 class AuthService {
-  // Credenciales registradas
-  static String _registeredEmail = 'admin@gmail.com';
-  static String _registeredUsername = 'admin';
-  static String _registeredPassword = '123456';
-
-  // Getters
-  static String get registeredEmail => _registeredEmail;
-  static String get registeredUsername => _registeredUsername;
-  static String get registeredPassword => _registeredPassword;
-
-  /// Carga las credenciales guardadas en SharedPreferences
-  static Future<void> loadRegisteredAccount() async {
-    final preferences = await SharedPreferences.getInstance();
-    _registeredEmail =
-        preferences.getString('registeredEmail') ?? _registeredEmail;
-    _registeredUsername =
-        preferences.getString('registeredUsername') ?? _registeredUsername;
-    _registeredPassword =
-        preferences.getString('registeredPassword') ?? _registeredPassword;
-  }
+  static final _supabase = Supabase.instance.client;
 
   /// Valida las credenciales y realiza login
   static Future<bool> login(String identifier, String password) async {
-    final validIdentifier =
-        identifier == _registeredEmail || identifier == _registeredUsername;
+    try {
+      var email = identifier.trim();
 
-    if (validIdentifier && password == _registeredPassword) {
-      final preferences = await SharedPreferences.getInstance();
-      await preferences.setBool('isLoggedIn', true);
-      return true;
+      if (!email.contains('@')) {
+        final profile = await _supabase
+            .from('usuarios')
+            .select('email')
+            .eq('name', email)
+            .maybeSingle();
+        email = profile?['email'] as String? ?? email;
+      }
+
+      await _supabase.auth.signInWithPassword(email: email, password: password);
+      return _supabase.auth.currentSession != null;
+    } on AuthException {
+      return false;
+    } on PostgrestException {
+      return false;
     }
-    return false;
   }
 
   /// Crea una nueva cuenta
@@ -48,7 +38,6 @@ class AuthService {
     String password,
     String confirmPassword,
   ) async {
-    // Validaciones
     if (email.isEmpty || !email.contains('@')) {
       return 'Escribe un correo válido';
     }
@@ -62,24 +51,33 @@ class AuthService {
       return 'Las contraseñas no coinciden';
     }
 
-    // Guardar en SharedPreferences
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setString('registeredEmail', email);
-    await preferences.setString('registeredUsername', username);
-    await preferences.setString('registeredPassword', password);
+    try {
+      final response = await _supabase.auth.signUp(
+        email: email.trim(),
+        password: password,
+      );
+      final user = response.user;
+      if (user == null) return 'No se pudo crear la cuenta';
 
-    // Actualizar variables locales
-    _registeredEmail = email;
-    _registeredUsername = username;
-    _registeredPassword = password;
+      await _supabase.from('usuarios').insert({
+        'id': user.id,
+        'name': username,
+        'email': email.trim(),
+        'admin': false,
+        'premium': false,
+      });
 
-    return null; // Sin error
+      return null;
+    } on AuthException catch (error) {
+      return error.message;
+    } on PostgrestException catch (error) {
+      return 'No se pudo guardar el perfil: ${error.message}';
+    }
   }
 
   /// Realiza logout del usuario y navega a login
   static Future<void> logOut(BuildContext context) async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setBool('isLoggedIn', false);
+    await _supabase.auth.signOut();
 
     if (!context.mounted) return;
 

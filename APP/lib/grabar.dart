@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+
 import 'inicio.dart';
 import 'localizacion.dart';
 import 'navegacion.dart';
 import 'perfil.dart';
+import 'services/offline_tile_service.dart';
 import 'services/route_storage_service.dart';
 import 'utils/route_calculator.dart';
 import 'widgets/save_route_dialog.dart';
@@ -20,10 +22,10 @@ class GrabarPage extends StatefulWidget {
 
 class _GrabarPageState extends State<GrabarPage> {
   final MapController _mapController = MapController();
-  final Distance _distanceCalculator = const Distance();
   final RouteCalculator _routeCalculator = RouteCalculator();
   final RouteStorageService _routeStorageService = RouteStorageService();
-  final LatLng _initialPosition = const LatLng(20.6736, -103.344);
+  final OfflineTileService _offlineTileService = OfflineTileService();
+  final LatLng _initialPosition = const LatLng(-37.3217, -59.1332);
   final List<LatLng> _recordedRoute = [];
   final List<Marker> _markers = [];
   final List<_InterestPoint> _interestPoints = [];
@@ -31,24 +33,38 @@ class _GrabarPageState extends State<GrabarPage> {
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _locationRefreshTimer;
+  Timer? _recordingTimer;
+  Duration _recordingDuration = Duration.zero;
+
   static const double _userWeightKg = 70;
   static const double _caloriesPerKgKm = 0.75;
+
   bool _isRecording = false;
   bool _isPaused = false;
   double _distanceKm = 0;
-  String _status = 'Esperando ubicación...';
+  String _status = '';
   String _recordingStatus = 'Inicia la grabación para comenzar tu trayecto';
+  TileLayer? _offlineTileLayer;
 
   @override
   void initState() {
     super.initState();
+    _loadOfflineMap();
     _requestPermissionAndStartTracking();
+  }
+
+  Future<void> _loadOfflineMap() async {
+    if (!await _offlineTileService.hasDownloadedTiles()) return;
+    final offlineTileLayer = await _offlineTileService.offlineTileLayer();
+    if (!mounted) return;
+    setState(() => _offlineTileLayer = offlineTileLayer);
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
     _locationRefreshTimer?.cancel();
+    _recordingTimer?.cancel();
     _localizacionService.dispose();
     super.dispose();
   }
@@ -75,7 +91,7 @@ class _GrabarPageState extends State<GrabarPage> {
 
     if (position == null) {
       if (mounted) {
-        setState(() => _status = 'Activa la ubicación del dispositivo');
+        setState(() => _status = '');
       }
       return;
     }
@@ -114,6 +130,7 @@ class _GrabarPageState extends State<GrabarPage> {
 
   void _updateLocation(Position position) {
     if (!mounted) return;
+
     final point = LatLng(position.latitude, position.longitude);
     setState(() {
       _markers
@@ -126,27 +143,22 @@ class _GrabarPageState extends State<GrabarPage> {
             child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
           ),
         );
+
       if (_isRecording && !_isPaused) {
-        // Calcular distancia solo si hay puntos previos
         if (_recordedRoute.isNotEmpty) {
           final lastPoint = _recordedRoute.last;
-          // Solo agregar si la distancia es mayor a 1 metro (para evitar ruido GPS)
-          final distance = _distanceCalculator.as(
-            LengthUnit.Kilometer,
+          final distanceMeters = _routeCalculator.calculateIncrementMeters(
             lastPoint,
             point,
           );
-          if (distance >= 0.001) {
-            // 1 metro en km
-            _distanceKm += distance;
+          if (distanceMeters > 0) {
+            _distanceKm += distanceMeters / 1000;
             _recordedRoute.add(point);
+            _recordingStatus =
+                'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
+                '${_estimatedCalories.toStringAsFixed(0)} kcal';
           }
-          // Actualiza el estado en cada emisión del stream mientras caminás
-          _recordingStatus =
-              'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
-              '${_estimatedCalories.toStringAsFixed(0)} kcal';
         } else {
-          // Primer punto de la grabación: confirma que ya arrancó
           _recordedRoute.add(point);
           _recordingStatus = 'Grabando trayecto...';
         }
@@ -172,14 +184,13 @@ class _GrabarPageState extends State<GrabarPage> {
             'Trayecto detenido con ${_recordedRoute.length} puntos';
         _positionSubscription?.cancel();
         _positionSubscription = null;
+        _recordingTimer?.cancel();
       } else {
         _recordedRoute.clear();
         _distanceKm = 0;
+        _recordingDuration = Duration.zero;
         _isRecording = true;
         _isPaused = false;
-        // Todavía no llegó ninguna posición del stream: se confirma
-        // "Grabando trayecto..." recién en _updateLocation cuando
-        // se reciba el primer punto real.
         _recordingStatus = 'Obteniendo ubicación...';
       }
     });
@@ -194,7 +205,24 @@ class _GrabarPageState extends State<GrabarPage> {
     }
 
     _startLocationStream(showNotification: true);
+    _startRecordingTimer();
     await _refreshCurrentLocation();
+  }
+
+  void _startRecordingTimer() {
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || !_isRecording || _isPaused) return;
+      setState(() => _recordingDuration += const Duration(seconds: 1));
+    });
+  }
+
+  String get _formattedDuration {
+    String twoDigits(int value) => value.toString().padLeft(2, '0');
+    final hours = twoDigits(_recordingDuration.inHours);
+    final minutes = twoDigits(_recordingDuration.inMinutes.remainder(60));
+    final seconds = twoDigits(_recordingDuration.inSeconds.remainder(60));
+    return '$hours:$minutes:$seconds';
   }
 
   Future<void> _finishAndSaveRoute() async {
@@ -210,18 +238,31 @@ class _GrabarPageState extends State<GrabarPage> {
     final details = await showSaveRouteDialog(context);
     if (!mounted || details == null) return;
 
-    final saved = await _routeStorageService.saveRoute(
-      points: _recordedRoute,
-      routeName: details.name,
-      description: details.description,
-      difficulty: details.difficulty,
-      photos: details.photos,
-      distanceKm: _distanceKm,
-    );
-    if (saved && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Trayecto "${details.name}" guardado')),
+    try {
+      final saved = await _routeStorageService.saveRoute(
+        points: _recordedRoute,
+        routeName: details.name,
+        description: details.description,
+        difficulty: details.difficulty,
+        photos: details.photos,
+        distanceKm: _distanceKm,
       );
+      if (saved && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Trayecto "${details.name}" guardado')),
+        );
+      }
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El GPX se guardó localmente, pero no se pudo subir a R2',
+            ),
+          ),
+        );
+        debugPrint('Error al subir GPX a R2: $error');
+      }
     }
   }
 
@@ -235,6 +276,12 @@ class _GrabarPageState extends State<GrabarPage> {
           : 'Grabando: ${_distanceKm.toStringAsFixed(2)} km | '
                 '${_estimatedCalories.toStringAsFixed(0)} kcal';
     });
+
+    if (_isPaused) {
+      _recordingTimer?.cancel();
+    } else {
+      _startRecordingTimer();
+    }
   }
 
   Future<void> _addInterestPoint(LatLng point) async {
@@ -289,8 +336,39 @@ class _GrabarPageState extends State<GrabarPage> {
     });
   }
 
-  void _selectDestination(int index) {
+  Future<bool> _confirmExitIfRecording() async {
+    if (!_isRecording) return true;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('¿Seguro que quieres salir?'),
+        content: const Text(
+          'Hay un trayecto en grabación. Si sales, se perderá la ruta actual.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed ?? false;
+  }
+
+  Future<void> _selectDestination(int index) async {
     if (index == 2) return;
+
+    final shouldLeave = await _confirmExitIfRecording();
+    if (!shouldLeave || !mounted) return;
+
     if (index == 4) {
       Navigator.pushReplacement(
         context,
@@ -298,170 +376,232 @@ class _GrabarPageState extends State<GrabarPage> {
       );
       return;
     }
-    Navigator.pushAndRemoveUntil(
+
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
-      (route) => false,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(title: const Text('Grabar trayecto')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Text(_status, style: Theme.of(context).textTheme.bodyMedium),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Column(
-              children: [
-                Text(_recordingStatus),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _MetricIndicator(
-                      icon: Icons.directions_walk,
-                      label: 'Distancia',
-                      value: '${_distanceKm.toStringAsFixed(2)} km',
-                      color: Colors.blue,
+    return PopScope(
+      canPop: !_isRecording,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || !_isRecording) return;
+
+        final navigator = Navigator.of(context);
+        final shouldLeave = await _confirmExitIfRecording();
+        if (!mounted || !shouldLeave) return;
+
+        if (navigator.canPop()) {
+          navigator.pop();
+        }
+      },
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _initialPosition,
+                      initialZoom: 14,
+                      onLongPress: (_, point) => _addInterestPoint(point),
                     ),
-                    _MetricIndicator(
-                      icon: Icons.local_fire_department,
-                      label: 'Calorías',
-                      value: '${_estimatedCalories.toStringAsFixed(0)} kcal',
-                      color: Colors.deepOrange,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (_isRecording)
-                  Row(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _togglePause,
-                          icon: Icon(
-                            _isPaused ? Icons.play_arrow : Icons.pause,
+                      _offlineTileLayer ??
+                          TileLayer(
+                            urlTemplate:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'com.example.proyecto',
                           ),
-                          label: Text(_isPaused ? 'Reanudar' : 'Pausar'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _toggleRecording,
-                          icon: const Icon(Icons.stop),
-                          label: const Text('Detener'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: _toggleRecording,
-                      icon: const Icon(Icons.fiber_manual_record),
-                      label: const Text('Iniciar grabación'),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _initialPosition,
-                initialZoom: 14,
-                onLongPress: (_, point) => _addInterestPoint(point),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.proyecto',
-                ),
-                MarkerLayer(markers: _markers),
-                MarkerLayer(
-                  markers: [
-                    for (final interestPoint in _interestPoints)
-                      Marker(
-                        width: 120,
-                        height: 70,
-                        point: interestPoint.point,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.place,
-                              color: Colors.deepPurple,
-                              size: 34,
+                      MarkerLayer(markers: _markers),
+                      MarkerLayer(
+                        markers: [
+                          for (final interestPoint in _interestPoints)
+                            Marker(
+                              width: 120,
+                              height: 70,
+                              point: interestPoint.point,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.place,
+                                    color: Colors.deepPurple,
+                                    size: 34,
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    color: Colors.white,
+                                    child: Text(
+                                      interestPoint.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              color: Colors.white,
-                              child: Text(
-                                interestPoint.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
+                        ],
+                      ),
+                      if (_recordedRoute.length > 1)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: _recordedRoute,
+                              color: const Color(0xffec1768),
+                              strokeWidth: 7,
                             ),
                           ],
                         ),
-                      ),
-                  ],
-                ),
-                if (_recordedRoute.length > 1)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: _recordedRoute,
-                        color: const Color(0xffec1768),
-                        strokeWidth: 7,
-                      ),
-                    ],
-                  ),
-                if (_recordedRoute.isNotEmpty)
-                  MarkerLayer(
-                    markers: [
-                      if (_recordedRoute.length > 1)
-                        Marker(
-                          width: 42,
-                          height: 48,
-                          point: _recordedRoute.last,
-                          child: const Icon(
-                            Icons.flag,
-                            color: Colors.red,
-                            size: 34,
-                          ),
+                      if (_recordedRoute.isNotEmpty)
+                        MarkerLayer(
+                          markers: [
+                            if (_recordedRoute.length > 1)
+                              Marker(
+                                width: 42,
+                                height: 48,
+                                point: _recordedRoute.last,
+                                child: const Icon(
+                                  Icons.flag,
+                                  color: Colors.red,
+                                  size: 34,
+                                ),
+                              ),
+                          ],
                         ),
                     ],
                   ),
-              ],
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Material(
+                      color: Colors.white,
+                      elevation: 3,
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        tooltip: 'Centrar en mi ubicación',
+                        onPressed: _markers.isEmpty
+                            ? null
+                            : () =>
+                                  _mapController.move(_markers.first.point, 16),
+                        icon: const Icon(Icons.my_location_outlined),
+                        color: const Color(0xff4f683c),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: buildNavigationBar(
-        selectedIndex: 2,
-        onDestinationSelected: _selectDestination,
+            Container(
+              color: const Color(0xfffbfaf7),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _MetricIndicator(
+                        label: 'TIEMPO',
+                        value: _formattedDuration,
+                      ),
+                      _MetricIndicator(
+                        label: 'DISTANCIA',
+                        value: '${_distanceKm.toStringAsFixed(1)} km',
+                        alignment: CrossAxisAlignment.end,
+                      ),
+                    ],
+                  ),
+                  if (_isRecording) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      _recordingStatus,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  if (_isRecording)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _togglePause,
+                            icon: Icon(
+                              _isPaused ? Icons.play_arrow : Icons.pause,
+                            ),
+                            label: Text(_isPaused ? 'Reanudar' : 'Pausar'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _toggleRecording,
+                            icon: const Icon(Icons.stop),
+                            label: const Text('Detener'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red.shade700,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: _toggleRecording,
+                        icon: const Icon(Icons.play_arrow, size: 18),
+                        label: const Text('Iniciar trayecto'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xff4f683c),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (_status.isNotEmpty && !_isRecording) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _status,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        bottomNavigationBar: buildNavigationBar(
+          selectedIndex: 2,
+          onDestinationSelected: _selectDestination,
+        ),
       ),
     );
   }
@@ -476,29 +616,39 @@ class _InterestPoint {
 
 class _MetricIndicator extends StatelessWidget {
   const _MetricIndicator({
-    required this.icon,
     required this.label,
     required this.value,
-    required this.color,
+    this.alignment = CrossAxisAlignment.start,
   });
 
-  final IconData icon;
   final String label;
   final String value;
-  final Color color;
+  final CrossAxisAlignment alignment;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: color),
-        const SizedBox(width: 6),
         Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: alignment,
           children: [
-            Text(label, style: Theme.of(context).textTheme.labelMedium),
-            Text(value, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xff171916),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ],

@@ -5,7 +5,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'r2_storage_service.dart';
+
 class RouteStorageService {
+  RouteStorageService({R2StorageService? r2StorageService})
+    : _r2StorageService = r2StorageService ?? R2StorageService();
+
+  final R2StorageService _r2StorageService;
+
   Future<bool> saveRoute({
     required List<LatLng> points,
     required String routeName,
@@ -45,6 +52,7 @@ $pointsXml
 ''';
 
     await gpxFile.writeAsString(gpx);
+    await _r2StorageService.uploadGpxToR2(file: gpxFile);
 
     final savedPhotoPaths = <String>[];
     if (photos.isNotEmpty) {
@@ -67,6 +75,8 @@ $pointsXml
         'difficulty': difficulty,
         'photos': savedPhotoPaths,
         'distanceKm': distanceKm,
+        'createdByUser': true,
+        'isFavorite': false,
         'createdAt': DateTime.now().toIso8601String(),
       }),
     );

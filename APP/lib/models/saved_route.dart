@@ -12,7 +12,11 @@ class SavedRoute {
 
   String get description => metadata?['description'] as String? ?? '';
 
-    String get difficulty => metadata?['difficulty'] as String? ?? 'Fácil';
+  String get difficulty => metadata?['difficulty'] as String? ?? 'Fácil';
+
+  bool get isFavorite => metadata?['isFavorite'] as bool? ?? false;
+
+  bool get isCreatedByUser => metadata?['createdByUser'] as bool? ?? true;
 
   List<String> get photos =>
       (metadata?['photos'] as List<dynamic>?)?.cast<String>() ?? const [];

@@ -19,7 +19,7 @@ const navigationDestinations = <NavigationDestination>[
   NavigationDestination(
     icon: Icon(Icons.groups_outlined),
     selectedIcon: Icon(Icons.groups),
-    label: 'Comunidad',
+    label: 'Amigos',
   ),
   NavigationDestination(
     icon: Icon(Icons.person_outline),

@@ -16,6 +16,7 @@ class _SavedContentState extends State<SavedContent> {
   final SavedRoutesService _savedRoutesService = SavedRoutesService();
   List<SavedRoute> _routes = [];
   String _searchTerm = '';
+  int _selectedTab = 0;
 
   @override
   void initState() {
@@ -46,8 +47,18 @@ class _SavedContentState extends State<SavedContent> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Barra de filtros
         FilterBar(onSearch: (value) => setState(() => _searchTerm = value)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(child: _tabButton(label: 'Mis senderos', index: 0)),
+              Expanded(
+                child: _tabButton(label: 'Senderos favoritos', index: 1),
+              ),
+            ],
+          ),
+        ),
         Expanded(
           child: _filteredRoutes.isEmpty
               ? const Center(child: Text('No hay trayectos guardados'))
@@ -56,35 +67,9 @@ class _SavedContentState extends State<SavedContent> {
                   itemCount: _filteredRoutes.length,
                   itemBuilder: (context, index) {
                     final route = _filteredRoutes[index];
-                    final firstPhoto = route.photos.isNotEmpty
-                        ? File(
-                            '${route.file.parent.path}/${route.photos.first}',
-                          )
-                        : null;
-                    return Card(
-                      child: ListTile(
-                        leading: firstPhoto != null && firstPhoto.existsSync()
-                            ? Image.file(
-                                firstPhoto,
-                                width: 52,
-                                height: 52,
-                                fit: BoxFit.cover,
-                              )
-                            : const Icon(Icons.folder, color: Colors.amber),
-                        title: Text(route.name),
-                        subtitle: Text(
-                          '${route.description.isNotEmpty ? '${route.description}\n' : ''}'
-                          '${route.difficulty} | ${route.photos.length} fotos | Archivo GPX',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: IconButton(
-                          tooltip: 'Compartir trayecto',
-                          icon: const Icon(Icons.share_outlined),
-                          onPressed: () => _shareRoute(route),
-                        ),
-                        onTap: () => _shareRoute(route),
-                      ),
+                    return _SavedRouteCard(
+                      route: route,
+                      onShare: () => _shareRoute(route),
                     );
                   },
                 ),
@@ -93,11 +78,78 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  Widget _tabButton({required String label, required int index}) {
+    final isSelected = _selectedTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected ? Colors.black : Colors.transparent,
+              width: 2.5,
+            ),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            color: isSelected ? Colors.black : Colors.grey.shade600,
+          ),
+        ),
+      ),
+    );
+  }
+
   List<SavedRoute> get _filteredRoutes {
     final query = _searchTerm.toLowerCase();
-    return _routes.where((route) {
+    final routesForTab = _selectedTab == 0
+        ? _routes.where((route) => route.isCreatedByUser).toList()
+        : _routes.where((route) => route.isFavorite).toList();
+
+    return routesForTab.where((route) {
       return route.name.toLowerCase().contains(query) ||
           route.description.toLowerCase().contains(query);
     }).toList();
+  }
+}
+
+class _SavedRouteCard extends StatelessWidget {
+  const _SavedRouteCard({required this.route, required this.onShare});
+
+  final SavedRoute route;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstPhoto = route.photos.isNotEmpty
+        ? File('${route.file.parent.path}/${route.photos.first}')
+        : null;
+
+    return Card(
+      child: ListTile(
+        leading: firstPhoto != null && firstPhoto.existsSync()
+            ? Image.file(firstPhoto, width: 52, height: 52, fit: BoxFit.cover)
+            : const Icon(Icons.folder, color: Colors.amber),
+        title: Text(route.name),
+        subtitle: Text(
+          '${route.description.isNotEmpty ? '${route.description}\n' : ''}'
+          '${route.difficulty} | ${route.photos.length} fotos | Archivo GPX',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: IconButton(
+          tooltip: 'Compartir trayecto',
+          icon: const Icon(Icons.share_outlined),
+          onPressed: onShare,
+        ),
+        onTap: onShare,
+      ),
+    );
   }
 }
