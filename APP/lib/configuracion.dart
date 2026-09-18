@@ -4,7 +4,7 @@ import 'grabar.dart';
 import 'inicio.dart';
 import 'navegacion.dart';
 
-import 'services/auth_service.dart';
+import 'services/servicio_autenticacion.dart';
 import 'widgets/config_card.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
@@ -98,7 +98,8 @@ class ConfiguracionScreen extends StatelessWidget {
           title: 'Cerrar Sesión',
           subtitle: 'Salir de tu cuenta',
           isDestructive: true,
-          onTap: () => AuthService.showLogOutConfirmation(context),
+            onTap: () =>
+              ServicioAutenticacion.showLogOutConfirmation(context),
         ),
       ],
     );

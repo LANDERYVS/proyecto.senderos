@@ -87,20 +87,35 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   String get _name {
-    final name = _profile?['name'] as String?;
-    return name?.trim().isNotEmpty == true ? name! : 'Usuario';
+    final profileName = _profile?['name']?.toString().trim();
+    if (profileName?.isNotEmpty == true) return profileName!;
+
+    final metadata = Supabase.instance.client.auth.currentUser?.userMetadata;
+    final metadataName = (metadata?['name'] ?? metadata?['username'])
+      ?.toString()
+      .trim();
+    return metadataName?.isNotEmpty == true ? metadataName! : 'Usuario';
   }
 
   String get _email {
-    final profileEmail = _profile?['email'] as String?;
-    return profileEmail?.trim().isNotEmpty == true
-        ? profileEmail!
-        : Supabase.instance.client.auth.currentUser?.email ?? '';
+    final profileEmail = _profile?['email']?.toString().trim();
+    if (profileEmail?.isNotEmpty == true) return profileEmail!;
+    return Supabase.instance.client.auth.currentUser?.email ?? '';
   }
 
   String? get _photoUrl {
-    final photo = _profile?['user_photo'] as String?;
-    return photo?.trim().isNotEmpty == true ? photo : null;
+    final profilePhoto = _profile?['user_photo']?.toString().trim();
+    if (profilePhoto?.isNotEmpty == true) return profilePhoto;
+
+    final metadataPhoto = Supabase
+        .instance
+        .client
+        .auth
+        .currentUser
+        ?.userMetadata?['avatar_url']
+        ?.toString()
+        .trim();
+    return metadataPhoto?.isNotEmpty == true ? metadataPhoto : null;
   }
 
   @override

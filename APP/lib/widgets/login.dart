@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'services/auth_service.dart';
+import '../services/servicio_autenticacion.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.home});
@@ -22,6 +22,14 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _loadSession() async {
+    if (!mounted) return;
+    if (Supabase.instance.client.auth.currentSession != null) {
+      try {
+        await ServicioAutenticacion.syncCurrentUserProfile();
+      } on Exception {
+        // La pantalla de login seguirá permitiendo reintentar la sesión.
+      }
+    }
     if (!mounted) return;
     setState(() {
       _isLoggedIn = Supabase.instance.client.auth.currentSession != null;
@@ -51,11 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isCreatingAccount = false;
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     emailController.dispose();
     usernameController.dispose();
@@ -68,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final loginIdentifier = emailController.text.trim();
     final password = passwordController.text;
 
-    final success = await AuthService.login(loginIdentifier, password);
+    final success = await ServicioAutenticacion.login(loginIdentifier, password);
 
     if (!mounted) return;
 
@@ -88,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
 
-    final error = await AuthService.createAccount(
+    final error = await ServicioAutenticacion.createAccount(
       email,
       username,
       password,

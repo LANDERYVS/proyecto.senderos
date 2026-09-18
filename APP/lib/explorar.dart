@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'filtros.dart';
+import 'models/explore_trail.dart';
+import 'services/obtener_sendero.dart';
+import 'widgets/sendero_card.dart';
 
 class ExploreContent extends StatefulWidget {
   const ExploreContent({super.key});
@@ -10,29 +13,10 @@ class ExploreContent extends StatefulWidget {
 }
 
 class _ExploreContentState extends State<ExploreContent> {
-  static const _trails = [
-    _ExploreTrail(
-      name: 'Bosque de la Primavera',
-      description: 'Sendero entre pinos y miradores naturales',
-      difficulty: 'Fácil',
-      length: '8.4 km',
-      elevation: 'Alto',
-    ),
-    _ExploreTrail(
-      name: 'Cañón de Huentitán',
-      description: 'Recorrido con vistas y desnivel moderado',
-      difficulty: 'Moderada',
-      length: '5.7 km',
-      elevation: 'Medio',
-    ),
-    _ExploreTrail(
-      name: 'Cerro del Tepopote',
-      description: 'Ascenso exigente con vista panorámica',
-      difficulty: 'Difícil',
-      length: '10.2 km',
-      elevation: 'Alto',
-    ),
-  ];
+  final ObtenerSenderoService _trailService = ObtenerSenderoService();
+  List<ExploreTrail> _trails = [];
+  bool _isLoading = true;
+  String? _loadError;
 
   String _searchTerm = '';
   String _difficultyFilter = 'Dificultad';
@@ -40,20 +24,47 @@ class _ExploreContentState extends State<ExploreContent> {
   String _elevationFilter = 'Desnivel positivo';
 
   @override
-  Widget build(BuildContext context) {
-    final visibleTrails = _trails.where((trail) {
-      final query = _searchTerm.toLowerCase();
+  void initState() {
+    super.initState();
+    _loadTrails();
+  }
+
+  Future<void> _loadTrails() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
+    try {
+      final trails = await _trailService.obtenerSenderos();
+      if (!mounted) return;
+      setState(() {
+        _trails = trails;
+        _isLoading = false;
+      });
+    } on ObtenerSenderoException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _loadError = error.message;
+      });
+      debugPrint('Error al listar senderos: ${error.cause ?? error}');
+    }
+  }
+
+  List<ExploreTrail> get _visibleTrails {
+    final query = _searchTerm.toLowerCase();
+    return _trails.where((trail) {
       final matchesSearch =
           trail.name.toLowerCase().contains(query) ||
           trail.description.toLowerCase().contains(query);
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           trail.difficulty == _difficultyFilter;
-      final distance = double.parse(trail.length.split(' ').first);
       final matchesLength = switch (_lengthFilter) {
-        'Menos de 3 km' => distance < 3,
-        '3 a 8 km' => distance >= 3 && distance <= 8,
-        'Más de 8 km' => distance > 8,
+        'Menos de 3 km' => trail.distanceKm < 3,
+        '3 a 8 km' => trail.distanceKm >= 3 && trail.distanceKm <= 8,
+        'Más de 8 km' => trail.distanceKm > 8,
         _ => true,
       };
       final matchesElevation =
@@ -64,7 +75,11 @@ class _ExploreContentState extends State<ExploreContent> {
           matchesLength &&
           matchesElevation;
     }).toList();
+  }
 
+  @override
+  Widget build(BuildContext context) {
+    final visibleTrails = _visibleTrails;
     return Column(
       children: [
         FilterBar(
@@ -76,87 +91,18 @@ class _ExploreContentState extends State<ExploreContent> {
               setState(() => _elevationFilter = value),
         ),
         Expanded(
-          child: visibleTrails.isEmpty
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _loadError != null
+              ? _ErrorState(message: _loadError!, onRetry: _loadTrails)
+              : visibleTrails.isEmpty
               ? const Center(child: Text('No se encontraron senderos'))
-              : ListView.builder(
+              : ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: visibleTrails.length,
-                  itemBuilder: (context, index) {
-                    final trail = visibleTrails[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Card(
-                        margin: EdgeInsets.zero,
-                        elevation: 2,
-                        shadowColor: Colors.black26,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: InkWell(
-                          onTap: () {},
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  trail.name,
-                                  style: const TextStyle(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  trail.description,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Container(
-                                  height: 120,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xffeaf5df),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: Image.asset(
-                                    'assets/arbol.jpg',
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Text(
-                                      trail.difficulty,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Text(trail.length),
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.chevron_right, size: 20),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  separatorBuilder: (_, index) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) =>
+                      SenderoCard(trail: visibleTrails[index]),
                 ),
         ),
       ],
@@ -164,18 +110,30 @@ class _ExploreContentState extends State<ExploreContent> {
   }
 }
 
-class _ExploreTrail {
-  const _ExploreTrail({
-    required this.name,
-    required this.description,
-    required this.difficulty,
-    required this.length,
-    required this.elevation,
-  });
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
 
-  final String name;
-  final String description;
-  final String difficulty;
-  final String length;
-  final String elevation;
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

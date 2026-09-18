@@ -252,16 +252,23 @@ class _GrabarPageState extends State<GrabarPage> {
           SnackBar(content: Text('Trayecto "${details.name}" guardado')),
         );
       }
+    } on RoutePublishException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Guardado localmente. ${error.message}')),
+        );
+        debugPrint('Error al publicar sendero en Supabase: $error');
+      }
     } on Exception catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'El GPX se guardó localmente, pero no se pudo subir a R2',
+              'El sendero se guardó localmente, pero ocurrió un error inesperado',
             ),
           ),
         );
-        debugPrint('Error al subir GPX a R2: $error');
+        debugPrint('Error al publicar sendero en Supabase: $error');
       }
     }
   }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'inicio.dart';
-import 'login.dart';
+import 'widgets/login.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,5 +37,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-final supabase = Supabase.instance.client;

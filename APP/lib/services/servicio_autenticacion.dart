@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../inicio.dart';
-import '../login.dart';
+import '../widgets/login.dart';
 
-/// Servicio centralizado para TODAS las operaciones de autenticación
-class AuthService {
+/// Servicio centralizado para todas las operaciones de autenticación.
+class ServicioAutenticacion {
   static final _supabase = Supabase.instance.client;
 
-  /// Valida las credenciales y realiza login
   static Future<bool> login(String identifier, String password) async {
     try {
       var email = identifier.trim();
@@ -23,6 +22,11 @@ class AuthService {
       }
 
       await _supabase.auth.signInWithPassword(email: email, password: password);
+      try {
+        await syncCurrentUserProfile();
+      } on Exception catch (error) {
+        debugPrint('No se pudo sincronizar el perfil: $error');
+      }
       return _supabase.auth.currentSession != null;
     } on AuthException {
       return false;
@@ -31,7 +35,24 @@ class AuthService {
     }
   }
 
-  /// Crea una nueva cuenta
+  static Future<void> syncCurrentUserProfile() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final username = (metadata['username'] ?? metadata['name'] ?? '')
+        .toString()
+        .trim();
+
+    await _supabase.from('usuarios').upsert({
+      'id': user.id,
+      'name': username.isEmpty ? (user.email ?? 'Usuario') : username,
+      'email': user.email,
+      'admin': false,
+      'premium': false,
+    }, onConflict: 'id');
+  }
+
   static Future<String?> createAccount(
     String email,
     String username,
@@ -41,9 +62,7 @@ class AuthService {
     if (email.isEmpty || !email.contains('@')) {
       return 'Escribe un correo válido';
     }
-    if (username.isEmpty) {
-      return 'Escribe un nombre de usuario';
-    }
+    if (username.isEmpty) return 'Escribe un nombre de usuario';
     if (password.length < 6) {
       return 'La contraseña debe tener al menos 6 caracteres';
     }
@@ -55,13 +74,14 @@ class AuthService {
       final response = await _supabase.auth.signUp(
         email: email.trim(),
         password: password,
+        data: {'name': username.trim(), 'username': username.trim()},
       );
       final user = response.user;
       if (user == null) return 'No se pudo crear la cuenta';
 
       await _supabase.from('usuarios').insert({
         'id': user.id,
-        'name': username,
+        'name': username.trim(),
         'email': email.trim(),
         'admin': false,
         'premium': false,
@@ -75,7 +95,6 @@ class AuthService {
     }
   }
 
-  /// Realiza logout del usuario y navega a login
   static Future<void> logOut(BuildContext context) async {
     await _supabase.auth.signOut();
 
@@ -88,7 +107,6 @@ class AuthService {
     );
   }
 
-  /// Muestra diálogo de confirmación para logout
   static void showLogOutConfirmation(BuildContext context) {
     showDialog<bool>(
       context: context,

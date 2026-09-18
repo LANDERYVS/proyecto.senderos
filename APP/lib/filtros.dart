@@ -145,24 +145,19 @@ class _FilterBarState extends State<FilterBar> {
 }
 
 class _FilterButton extends StatelessWidget {
-  const _FilterButton({
-    required this.label,
-    required this.onPressed,
-    this.icon,
-  });
+  const _FilterButton({required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback onPressed;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon ?? Icons.keyboard_arrow_down, size: 22),
+      icon: const Icon(Icons.keyboard_arrow_down, size: 22),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        minimumSize: Size(icon == null ? 0 : 80, 56),
+        minimumSize: const Size(0, 56),
         padding: const EdgeInsets.symmetric(horizontal: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),

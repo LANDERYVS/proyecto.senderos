@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../models/saved_route.dart';
 
-class SavedRoutesService {
+class SenderosLocalesService {
   Future<List<SavedRoute>> loadRoutes() async {
     final directory = await getApplicationDocumentsDirectory();
     final files =
@@ -16,8 +16,9 @@ class SavedRoutesService {
             .where((file) => file.path.toLowerCase().endsWith('.gpx'))
             .toList()
           ..sort(
-            (first, second) =>
-                second.statSync().modified.compareTo(first.statSync().modified),
+            (first, second) => second.statSync().modified.compareTo(
+              first.statSync().modified,
+            ),
           );
 
     final routes = <SavedRoute>[];

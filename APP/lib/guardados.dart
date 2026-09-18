@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'filtros.dart';
 import 'models/saved_route.dart';
-import 'services/saved_routes_service.dart';
+import 'services/route_storage_service.dart';
+import 'services/senderos_locales.dart';
 
 class SavedContent extends StatefulWidget {
   const SavedContent({super.key});
@@ -13,7 +14,8 @@ class SavedContent extends StatefulWidget {
 }
 
 class _SavedContentState extends State<SavedContent> {
-  final SavedRoutesService _savedRoutesService = SavedRoutesService();
+  final SenderosLocalesService _savedRoutesService = SenderosLocalesService();
+  final RouteStorageService _routeStorageService = RouteStorageService();
   List<SavedRoute> _routes = [];
   String _searchTerm = '';
   int _selectedTab = 0;
@@ -40,6 +42,30 @@ class _SavedContentState extends State<SavedContent> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo compartir el trayecto')),
       );
+    }
+  }
+
+  Future<void> _publishRoute(SavedRoute route) async {
+    try {
+      await _routeStorageService.publishRoute(route);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sendero "${route.name}" publicado')),
+      );
+    } on RoutePublishException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+      debugPrint('Error al publicar sendero: $error');
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ocurrió un error inesperado al publicar'),
+        ),
+      );
+      debugPrint('Error inesperado al publicar sendero: $error');
     }
   }
 
@@ -70,6 +96,7 @@ class _SavedContentState extends State<SavedContent> {
                     return _SavedRouteCard(
                       route: route,
                       onShare: () => _shareRoute(route),
+                      onPublish: () => _publishRoute(route),
                     );
                   },
                 ),
@@ -120,10 +147,15 @@ class _SavedContentState extends State<SavedContent> {
 }
 
 class _SavedRouteCard extends StatelessWidget {
-  const _SavedRouteCard({required this.route, required this.onShare});
+  const _SavedRouteCard({
+    required this.route,
+    required this.onShare,
+    required this.onPublish,
+  });
 
   final SavedRoute route;
   final VoidCallback onShare;
+  final VoidCallback onPublish;
 
   @override
   Widget build(BuildContext context) {
@@ -143,10 +175,20 @@ class _SavedRouteCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: IconButton(
-          tooltip: 'Compartir trayecto',
-          icon: const Icon(Icons.share_outlined),
-          onPressed: onShare,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Publicar sendero',
+              icon: const Icon(Icons.cloud_upload_outlined),
+              onPressed: onPublish,
+            ),
+            IconButton(
+              tooltip: 'Compartir trayecto',
+              icon: const Icon(Icons.share_outlined),
+              onPressed: onShare,
+            ),
+          ],
         ),
         onTap: onShare,
       ),
