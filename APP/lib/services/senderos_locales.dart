@@ -16,9 +16,8 @@ class SenderosLocalesService {
             .where((file) => file.path.toLowerCase().endsWith('.gpx'))
             .toList()
           ..sort(
-            (first, second) => second.statSync().modified.compareTo(
-              first.statSync().modified,
-            ),
+            (first, second) =>
+                second.statSync().modified.compareTo(first.statSync().modified),
           );
 
     final routes = <SavedRoute>[];

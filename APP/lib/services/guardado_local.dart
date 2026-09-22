@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/saved_route.dart';
-import 'r2_storage_service.dart';
+import 'almacenamiento_r2.dart';
 
 class RoutePublishException implements Exception {
   const RoutePublishException(this.message);
@@ -22,10 +22,10 @@ class RoutePublishException implements Exception {
 class RouteStorageService {
   static const _uuid = Uuid();
 
-  RouteStorageService({R2StorageService? r2StorageService})
-    : _r2StorageService = r2StorageService ?? R2StorageService();
+  RouteStorageService({AlmacenamientoR2? almacenamientoR2})
+    : _almacenamientoR2 = almacenamientoR2 ?? AlmacenamientoR2();
 
-  final R2StorageService _r2StorageService;
+  final AlmacenamientoR2 _almacenamientoR2;
 
   Future<bool> saveRoute({
     required List<LatLng> points,
@@ -34,6 +34,8 @@ class RouteStorageService {
     required String difficulty,
     required List<XFile> photos,
     required double distanceKm,
+    required double elevationGainMeters,
+    required double elevationLossMeters,
   }) async {
     if (points.isEmpty) return false;
 
@@ -88,26 +90,101 @@ $pointsXml
         'difficulty': difficulty,
         'photos': savedPhotoPaths,
         'distanceKm': distanceKm,
+        'elevationGainMeters': elevationGainMeters,
+        'elevationLossMeters': elevationLossMeters,
         'createdByUser': true,
         'isFavorite': false,
         'createdAt': DateTime.now().toIso8601String(),
       }),
     );
 
-    await publishRoute(
-      SavedRoute(
-        file: gpxFile,
-        metadata: {
-          'name': routeName,
-          'description': description,
-          'difficulty': difficulty,
-          'photos': savedPhotoPaths,
-          'distanceKm': distanceKm,
-        },
-      ),
-    );
-
     return true;
+  }
+
+  Future<void> uploadToR2Only(SavedRoute route) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      throw const RoutePublishException(
+        'Debes iniciar sesión para guardar el sendero en R2.',
+      );
+    }
+    if (!await route.file.exists()) {
+      throw const RoutePublishException(
+        'No se encontró el archivo GPX en el dispositivo.',
+      );
+    }
+
+    final metadataFile = File(route.file.path.replaceFirst('.gpx', '.json'));
+    final existingMetadata = metadataFile.existsSync()
+        ? Map<String, dynamic>.from(
+            jsonDecode(await metadataFile.readAsString())
+                as Map<String, dynamic>,
+          )
+        : <String, dynamic>{};
+
+    final senderoId = (existingMetadata['remote_id'] as String?) ?? _uuid.v4();
+    final objectPrefix = '${user.id}/$senderoId';
+
+    String remoteGpxPath = existingMetadata['gpx_key'] as String? ?? '';
+    if (remoteGpxPath.isEmpty) {
+      try {
+        remoteGpxPath = await _almacenamientoR2.uploadGpxToR2(
+          file: route.file,
+          objectPrefix: objectPrefix,
+        );
+      } on Exception catch (error) {
+        throw RoutePublishException(
+          'No se pudo guardar el archivo GPX en R2. Comprueba tu conexión. ($error)',
+        );
+      }
+    }
+
+    final remotePhotoPaths = <String>[];
+    final uploadedPhotoPaths =
+        (existingMetadata['r2_photo_paths'] as List<dynamic>?)
+            ?.cast<String>() ??
+        <String>[];
+
+    for (var index = 0; index < route.photos.length; index++) {
+      final localPhoto = File(
+        '${route.file.parent.path}/${route.photos[index]}',
+      );
+      if (!await localPhoto.exists()) {
+        throw RoutePublishException(
+          'No se encontró la foto ${index + 1} en el dispositivo.',
+        );
+      }
+
+      final remotePath = uploadedPhotoPaths.length > index
+          ? uploadedPhotoPaths[index]
+          : '';
+      if (remotePath.isEmpty) {
+        final extension = _fileExtension(localPhoto.path);
+        try {
+          final uploadedPath = await _almacenamientoR2.uploadFileToR2(
+            file: localPhoto,
+            folder: 'foto_senderos',
+            contentType: _contentTypeForExtension(extension),
+            objectPrefix: objectPrefix,
+          );
+          remotePhotoPaths.add(uploadedPath);
+        } on Exception catch (error) {
+          throw RoutePublishException(
+            'No se pudo guardar la foto ${index + 1} en R2. Comprueba tu conexión. ($error)',
+          );
+        }
+      } else {
+        remotePhotoPaths.add(remotePath);
+      }
+    }
+
+    final savedMetadata = Map<String, dynamic>.from(existingMetadata)
+      ..['remote_id'] = senderoId
+      ..['gpx_key'] = remoteGpxPath
+      ..['r2_photo_paths'] = remotePhotoPaths
+      ..['uploaded_to_r2'] = true;
+
+    await metadataFile.writeAsString(jsonEncode(savedMetadata));
   }
 
   Future<void> publishRoute(SavedRoute route) async {
@@ -123,51 +200,47 @@ $pointsXml
       );
     }
 
-    final senderoId = _uuid.v4();
-    final objectPrefix = '${user.id}/$senderoId';
+    final metadataFile = File(route.file.path.replaceFirst('.gpx', '.json'));
+    final metadata = metadataFile.existsSync()
+        ? Map<String, dynamic>.from(
+            jsonDecode(await metadataFile.readAsString())
+                as Map<String, dynamic>,
+          )
+        : <String, dynamic>{};
 
-    String remoteGpxPath;
-    try {
-      remoteGpxPath = await _r2StorageService.uploadGpxToR2(
-        file: route.file,
-        objectPrefix: objectPrefix,
-      );
-    } on Exception catch (error) {
-      throw RoutePublishException(
-        'No se pudo subir el archivo GPX. Comprueba tu conexión. ($error)',
-      );
+    String remoteGpxPath = metadata['gpx_key'] as String? ?? '';
+    List<String> remotePhotoPaths =
+        (metadata['r2_photo_paths'] as List<dynamic>?)?.cast<String>() ??
+        const <String>[];
+
+    if (remoteGpxPath.isEmpty ||
+        remotePhotoPaths.length != route.photos.length) {
+      try {
+        await uploadToR2Only(route);
+        final updatedMetadata = metadataFile.existsSync()
+            ? Map<String, dynamic>.from(
+                jsonDecode(await metadataFile.readAsString())
+                    as Map<String, dynamic>,
+              )
+            : <String, dynamic>{};
+        remoteGpxPath = updatedMetadata['gpx_key'] as String? ?? '';
+        remotePhotoPaths =
+            (updatedMetadata['r2_photo_paths'] as List<dynamic>?)
+                ?.cast<String>() ??
+            const <String>[];
+      } on RoutePublishException {
+        rethrow;
+      }
     }
 
-    final remotePhotoPaths = <String>[];
-    for (var index = 0; index < route.photos.length; index++) {
-      final localPhoto = File(
-        '${route.file.parent.path}/${route.photos[index]}',
+    if (remoteGpxPath.isEmpty) {
+      throw const RoutePublishException(
+        'No hay un archivo GPX guardado en R2 para este sendero.',
       );
-      if (!await localPhoto.exists()) {
-        throw RoutePublishException(
-          'No se encontró la foto ${index + 1} en el dispositivo.',
-        );
-      }
-
-      final extension = _fileExtension(localPhoto.path);
-      try {
-        final remotePath = await _r2StorageService.uploadFileToR2(
-          file: localPhoto,
-          folder: 'foto_senderos',
-          contentType: _contentTypeForExtension(extension),
-          objectPrefix: objectPrefix,
-        );
-        remotePhotoPaths.add(remotePath);
-      } on Exception catch (error) {
-        throw RoutePublishException(
-          'No se pudo subir la foto ${index + 1}. Comprueba tu conexión. ($error)',
-        );
-      }
     }
 
     try {
       await Supabase.instance.client.from('senderos').insert({
-        // La BD genera id (bigint identity) automáticamente.
         'user_id': user.id,
         'sendero_nick': route.name,
         'descripcion': route.description,
@@ -181,7 +254,7 @@ $pointsXml
       });
     } on Exception catch (error) {
       throw RoutePublishException(
-        'Los archivos se subieron, pero no se pudieron guardar los datos '
+        'Los archivos se subieron a R2, pero no se pudieron guardar los datos '
         'del sendero en Supabase. ($error)',
       );
     }

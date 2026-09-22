@@ -23,7 +23,7 @@ class ObtenerSenderoService {
           .from('senderos')
           .select(
             'sendero_nick, descripcion, dificultad, distancia, '
-            'foto_sendero, user_id',
+            'foto_sendero, gpx_key, user_id',
           )
           .order('fecha_creacion', ascending: false);
 

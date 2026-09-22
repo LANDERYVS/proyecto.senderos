@@ -12,6 +12,7 @@ class ExploreTrail {
     required this.elevation,
     required this.author,
     this.photoUrl,
+    this.gpxKey,
   });
 
   factory ExploreTrail.fromMap(
@@ -30,6 +31,7 @@ class ExploreTrail {
       elevation: 'Desnivel no disponible',
       author: userNames[userId] ?? userId,
       photoUrl: photo,
+      gpxKey: map['gpx_key']?.toString(),
     );
   }
 
@@ -50,4 +52,7 @@ class ExploreTrail {
   final String elevation;
   final String author;
   final String? photoUrl;
+  final String? gpxKey;
+
+  String? get gpxUrl => publicR2Url(gpxKey);
 }

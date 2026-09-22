@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'grabar.dart';
 import 'inicio.dart';
-import 'navegacion.dart';
+import '../widgets/barra_navegacion.dart';
 
-import 'services/servicio_autenticacion.dart';
-import 'widgets/config_card.dart';
+import '../services/servicio_autenticacion.dart';
+import '../widgets/config_card.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
   const ConfiguracionScreen({super.key});
@@ -56,12 +56,6 @@ class ConfiguracionScreen extends StatelessWidget {
           onTap: () => _showMessage(context, 'Tema: Claro (fijo)'),
         ),
         ConfigCard(
-          icon: Icons.notifications_outlined,
-          title: 'Notificaciones',
-          subtitle: 'Activadas',
-          onTap: () => _showMessage(context, 'Notificaciones activadas'),
-        ),
-        ConfigCard(
           icon: Icons.location_on_outlined,
           title: 'Ubicación',
           subtitle: 'Activada',
@@ -98,8 +92,7 @@ class ConfiguracionScreen extends StatelessWidget {
           title: 'Cerrar Sesión',
           subtitle: 'Salir de tu cuenta',
           isDestructive: true,
-            onTap: () =>
-              ServicioAutenticacion.showLogOutConfirmation(context),
+          onTap: () => ServicioAutenticacion.showLogOutConfirmation(context),
         ),
       ],
     );

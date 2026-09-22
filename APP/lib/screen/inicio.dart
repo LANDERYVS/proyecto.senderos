@@ -4,7 +4,8 @@ import 'comunidad.dart';
 import 'guardados.dart';
 import 'explorar.dart';
 import 'grabar.dart';
-import 'navegacion.dart';
+import 'notificaciones.dart';
+import '../widgets/barra_navegacion.dart';
 import 'perfil.dart';
 
 class HomePage extends StatefulWidget {
@@ -18,6 +19,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late int _selectedIndex;
+  int _communityVersion = 0;
 
   @override
   void initState() {
@@ -32,7 +34,7 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return const SavedContent();
       case 3:
-        return const ComunidadContent();
+        return ComunidadContent(key: ValueKey('comunidad-$_communityVersion'));
       default:
         return const ExploreContent();
     }
@@ -63,6 +65,20 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text(navigationDestinations[_selectedIndex].label),
         backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+        actions: [
+          IconButton(
+            tooltip: 'Notificaciones',
+            icon: const Icon(Icons.notifications_none_outlined),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificacionesScreen()),
+              );
+              if (!mounted) return;
+              setState(() => _communityVersion++);
+            },
+          ),
+        ],
       ),
       body: _buildBody(),
       bottomNavigationBar: buildNavigationBar(

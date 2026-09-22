@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
-import 'navegacion.dart';
+import '../widgets/barra_navegacion.dart';
 
 class _Achievement {
   const _Achievement({
@@ -92,8 +92,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final metadata = Supabase.instance.client.auth.currentUser?.userMetadata;
     final metadataName = (metadata?['name'] ?? metadata?['username'])
-      ?.toString()
-      .trim();
+        ?.toString()
+        .trim();
     return metadataName?.isNotEmpty == true ? metadataName! : 'Usuario';
   }
 

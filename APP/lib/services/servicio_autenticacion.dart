@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../inicio.dart';
+import '../screen/inicio.dart';
 import '../widgets/login.dart';
 
 /// Servicio centralizado para todas las operaciones de autenticación.
 class ServicioAutenticacion {
   static final _supabase = Supabase.instance.client;
 
-  static Future<bool> login(String identifier, String password) async {
+  static Future<String?> login(String identifier, String password) async {
     try {
       var email = identifier.trim();
+
+      if (email.isEmpty || password.isEmpty) {
+        return 'Completa el correo y la contraseña';
+      }
 
       if (!email.contains('@')) {
         final profile = await _supabase
@@ -19,6 +23,9 @@ class ServicioAutenticacion {
             .eq('name', email)
             .maybeSingle();
         email = profile?['email'] as String? ?? email;
+        if (!email.contains('@')) {
+          return 'No se encontró un usuario con ese nombre';
+        }
       }
 
       await _supabase.auth.signInWithPassword(email: email, password: password);
@@ -27,11 +34,15 @@ class ServicioAutenticacion {
       } on Exception catch (error) {
         debugPrint('No se pudo sincronizar el perfil: $error');
       }
-      return _supabase.auth.currentSession != null;
-    } on AuthException {
-      return false;
-    } on PostgrestException {
-      return false;
+      return _supabase.auth.currentSession != null
+          ? null
+          : 'No se pudo iniciar la sesión';
+    } on AuthException catch (error) {
+      return error.message;
+    } on PostgrestException catch (error) {
+      return 'Error al consultar el usuario: ${error.message}';
+    } catch (error) {
+      return 'Error inesperado al iniciar sesión: $error';
     }
   }
 

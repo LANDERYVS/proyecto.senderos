@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'filtros.dart';
-import 'models/explore_trail.dart';
-import 'services/obtener_sendero.dart';
-import 'widgets/sendero_card.dart';
+import '../filtros.dart';
+import '../models/explore_trail.dart';
+import '../services/obtener_sendero.dart';
+import '../widgets/sendero_card.dart';
 
 class ExploreContent extends StatefulWidget {
   const ExploreContent({super.key});

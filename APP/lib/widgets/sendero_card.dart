@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/explore_trail.dart';
+import '../screen/detalle_sendero.dart';
 
 class SenderoCard extends StatelessWidget {
   const SenderoCard({super.key, required this.trail});
@@ -19,7 +20,14 @@ class SenderoCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DetalleSenderoScreen(trail: trail),
+            ),
+          );
+        },
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
           child: Column(

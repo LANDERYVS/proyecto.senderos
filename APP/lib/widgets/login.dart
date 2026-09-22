@@ -71,17 +71,17 @@ class _LoginScreenState extends State<LoginScreen> {
     final loginIdentifier = emailController.text.trim();
     final password = passwordController.text;
 
-    final success = await ServicioAutenticacion.login(loginIdentifier, password);
+    final error = await ServicioAutenticacion.login(loginIdentifier, password);
 
     if (!mounted) return;
 
-    if (success) {
+    if (error == null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => widget.home),
       );
     } else {
-      _showMessage('Correo o contraseña incorrectos');
+      _showMessage(error);
     }
   }
 

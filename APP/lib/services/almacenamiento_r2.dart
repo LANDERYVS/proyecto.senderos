@@ -2,9 +2,8 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Cliente para subir archivos a Cloudflare R2 mediante una Edge Function.
-/// Las claves de acceso de R2 permanecen únicamente en Supabase.
-class R2StorageService {
+/// Sube archivos a Cloudflare R2 mediante la Edge Function de Supabase.
+class AlmacenamientoR2 {
   static const _uploadFunction = 'r2-storage';
 
   Future<String> uploadFileToR2({
@@ -53,7 +52,10 @@ class R2StorageService {
     return data['key'] as String;
   }
 
-  Future<String> uploadGpxToR2({required File file, String? objectPrefix}) {
+  Future<String> uploadGpxToR2({
+    required File file,
+    String? objectPrefix,
+  }) {
     return uploadFileToR2(
       file: file,
       folder: 'gpx',
