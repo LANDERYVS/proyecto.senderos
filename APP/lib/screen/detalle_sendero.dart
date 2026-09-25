@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:xml/xml.dart';
 
 import '../models/explore_trail.dart';
+import 'seguir_sendero.dart';
 
 class DetalleSenderoScreen extends StatefulWidget {
   const DetalleSenderoScreen({super.key, required this.trail});
@@ -42,12 +43,16 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException('HTTP ${response.statusCode}', uri: Uri.parse(url));
       }
-      final document = XmlDocument.parse(await response.transform(const Utf8Decoder()).join());
+      final document = XmlDocument.parse(
+        await response.transform(const Utf8Decoder()).join(),
+      );
       final points = document
           .findAllElements('trkpt')
           .map((element) {
             final latitude = double.tryParse(element.getAttribute('lat') ?? '');
-            final longitude = double.tryParse(element.getAttribute('lon') ?? '');
+            final longitude = double.tryParse(
+              element.getAttribute('lon') ?? '',
+            );
             return latitude != null && longitude != null
                 ? LatLng(latitude, longitude)
                 : null;
@@ -86,10 +91,10 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
                 height: 220,
                 width: double.infinity,
                 color: const Color(0xffeaf5df),
-                  child: widget.trail.photoUrl == null
+                child: widget.trail.photoUrl == null
                     ? Image.asset('assets/arbol.jpg', fit: BoxFit.contain)
                     : Image.network(
-                      widget.trail.photoUrl!,
+                        widget.trail.photoUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, error, stackTrace) => Image.asset(
                           'assets/arbol.jpg',
@@ -101,9 +106,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 20),
             Text(
               widget.trail.name,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -119,9 +124,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 24),
             Text(
               'Trayecto',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             _RouteMap(
@@ -132,16 +137,41 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 24),
             Text(
               'Descripción',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
               widget.trail.description.isEmpty
                   ? 'Este sendero no tiene una descripción.'
-                : widget.trail.description,
+                  : widget.trail.description,
               style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 28),
+            SafeArea(
+              top: false,
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SeguirSenderoPage(
+                          routePoints: _routePoints,
+                          routeName: widget.trail.name,
+                        ),
+                      ),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  icon: const Icon(Icons.directions_walk_outlined),
+                  label: const Text('Seguir sendero'),
+                ),
+              ),
             ),
           ],
         ),
@@ -209,8 +239,14 @@ class _RouteMap extends StatelessWidget {
   }
 
   LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(0, (sum, point) => sum + point.latitude);
-    final longitude = points.fold<double>(0, (sum, point) => sum + point.longitude);
+    final latitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.latitude,
+    );
+    final longitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.longitude,
+    );
     return LatLng(latitude / points.length, longitude / points.length);
   }
 }

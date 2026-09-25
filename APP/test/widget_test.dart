@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto/main.dart';
+import 'package:proyecto/models/explore_trail.dart';
+import 'package:proyecto/screen/detalle_sendero.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -76,5 +78,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Explorar'), findsNWidgets(2));
+  });
+
+  testWidgets('muestra el botón de seguir sendero en la vista de detalle', (
+    tester,
+  ) async {
+    final trail = ExploreTrail(
+      name: 'Sendero de prueba',
+      description: 'Descripción corta',
+      difficulty: 'Moderado',
+      distanceKm: 4.5,
+      elevation: '180 m',
+      author: 'Senderista',
+      photoUrl: null,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: DetalleSenderoScreen(trail: trail)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(FilledButton, 'Seguir sendero'), findsOneWidget);
   });
 }

@@ -12,7 +12,14 @@ import '../widgets/grabar_action_button.dart';
 import '../widgets/grabar_metric_indicator.dart';
 
 class GrabarPage extends StatefulWidget {
-  const GrabarPage({super.key});
+  const GrabarPage({
+    super.key,
+    this.initialRoutePoints = const [],
+    this.routeName,
+  });
+
+  final List<LatLng> initialRoutePoints;
+  final String? routeName;
 
   @override
   State<GrabarPage> createState() => _GrabarPageState();
@@ -26,9 +33,20 @@ class _GrabarPageState extends State<GrabarPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialRoutePoints.isNotEmpty) {
+      _controller.recordedRoute.addAll(widget.initialRoutePoints);
+    }
     _controller.addListener(_onControllerChanged);
     _loadOfflineMap();
     _controller.requestPermissionAndStartTracking();
+
+    if (widget.initialRoutePoints.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || widget.initialRoutePoints.isEmpty) return;
+        final center = _centerOf(widget.initialRoutePoints);
+        _controller.mapController.move(center, 14);
+      });
+    }
   }
 
   void _onControllerChanged() {
@@ -41,6 +59,12 @@ class _GrabarPageState extends State<GrabarPage> {
     _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     super.dispose();
+  }
+
+  LatLng _centerOf(List<LatLng> points) {
+    final latitude = points.fold<double>(0, (sum, point) => sum + point.latitude);
+    final longitude = points.fold<double>(0, (sum, point) => sum + point.longitude);
+    return LatLng(latitude / points.length, longitude / points.length);
   }
 
   Future<void> _loadOfflineMap() async {
@@ -182,6 +206,10 @@ class _GrabarPageState extends State<GrabarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final initialCenter = widget.initialRoutePoints.isNotEmpty
+        ? _centerOf(widget.initialRoutePoints)
+        : _controller.initialPosition;
+
     return PopScope(
       canPop: !_controller.isRecording,
       onPopInvokedWithResult: (didPop, result) async {
@@ -205,8 +233,8 @@ class _GrabarPageState extends State<GrabarPage> {
                   FlutterMap(
                     mapController: _controller.mapController,
                     options: MapOptions(
-                      initialCenter: _controller.initialPosition,
-                      initialZoom: 14,
+                      initialCenter: initialCenter,
+                      initialZoom: widget.initialRoutePoints.isNotEmpty ? 15 : 14,
                       onLongPress: (_, point) => _addInterestPoint(point),
                     ),
                     children: [
