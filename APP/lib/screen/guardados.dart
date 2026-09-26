@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
-import '../filtros.dart';
 import '../models/explore_trail.dart';
 import '../models/saved_route.dart';
 import '../services/guardado_local.dart';
@@ -10,6 +9,7 @@ import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
 import '../widgets/sendero_card.dart';
+import '../widgets/filtros.dart';
 import 'previsualizar_gpx.dart';
 
 class SavedContent extends StatefulWidget {
@@ -27,6 +27,8 @@ class _SavedContentState extends State<SavedContent> {
   List<SavedRoute> _routes = [];
   List<ExploreTrail> _favoriteTrails = [];
   String _searchTerm = '';
+  String _difficultyFilter = 'Dificultad';
+  String _lengthFilter = 'Longitud';
   int _selectedTab = 0;
 
   @override
@@ -246,7 +248,12 @@ class _SavedContentState extends State<SavedContent> {
     return Column(
       children: [
         _buildOpenGpxButton(),
-        FilterBar(onSearch: (value) => setState(() => _searchTerm = value)),
+        FilterBar(
+          onSearch: (value) => setState(() => _searchTerm = value),
+          onDifficultyChanged: (value) =>
+              setState(() => _difficultyFilter = value),
+          onLengthChanged: (value) => setState(() => _lengthFilter = value),
+        ),
         _buildRouteTabs(),
         Expanded(child: _buildRouteList()),
       ],
@@ -270,8 +277,22 @@ class _SavedContentState extends State<SavedContent> {
               .toList();
 
     return routesForTab.where((route) {
-      return route.name.toLowerCase().contains(query) ||
+      final matchesSearch =
+          route.name.toLowerCase().contains(query) ||
           route.description.toLowerCase().contains(query);
+      final matchesDifficulty =
+          _difficultyFilter == 'Dificultad' ||
+          route.difficulty == _difficultyFilter;
+      final matchesLength = switch (_lengthFilter) {
+        'Menos de 3 km' => route.distanceKm != null && route.distanceKm! < 3,
+        '3 a 8 km' =>
+          route.distanceKm != null &&
+              route.distanceKm! >= 3 &&
+              route.distanceKm! <= 8,
+        'Más de 8 km' => route.distanceKm != null && route.distanceKm! > 8,
+        _ => true,
+      };
+      return matchesSearch && matchesDifficulty && matchesLength;
     }).toList();
   }
 
@@ -279,8 +300,19 @@ class _SavedContentState extends State<SavedContent> {
     if (_selectedTab != 1) return const [];
     final query = _searchTerm.toLowerCase();
     return _favoriteTrails.where((trail) {
-      return trail.name.toLowerCase().contains(query) ||
+      final matchesSearch =
+          trail.name.toLowerCase().contains(query) ||
           trail.description.toLowerCase().contains(query);
+      final matchesDifficulty =
+          _difficultyFilter == 'Dificultad' ||
+          trail.difficulty == _difficultyFilter;
+      final matchesLength = switch (_lengthFilter) {
+        'Menos de 3 km' => trail.distanceKm < 3,
+        '3 a 8 km' => trail.distanceKm >= 3 && trail.distanceKm <= 8,
+        'Más de 8 km' => trail.distanceKm > 8,
+        _ => true,
+      };
+      return matchesSearch && matchesDifficulty && matchesLength;
     }).toList();
   }
 }

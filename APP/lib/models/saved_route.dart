@@ -14,6 +14,8 @@ class SavedRoute {
 
   String get difficulty => metadata?['difficulty'] as String? ?? 'Fácil';
 
+  double? get distanceKm => (metadata?['distanceKm'] as num?)?.toDouble();
+
   bool get isFavorite => metadata?['isFavorite'] as bool? ?? false;
 
   bool get isCreatedByUser => metadata?['createdByUser'] as bool? ?? true;

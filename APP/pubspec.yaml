@@ -54,6 +54,8 @@ dependencies:
   supabase_flutter: ^2.17.2
   uuid: ^4.5.1
   xml: ^7.0.1
+  fifty_achievement_engine: ^0.2.2
+  achievement_view: ^1.0.1
 
 dev_dependencies:
   flutter_test:
@@ -66,6 +68,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: "^0.14.0"
+  flutter_svg: ^2.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../filtros.dart';
 import '../models/explore_trail.dart';
 import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
 import '../widgets/sendero_card.dart';
+import '../widgets/filtros.dart';
 
 class ExploreContent extends StatefulWidget {
   const ExploreContent({super.key});
@@ -27,7 +27,6 @@ class _ExploreContentState extends State<ExploreContent> {
   String _searchTerm = '';
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
-  String _elevationFilter = 'Desnivel positivo';
 
   @override
   void initState() {
@@ -142,13 +141,7 @@ class _ExploreContentState extends State<ExploreContent> {
         'Más de 8 km' => trail.distanceKm > 8,
         _ => true,
       };
-      final matchesElevation =
-          _elevationFilter == 'Desnivel positivo' ||
-          trail.elevation == _elevationFilter;
-      return matchesSearch &&
-          matchesDifficulty &&
-          matchesLength &&
-          matchesElevation;
+      return matchesSearch && matchesDifficulty && matchesLength;
     }).toList();
   }
 
@@ -162,8 +155,6 @@ class _ExploreContentState extends State<ExploreContent> {
           onDifficultyChanged: (value) =>
               setState(() => _difficultyFilter = value),
           onLengthChanged: (value) => setState(() => _lengthFilter = value),
-          onElevationChanged: (value) =>
-              setState(() => _elevationFilter = value),
         ),
         Expanded(
           child: _isLoading

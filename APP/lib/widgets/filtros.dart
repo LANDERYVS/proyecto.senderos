@@ -6,13 +6,11 @@ class FilterBar extends StatefulWidget {
     this.onSearch,
     this.onDifficultyChanged,
     this.onLengthChanged,
-    this.onElevationChanged,
   });
 
   final ValueChanged<String>? onSearch;
   final ValueChanged<String>? onDifficultyChanged;
   final ValueChanged<String>? onLengthChanged;
-  final ValueChanged<String>? onElevationChanged;
 
   @override
   State<FilterBar> createState() => _FilterBarState();
@@ -22,7 +20,6 @@ class _FilterBarState extends State<FilterBar> {
   // Variables que guardan el estado actual de cada filtro
   String _difficulty = 'Dificultad';
   String _length = 'Longitud';
-  String _duration = 'Duración';
 
   // Listas de opciones para cada filtro
   static const _difficultyOptions = [
@@ -32,12 +29,6 @@ class _FilterBarState extends State<FilterBar> {
     'Difícil',
   ];
 
-  static const _durationOptions = [
-    'Duración',
-    'Menos de 1 hora',
-    '1 a 3 horas',
-    'Más de 3 horas',
-  ];
   static const _lengthOptions = [
     'Longitud',
     'Menos de 3 km',
@@ -68,14 +59,11 @@ class _FilterBarState extends State<FilterBar> {
                     // Actualiza el valor del filtro correspondiente
                     if (options == _difficultyOptions) _difficulty = option;
                     if (options == _lengthOptions) _length = option;
-                    if (options == _durationOptions) _duration = option;
                   });
                   if (options == _difficultyOptions) {
                     widget.onDifficultyChanged?.call(option);
                   } else if (options == _lengthOptions) {
                     widget.onLengthChanged?.call(option);
-                  } else if (options == _durationOptions) {
-                    widget.onElevationChanged?.call(option);
                   }
                   // Cierra el BottomSheet
                   Navigator.pop(context);
@@ -127,12 +115,6 @@ class _FilterBarState extends State<FilterBar> {
                   _FilterButton(
                     label: _length,
                     onPressed: () => _chooseFilter(_length, _lengthOptions),
-                  ),
-                  const SizedBox(width: 10),
-                  // Botón de duración
-                  _FilterButton(
-                    label: _duration,
-                    onPressed: () => _chooseFilter(_duration, _durationOptions),
                   ),
                 ],
               ),

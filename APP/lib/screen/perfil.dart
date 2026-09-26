@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:fifty_achievement_engine/fifty_achievement_engine.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/achievement_service.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
@@ -30,15 +32,11 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
+  bool _isAchievementLoading = true;
   String? _error;
+  final AchievementService _achievementService = AchievementService.instance;
 
-  static const _achievements = [
-    _Achievement(
-      title: 'Primer sendero',
-      description: 'Completa tu primer trayecto',
-      requirement: 'Completa un trayecto para desbloquearlo',
-      icon: Icons.emoji_events,
-    ),
+  static const _otherAchievements = [
     _Achievement(
       title: 'Explorador',
       description: 'Descubre nuevos lugares',
@@ -50,7 +48,25 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _achievementService.controller.addListener(_onAchievementsChanged);
+    _loadAchievementProgress();
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _achievementService.controller.removeListener(_onAchievementsChanged);
+    super.dispose();
+  }
+
+  void _onAchievementsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadAchievementProgress() async {
+    await _achievementService.initialize();
+    if (!mounted) return;
+    setState(() => _isAchievementLoading = false);
   }
 
   Future<void> _loadProfile() async {
@@ -145,8 +161,12 @@ class _ProfilePageState extends State<ProfilePage> {
         Center(
           child: CircleAvatar(
             radius: 48,
-            backgroundImage: _photoUrl == null ? null : NetworkImage(_photoUrl!),
-            child: _photoUrl == null ? const Icon(Icons.person, size: 56) : null,
+            backgroundImage: _photoUrl == null
+                ? null
+                : NetworkImage(_photoUrl!),
+            child: _photoUrl == null
+                ? const Icon(Icons.person, size: 56)
+                : null,
           ),
         ),
         const SizedBox(height: 16),
@@ -220,7 +240,14 @@ class _ProfilePageState extends State<ProfilePage> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          for (final achievement in _achievements)
+          _FirstTrailAchievementCard(
+            achievement: _achievementService.firstTrailAchievement,
+            isUnlocked:
+                !_isAchievementLoading &&
+                _achievementService.isFirstTrailUnlocked,
+            isLoading: _isAchievementLoading,
+          ),
+          for (final achievement in _otherAchievements)
             _LockedAchievementCard(achievement: achievement),
           const SizedBox(height: 8),
           ListTile(
@@ -239,6 +266,51 @@ class _ProfilePageState extends State<ProfilePage> {
             _navigateToHome(index);
           }
         },
+      ),
+    );
+  }
+}
+
+class _FirstTrailAchievementCard extends StatelessWidget {
+  const _FirstTrailAchievementCard({
+    required this.achievement,
+    required this.isUnlocked,
+    required this.isLoading,
+  });
+
+  final Achievement<void> achievement;
+  final bool isUnlocked;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final iconColor = isUnlocked ? colors.primary : colors.onSurfaceVariant;
+
+    return Card(
+      color: isUnlocked
+          ? colors.primaryContainer
+          : colors.surfaceContainerHighest,
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: iconColor.withValues(alpha: 0.12),
+          child: Icon(
+            isUnlocked ? achievement.icon : Icons.lock_outline,
+            color: iconColor,
+          ),
+        ),
+        title: Text(achievement.name),
+        subtitle: Text(
+          isLoading
+              ? achievement.description ?? ''
+              : isUnlocked
+              ? '${achievement.description}\nDesbloqueado · ${achievement.points} puntos'
+              : '${achievement.description}\nBloqueado · Guarda tu primer sendero grabado',
+          style: TextStyle(
+            color: isUnlocked ? colors.onPrimaryContainer : null,
+          ),
+        ),
+        isThreeLine: !isLoading,
       ),
     );
   }

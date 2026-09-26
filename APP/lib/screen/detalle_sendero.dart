@@ -98,10 +98,8 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             : Image.network(
                 widget.trail.photoUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, error, stackTrace) => Image.asset(
-                  'assets/arbol.jpg',
-                  fit: BoxFit.contain,
-                ),
+                errorBuilder: (_, error, stackTrace) =>
+                    Image.asset('assets/arbol.jpg', fit: BoxFit.contain),
               ),
       ),
     );
@@ -139,9 +137,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 20),
             Text(
               widget.trail.name,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(
@@ -157,9 +155,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 24),
             Text(
               'Trayecto',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             _RouteMap(
@@ -170,9 +168,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 24),
             Text(
               'Descripción',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             Text(

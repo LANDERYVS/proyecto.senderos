@@ -62,8 +62,14 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(0, (sum, point) => sum + point.latitude);
-    final longitude = points.fold<double>(0, (sum, point) => sum + point.longitude);
+    final latitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.latitude,
+    );
+    final longitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.longitude,
+    );
     return LatLng(latitude / points.length, longitude / points.length);
   }
 
@@ -229,11 +235,7 @@ class _GrabarPageState extends State<GrabarPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.place,
-                      color: Colors.deepPurple,
-                      size: 34,
-                    ),
+                    const Icon(Icons.place, color: Colors.deepPurple, size: 34),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -273,11 +275,7 @@ class _GrabarPageState extends State<GrabarPage> {
                   width: 42,
                   height: 48,
                   point: _controller.recordedRoute.last,
-                  child: const Icon(
-                    Icons.flag,
-                    color: Colors.red,
-                    size: 34,
-                  ),
+                  child: const Icon(Icons.flag, color: Colors.red, size: 34),
                 ),
             ],
           ),
@@ -293,7 +291,9 @@ class _GrabarPageState extends State<GrabarPage> {
       child: SafeArea(
         child: FloatingActionButton.small(
           heroTag: 'share-location',
-          tooltip: isSharing ? 'Dejar de compartir ubicación' : 'Compartir ubicación',
+          tooltip: isSharing
+              ? 'Dejar de compartir ubicación'
+              : 'Compartir ubicación',
           backgroundColor: isSharing ? Colors.green : Colors.white,
           foregroundColor: isSharing ? Colors.white : Colors.black87,
           onPressed: isSharing ? _stopSharing : _chooseFriendForSharing,
@@ -409,12 +409,14 @@ class _GrabarPageState extends State<GrabarPage> {
                       ),
                       GrabarMetricIndicator(
                         label: 'DISTANCIA',
-                        value: '${_controller.distanceKm.toStringAsFixed(1)} km',
+                        value:
+                            '${_controller.distanceKm.toStringAsFixed(1)} km',
                         alignment: CrossAxisAlignment.end,
                       ),
                       GrabarMetricIndicator(
                         label: 'SUBIDA',
-                        value: '${_controller.elevationGainMeters.toStringAsFixed(0)} m',
+                        value:
+                            '${_controller.elevationGainMeters.toStringAsFixed(0)} m',
                         alignment: CrossAxisAlignment.end,
                       ),
                     ],
@@ -430,7 +432,8 @@ class _GrabarPageState extends State<GrabarPage> {
                   ],
                   const SizedBox(height: 12),
                   _buildRecordingActions(),
-                  if (_controller.status.isNotEmpty && !_controller.isRecording) ...[
+                  if (_controller.status.isNotEmpty &&
+                      !_controller.isRecording) ...[
                     const SizedBox(height: 6),
                     Text(
                       _controller.status,

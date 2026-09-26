@@ -51,7 +51,8 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
   }
 
   Future<void> _startTracking() async {
-    final granted = await _localizacionService.requestPermissionAndStartTracking();
+    final granted = await _localizacionService
+        .requestPermissionAndStartTracking();
     if (!mounted) return;
 
     if (!granted) {
@@ -76,18 +77,23 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
 
     _positionSubscription = _localizacionService
         .getPositionStream(showNotification: false)
-        .listen((position) {
-          if (!mounted) return;
-          final point = LatLng(position.latitude, position.longitude);
-          setState(() {
-            _userLocation = point;
-            _updateTrackingProgress(point, position.altitude);
-          });
-          _mapController.move(point, 16);
-        }, onError: (_) {
-          if (!mounted) return;
-          setState(() => _locationError = 'No se pudo actualizar la ubicación.');
-        });
+        .listen(
+          (position) {
+            if (!mounted) return;
+            final point = LatLng(position.latitude, position.longitude);
+            setState(() {
+              _userLocation = point;
+              _updateTrackingProgress(point, position.altitude);
+            });
+            _mapController.move(point, 16);
+          },
+          onError: (_) {
+            if (!mounted) return;
+            setState(
+              () => _locationError = 'No se pudo actualizar la ubicación.',
+            );
+          },
+        );
   }
 
   void _updateTrackingProgress(LatLng point, double altitude) {
@@ -97,7 +103,11 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
     var nearestIndex = 0;
     var nearestDistance = double.infinity;
     for (var i = 0; i < route.length; i++) {
-      final distance = _distanceCalculator.as(LengthUnit.Meter, point, route[i]);
+      final distance = _distanceCalculator.as(
+        LengthUnit.Meter,
+        point,
+        route[i],
+      );
       if (distance < nearestDistance) {
         nearestDistance = distance;
         nearestIndex = i;
@@ -142,8 +152,14 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
   }
 
   LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(0, (sum, point) => sum + point.latitude);
-    final longitude = points.fold<double>(0, (sum, point) => sum + point.longitude);
+    final latitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.latitude,
+    );
+    final longitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.longitude,
+    );
     return LatLng(latitude / points.length, longitude / points.length);
   }
 
@@ -175,9 +191,7 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.routeName ?? 'Siguiendo sendero'),
-      ),
+      appBar: AppBar(title: Text(widget.routeName ?? 'Siguiendo sendero')),
       body: Column(
         children: [
           Expanded(
@@ -191,7 +205,8 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'proyecto.senderos',
                     ),
                     if (routePoints.length > 1)
@@ -272,10 +287,7 @@ class _MetricColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 4),
         Text(
           value,

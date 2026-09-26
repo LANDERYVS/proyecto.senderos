@@ -191,9 +191,9 @@ class _ComunidadContentState extends State<ComunidadContent> {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         TextButton(onPressed: () {}, child: const Text('Ver todas')),
       ],
@@ -231,9 +231,9 @@ class _ComunidadContentState extends State<ComunidadContent> {
       children: [
         Text(
           'Encuentra tu grupo',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 6),
         Text(

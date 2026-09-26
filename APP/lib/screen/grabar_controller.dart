@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'package:achievement_view/achievement_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../services/offline_tile_service.dart';
+import '../services/achievement_service.dart';
 import '../services/guardado_local.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/save_route_dialog.dart';
@@ -251,6 +253,18 @@ class GrabarController extends ChangeNotifier {
         elevationLossMeters: elevationLossMeters,
       );
       if (saved && context.mounted) {
+        final unlocked = await AchievementService.instance.recordFirstTrail();
+        if (!context.mounted) return;
+        if (unlocked) {
+          AchievementView(
+            title: '¡Logro desbloqueado!',
+            subTitle: 'Creaste tu primer sendero',
+            icon: const Icon(Icons.emoji_events, color: Colors.white),
+            color: Theme.of(context).colorScheme.primary,
+            alignment: Alignment.topCenter,
+            duration: const Duration(seconds: 4),
+          ).show(context);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Trayecto "${details.name}" guardado')),
         );
