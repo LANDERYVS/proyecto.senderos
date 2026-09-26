@@ -44,7 +44,7 @@ Future<RouteDetails?> showSaveRouteDialog(BuildContext context) async {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: difficulty,
+                initialValue: difficulty,
                 decoration: const InputDecoration(labelText: 'Dificultad *'),
                 items: const [
                   DropdownMenuItem(value: 'Fácil', child: Text('Fácil')),

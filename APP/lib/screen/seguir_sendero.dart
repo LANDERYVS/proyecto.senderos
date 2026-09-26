@@ -5,7 +5,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../utils/route_calculator.dart';
 import 'localizacion.dart';
 
 class SeguirSenderoPage extends StatefulWidget {
@@ -25,7 +24,6 @@ class SeguirSenderoPage extends StatefulWidget {
 class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
   final MapController _mapController = MapController();
   final LocalizacionService _localizacionService = LocalizacionService();
-  final RouteCalculator _routeCalculator = RouteCalculator();
   final Distance _distanceCalculator = const Distance();
   StreamSubscription<Position>? _positionSubscription;
   Timer? _timer;
@@ -36,8 +34,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
   Duration _elapsedTime = Duration.zero;
   double _distanceKm = 0;
   double _elevationGainMeters = 0;
-  double _elevationLossMeters = 0;
-  int _currentRouteIndex = 0;
   double? _lastAltitude;
   DateTime? _startTime;
 
@@ -110,7 +106,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
 
     final distanceAlongRoute = _distanceAlongRouteUntil(nearestIndex);
     _distanceKm = distanceAlongRoute / 1000;
-    _currentRouteIndex = nearestIndex;
 
     final validAltitude = altitude.isFinite ? altitude : null;
     if (validAltitude != null) {
@@ -119,8 +114,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
         final delta = validAltitude - previousAltitude;
         if (delta > 0) {
           _elevationGainMeters += delta;
-        } else if (delta < 0) {
-          _elevationLossMeters += delta.abs();
         }
       }
       _lastAltitude = validAltitude;
@@ -217,7 +210,7 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
                 if (_isLoadingLocation)
                   Positioned.fill(
                     child: Container(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       child: const Center(child: CircularProgressIndicator()),
                     ),
                   ),

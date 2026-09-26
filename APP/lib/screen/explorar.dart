@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../filtros.dart';
 import '../models/explore_trail.dart';
 import '../services/obtener_sendero.dart';
+import '../services/senderos_favoritos.dart';
+import '../services/senderos_locales.dart';
 import '../widgets/sendero_card.dart';
 
 class ExploreContent extends StatefulWidget {
@@ -14,7 +16,11 @@ class ExploreContent extends StatefulWidget {
 
 class _ExploreContentState extends State<ExploreContent> {
   final ObtenerSenderoService _trailService = ObtenerSenderoService();
+  final SenderosFavoritosService _favoritesService = SenderosFavoritosService();
+  final SenderosLocalesService _savedRoutesService = SenderosLocalesService();
   List<ExploreTrail> _trails = [];
+  final Set<int> _favoriteIds = {};
+  final Set<int> _savingFavoriteIds = {};
   bool _isLoading = true;
   String? _loadError;
 
@@ -37,11 +43,27 @@ class _ExploreContentState extends State<ExploreContent> {
 
     try {
       final trails = await _trailService.obtenerSenderos();
+      Set<int> favoriteIds = {};
+      String? favoritesError;
+      try {
+        favoriteIds = await _favoritesService.loadFavoriteIds();
+      } on Exception catch (error) {
+        favoritesError = error.toString();
+        debugPrint('Error al cargar favoritos: $error');
+      }
       if (!mounted) return;
       setState(() {
         _trails = trails;
+        _favoriteIds
+          ..clear()
+          ..addAll(favoriteIds);
         _isLoading = false;
       });
+      if (favoritesError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudieron sincronizar favoritos')),
+        );
+      }
     } on ObtenerSenderoException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -49,6 +71,59 @@ class _ExploreContentState extends State<ExploreContent> {
         _loadError = error.message;
       });
       debugPrint('Error al listar senderos: ${error.cause ?? error}');
+    }
+  }
+
+  Future<void> _toggleFavorite(ExploreTrail trail) async {
+    final senderoId = trail.id;
+    if (senderoId == null) return;
+    final wasFavorite = _favoriteIds.contains(senderoId);
+    setState(() => _savingFavoriteIds.add(senderoId));
+
+    try {
+      if (wasFavorite) {
+        await _favoritesService.removeFavorite(senderoId);
+        try {
+          await _savedRoutesService.removeFavoriteCache(trail);
+        } on Exception catch (error) {
+          debugPrint(
+            'No se pudo actualizar la copia local del favorito: $error',
+          );
+        }
+      } else {
+        await _favoritesService.addFavorite(senderoId);
+        try {
+          await _savedRoutesService.saveFavorite(trail);
+        } on Exception catch (error) {
+          debugPrint(
+            'No se pudo descargar la copia local del favorito: $error',
+          );
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        if (wasFavorite) {
+          _favoriteIds.remove(senderoId);
+        } else {
+          _favoriteIds.add(senderoId);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite
+                ? '"${trail.name}" quitado de favoritos'
+                : '"${trail.name}" guardado en favoritos',
+          ),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo guardar el sendero: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingFavoriteIds.remove(senderoId));
     }
   }
 
@@ -101,8 +176,21 @@ class _ExploreContentState extends State<ExploreContent> {
                   padding: const EdgeInsets.all(12),
                   itemCount: visibleTrails.length,
                   separatorBuilder: (_, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) =>
-                      SenderoCard(trail: visibleTrails[index]),
+                  itemBuilder: (context, index) {
+                    final trail = visibleTrails[index];
+                    final senderoId = trail.id;
+                    return SenderoCard(
+                      trail: trail,
+                      isFavorite:
+                          senderoId != null && _favoriteIds.contains(senderoId),
+                      isSavingFavorite:
+                          senderoId != null &&
+                          _savingFavoriteIds.contains(senderoId),
+                      onFavorite: senderoId == null
+                          ? null
+                          : () => _toggleFavorite(trail),
+                    );
+                  },
                 ),
         ),
       ],

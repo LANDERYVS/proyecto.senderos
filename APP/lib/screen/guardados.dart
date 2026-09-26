@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 
 import '../filtros.dart';
+import '../models/explore_trail.dart';
 import '../models/saved_route.dart';
 import '../services/guardado_local.dart';
 import '../services/gpx_import.dart';
+import '../services/obtener_sendero.dart';
+import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
+import '../widgets/sendero_card.dart';
 import 'previsualizar_gpx.dart';
 
 class SavedContent extends StatefulWidget {
@@ -17,8 +21,11 @@ class SavedContent extends StatefulWidget {
 
 class _SavedContentState extends State<SavedContent> {
   final SenderosLocalesService _savedRoutesService = SenderosLocalesService();
+  final SenderosFavoritosService _favoritesService = SenderosFavoritosService();
+  final ObtenerSenderoService _trailService = ObtenerSenderoService();
   final RouteStorageService _routeStorageService = RouteStorageService();
   List<SavedRoute> _routes = [];
+  List<ExploreTrail> _favoriteTrails = [];
   String _searchTerm = '';
   int _selectedTab = 0;
 
@@ -30,9 +37,59 @@ class _SavedContentState extends State<SavedContent> {
 
   Future<void> _loadRoutes() async {
     final routes = await _savedRoutesService.loadRoutes();
+    var favoriteTrails = <ExploreTrail>[];
+    try {
+      final favoriteIds = await _favoritesService.loadFavoriteIds();
+      if (favoriteIds.isNotEmpty) {
+        favoriteTrails = (await _trailService.obtenerSenderos())
+            .where(
+              (trail) => trail.id != null && favoriteIds.contains(trail.id),
+            )
+            .toList();
+      }
+    } on Exception catch (error) {
+      debugPrint('Error al cargar senderos favoritos: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudieron sincronizar favoritos')),
+        );
+      }
+    }
 
     if (mounted) {
-      setState(() => _routes = routes);
+      setState(() {
+        _routes = routes;
+        _favoriteTrails = favoriteTrails;
+      });
+    }
+  }
+
+  Future<void> _removeFavorite(ExploreTrail trail) async {
+    final senderoId = trail.id;
+    if (senderoId == null) return;
+
+    try {
+      await _favoritesService.removeFavorite(senderoId);
+      try {
+        await _savedRoutesService.removeFavoriteCache(trail);
+      } on Exception catch (error) {
+        debugPrint('No se pudo actualizar la copia local del favorito: $error');
+      }
+      if (!mounted) return;
+      setState(() {
+        _favoriteTrails.removeWhere((favorite) => favorite.id == senderoId);
+        _routes = _routes
+            .where((route) => route.favoriteSenderoId != senderoId)
+            .toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${trail.name}" quitado de favoritos')),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo quitar: $error')));
     }
   }
 
@@ -99,50 +156,29 @@ class _SavedContentState extends State<SavedContent> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _openGpx,
-              icon: const Icon(Icons.folder_open_outlined),
-              label: const Text('Abrir archivo GPX'),
-            ),
-          ),
+  Widget _buildOpenGpxButton() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _openGpx,
+          icon: const Icon(Icons.folder_open_outlined),
+          label: const Text('Abrir archivo GPX'),
         ),
-        FilterBar(onSearch: (value) => setState(() => _searchTerm = value)),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(child: _tabButton(label: 'Mis senderos', index: 0)),
-              Expanded(
-                child: _tabButton(label: 'Senderos favoritos', index: 1),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _filteredRoutes.isEmpty
-              ? const Center(child: Text('No hay trayectos guardados'))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _filteredRoutes.length,
-                  itemBuilder: (context, index) {
-                    final route = _filteredRoutes[index];
-                    return _SavedRouteCard(
-                      route: route,
-                      onShare: () => _shareRoute(route),
-                      onPublish: () => _publishRoute(route),
-                    );
-                  },
-                ),
-        ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildRouteTabs() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(child: _tabButton(label: 'Mis senderos', index: 0)),
+          Expanded(child: _tabButton(label: 'Senderos favoritos', index: 1)),
+        ],
+      ),
     );
   }
 
@@ -174,15 +210,77 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  Widget _buildRouteList() {
+    final localRoutes = _filteredRoutes;
+    final remoteFavorites = _filteredFavoriteTrails;
+    if (localRoutes.isEmpty && remoteFavorites.isEmpty) {
+      return const Center(child: Text('No hay trayectos guardados'));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: localRoutes.length + remoteFavorites.length,
+      itemBuilder: (context, index) {
+        if (index < localRoutes.length) {
+          final route = localRoutes[index];
+          return _SavedRouteCard(
+            route: route,
+            onShare: () => _shareRoute(route),
+            onPublish: () => _publishRoute(route),
+          );
+        }
+
+        final trail = remoteFavorites[index - localRoutes.length];
+        return SenderoCard(
+          trail: trail,
+          isFavorite: true,
+          isSavingFavorite: false,
+          onFavorite: () => _removeFavorite(trail),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildOpenGpxButton(),
+        FilterBar(onSearch: (value) => setState(() => _searchTerm = value)),
+        _buildRouteTabs(),
+        Expanded(child: _buildRouteList()),
+      ],
+    );
+  }
+
   List<SavedRoute> get _filteredRoutes {
     final query = _searchTerm.toLowerCase();
     final routesForTab = _selectedTab == 0
         ? _routes.where((route) => route.isCreatedByUser).toList()
-        : _routes.where((route) => route.isFavorite).toList();
+        : _routes
+              .where(
+                (route) =>
+                    route.isFavorite &&
+                    !_favoriteTrails.any(
+                      (trail) =>
+                          trail.gpxKey != null &&
+                          trail.gpxKey == route.favoriteSourceKey,
+                    ),
+              )
+              .toList();
 
     return routesForTab.where((route) {
       return route.name.toLowerCase().contains(query) ||
           route.description.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  List<ExploreTrail> get _filteredFavoriteTrails {
+    if (_selectedTab != 1) return const [];
+    final query = _searchTerm.toLowerCase();
+    return _favoriteTrails.where((trail) {
+      return trail.name.toLowerCase().contains(query) ||
+          trail.description.toLowerCase().contains(query);
     }).toList();
   }
 }
@@ -208,6 +306,15 @@ class _SavedRouteCard extends StatelessWidget {
       child: ListTile(
         leading: firstPhoto != null && firstPhoto.existsSync()
             ? Image.file(firstPhoto, width: 52, height: 52, fit: BoxFit.cover)
+            : route.photoUrl != null
+            ? Image.network(
+                route.photoUrl!,
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+                errorBuilder: (_, error, stackTrace) =>
+                    const Icon(Icons.folder, color: Colors.amber),
+              )
             : const Icon(Icons.folder, color: Colors.amber),
         title: Text(route.name),
         subtitle: Text(
@@ -222,7 +329,7 @@ class _SavedRouteCard extends StatelessWidget {
             IconButton(
               tooltip: 'Publicar sendero',
               icon: const Icon(Icons.cloud_upload_outlined),
-              onPressed: onPublish,
+              onPressed: route.isCreatedByUser ? onPublish : null,
             ),
             IconButton(
               tooltip: 'Compartir trayecto',

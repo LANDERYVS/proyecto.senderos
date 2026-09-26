@@ -22,7 +22,7 @@ class ObtenerSenderoService {
       final rows = await _supabase
           .from('senderos')
           .select(
-            'sendero_nick, descripcion, dificultad, distancia, '
+            'id, sendero_nick, descripcion, dificultad, distancia, '
             'foto_sendero, gpx_key, user_id',
           )
           .order('fecha_creacion', ascending: false);

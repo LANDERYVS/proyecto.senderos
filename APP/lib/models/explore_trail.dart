@@ -5,6 +5,7 @@ class ExploreTrail {
   );
 
   const ExploreTrail({
+    this.id,
     required this.name,
     required this.description,
     required this.difficulty,
@@ -24,6 +25,7 @@ class ExploreTrail {
     final photo = publicR2Url(map['foto_sendero']?.toString());
 
     return ExploreTrail(
+      id: (map['id'] as num?)?.toInt(),
       name: name.isEmpty ? 'Sendero sin nombre' : name,
       description: map['descripcion']?.toString() ?? '',
       difficulty: map['dificultad']?.toString() ?? 'Sin dificultad',
@@ -45,6 +47,7 @@ class ExploreTrail {
         '${value.replaceFirst(RegExp(r'^/'), '')}';
   }
 
+  final int? id;
   final String name;
   final String description;
   final String difficulty;

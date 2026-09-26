@@ -163,6 +163,65 @@ class _ComunidadContentState extends State<ComunidadContent> {
     }
   }
 
+  Widget _buildSearchField(ColorScheme colors) {
+    return TextField(
+      controller: _searchController,
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        hintText: 'Buscar por nombre o usuario',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: IconButton(
+          onPressed: () {},
+          tooltip: 'Filtros',
+          icon: const Icon(Icons.tune_outlined),
+        ),
+        filled: true,
+        fillColor: colors.surfaceContainerHighest,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        TextButton(onPressed: () {}, child: const Text('Ver todas')),
+      ],
+    );
+  }
+
+  Widget _buildCommunityInfoCard(ColorScheme colors) {
+    return Card(
+      elevation: 0,
+      color: colors.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Icon(Icons.groups_outlined, size: 30, color: colors.primary),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Text(
+                'Comparte tus senderos con tu comunidad y descubre nuevas rutas.',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -172,9 +231,9 @@ class _ComunidadContentState extends State<ComunidadContent> {
       children: [
         Text(
           'Encuentra tu grupo',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -182,38 +241,9 @@ class _ComunidadContentState extends State<ComunidadContent> {
           style: TextStyle(color: colors.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
-        TextField(
-          controller: _searchController,
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: 'Buscar por nombre o usuario',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: IconButton(
-              onPressed: () {},
-              tooltip: 'Filtros',
-              icon: const Icon(Icons.tune_outlined),
-            ),
-            filled: true,
-            fillColor: colors.surfaceContainerHighest,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
+        _buildSearchField(colors),
         const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Agregar personas',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            TextButton(onPressed: () {}, child: const Text('Ver todas')),
-          ],
-        ),
+        _buildSectionHeader('Agregar personas'),
         const SizedBox(height: 4),
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
@@ -231,12 +261,7 @@ class _ComunidadContentState extends State<ComunidadContent> {
           padding: EdgeInsets.symmetric(vertical: 20),
           child: Divider(),
         ),
-        Text(
-          'Agregados',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-        ),
+        _buildSectionHeader('Agregados'),
         const SizedBox(height: 8),
         if (_addedFriends.isEmpty)
           const Text('Aquí aparecerán las personas que acepten tu solicitud.')
@@ -255,25 +280,7 @@ class _ComunidadContentState extends State<ComunidadContent> {
               ),
             ),
         const SizedBox(height: 16),
-        Card(
-          elevation: 0,
-          color: colors.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Icon(Icons.groups_outlined, size: 30, color: colors.primary),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Text(
-                    'Comparte tus senderos con tu comunidad y descubre nuevas rutas.',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _buildCommunityInfoCard(colors),
       ],
     );
   }

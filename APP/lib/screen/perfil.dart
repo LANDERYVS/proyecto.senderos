@@ -118,6 +118,77 @@ class _ProfilePageState extends State<ProfilePage> {
     return metadataPhoto?.isNotEmpty == true ? metadataPhoto : null;
   }
 
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
+    );
+  }
+
+  void _openRecordingScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const GrabarPage()),
+    );
+  }
+
+  void _navigateToHome(int index) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    return Column(
+      children: [
+        Center(
+          child: CircleAvatar(
+            radius: 48,
+            backgroundImage: _photoUrl == null ? null : NetworkImage(_photoUrl!),
+            child: _photoUrl == null ? const Icon(Icons.person, size: 56) : null,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          _name,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '@$_name',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildProfileDetails() {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.email_outlined),
+          title: const Text('Correo electrónico'),
+          subtitle: Text(_email),
+        ),
+        if (_profile?['premium'] == true)
+          const ListTile(
+            leading: Icon(Icons.workspace_premium_outlined),
+            title: Text('Cuenta premium'),
+          ),
+        if (_error != null)
+          ListTile(
+            leading: const Icon(Icons.error_outline),
+            title: const Text('No se pudo cargar el perfil'),
+            subtitle: Text(_error!),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -128,12 +199,7 @@ class _ProfilePageState extends State<ProfilePage> {
           IconButton(
             tooltip: 'Configuración',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
-              );
-            },
+            onPressed: _openSettings,
           ),
         ],
       ),
@@ -143,46 +209,8 @@ class _ProfilePageState extends State<ProfilePage> {
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else ...[
-            Center(
-              child: CircleAvatar(
-                radius: 48,
-                backgroundImage: _photoUrl == null
-                    ? null
-                    : NetworkImage(_photoUrl!),
-                child: _photoUrl == null
-                    ? const Icon(Icons.person, size: 56)
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _name,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '@$_name',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const Icon(Icons.email_outlined),
-              title: const Text('Correo electrónico'),
-              subtitle: Text(_email),
-            ),
-            if (_profile?['premium'] == true)
-              const ListTile(
-                leading: Icon(Icons.workspace_premium_outlined),
-                title: Text('Cuenta premium'),
-              ),
-            if (_error != null)
-              ListTile(
-                leading: const Icon(Icons.error_outline),
-                title: const Text('No se pudo cargar el perfil'),
-                subtitle: Text(_error!),
-              ),
+            _buildProfileHeader(),
+            _buildProfileDetails(),
           ],
           const Divider(),
           Padding(
@@ -206,15 +234,9 @@ class _ProfilePageState extends State<ProfilePage> {
         selectedIndex: 4,
         onDestinationSelected: (index) {
           if (index == 2) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const GrabarPage()),
-            );
+            _openRecordingScreen();
           } else if (index != 4) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
-            );
+            _navigateToHome(index);
           }
         },
       ),

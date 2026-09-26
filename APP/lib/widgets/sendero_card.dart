@@ -4,9 +4,18 @@ import '../models/explore_trail.dart';
 import '../screen/detalle_sendero.dart';
 
 class SenderoCard extends StatelessWidget {
-  const SenderoCard({super.key, required this.trail});
+  const SenderoCard({
+    super.key,
+    required this.trail,
+    required this.isFavorite,
+    required this.isSavingFavorite,
+    required this.onFavorite,
+  });
 
   final ExploreTrail trail;
+  final bool isFavorite;
+  final bool isSavingFavorite;
+  final VoidCallback? onFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +96,24 @@ class SenderoCard extends StatelessWidget {
                   const Spacer(),
                   Text('${trail.distanceKm.toStringAsFixed(1)} km'),
                   const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: isFavorite
+                        ? 'Quitar de favoritos'
+                        : 'Guardar en favoritos',
+                    onPressed: onFavorite == null || isSavingFavorite
+                        ? null
+                        : onFavorite,
+                    icon: isSavingFavorite
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? Colors.red : null,
+                          ),
+                  ),
                   const Icon(Icons.chevron_right, size: 20),
                 ],
               ),

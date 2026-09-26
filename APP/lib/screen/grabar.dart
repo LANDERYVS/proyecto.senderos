@@ -204,6 +204,165 @@ class _GrabarPageState extends State<GrabarPage> {
     );
   }
 
+  Widget _buildMapContent(LatLng initialCenter) {
+    return FlutterMap(
+      mapController: _controller.mapController,
+      options: MapOptions(
+        initialCenter: initialCenter,
+        initialZoom: widget.initialRoutePoints.isNotEmpty ? 15 : 14,
+        onLongPress: (_, point) => _addInterestPoint(point),
+      ),
+      children: [
+        _controller.offlineTileLayer ??
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.proyecto',
+            ),
+        MarkerLayer(markers: _controller.markers),
+        MarkerLayer(
+          markers: [
+            for (final interestPoint in _controller.interestPoints)
+              Marker(
+                width: 120,
+                height: 70,
+                point: interestPoint.point,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.place,
+                      color: Colors.deepPurple,
+                      size: 34,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      color: Colors.white,
+                      child: Text(
+                        interestPoint.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        if (_controller.recordedRoute.length > 1)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: _controller.recordedRoute,
+                color: GrabarStyles.primaryPink,
+                strokeWidth: 7,
+              ),
+            ],
+          ),
+        if (_controller.recordedRoute.isNotEmpty)
+          MarkerLayer(
+            markers: [
+              if (_controller.recordedRoute.length > 1)
+                Marker(
+                  width: 42,
+                  height: 48,
+                  point: _controller.recordedRoute.last,
+                  child: const Icon(
+                    Icons.flag,
+                    color: Colors.red,
+                    size: 34,
+                  ),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildShareButton() {
+    final isSharing = _locationSharing.sharingFriend != null;
+    return Positioned(
+      top: 16,
+      left: 16,
+      child: SafeArea(
+        child: FloatingActionButton.small(
+          heroTag: 'share-location',
+          tooltip: isSharing ? 'Dejar de compartir ubicación' : 'Compartir ubicación',
+          backgroundColor: isSharing ? Colors.green : Colors.white,
+          foregroundColor: isSharing ? Colors.white : Colors.black87,
+          onPressed: isSharing ? _stopSharing : _chooseFriendForSharing,
+          child: Icon(
+            isSharing ? Icons.location_on : Icons.location_on_outlined,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCenterLocationButton() {
+    return Positioned(
+      right: 16,
+      bottom: 16,
+      child: Material(
+        color: Colors.white,
+        elevation: 3,
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: 'Centrar en mi ubicación',
+          onPressed: _controller.markers.isEmpty
+              ? null
+              : () => _controller.mapController.move(
+                  _controller.markers.first.point,
+                  16,
+                ),
+          icon: const Icon(Icons.my_location_outlined),
+          color: GrabarStyles.primaryGreen,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecordingActions() {
+    if (_controller.isRecording) {
+      return Row(
+        children: [
+          Expanded(
+            child: GrabarActionButton(
+              isRecording: true,
+              onPressed: _togglePause,
+              label: _controller.isPaused ? 'Reanudar' : 'Pausar',
+              icon: _controller.isPaused ? Icons.play_arrow : Icons.pause,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GrabarActionButton(
+              isRecording: true,
+              onPressed: _toggleRecording,
+              label: 'Detener',
+              icon: Icons.stop,
+              style: GrabarStyles.stopButtonStyle,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return GrabarActionButton(
+      isRecording: false,
+      onPressed: _toggleRecording,
+      label: 'Iniciar trayecto',
+      icon: Icons.play_arrow,
+      style: GrabarStyles.primaryButtonStyle,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final initialCenter = widget.initialRoutePoints.isNotEmpty
@@ -230,132 +389,9 @@ class _GrabarPageState extends State<GrabarPage> {
             Expanded(
               child: Stack(
                 children: [
-                  FlutterMap(
-                    mapController: _controller.mapController,
-                    options: MapOptions(
-                      initialCenter: initialCenter,
-                      initialZoom: widget.initialRoutePoints.isNotEmpty ? 15 : 14,
-                      onLongPress: (_, point) => _addInterestPoint(point),
-                    ),
-                    children: [
-                      _controller.offlineTileLayer ??
-                          TileLayer(
-                            urlTemplate:
-                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.example.proyecto',
-                          ),
-                      MarkerLayer(markers: _controller.markers),
-                      MarkerLayer(
-                        markers: [
-                          for (final interestPoint
-                              in _controller.interestPoints)
-                            Marker(
-                              width: 120,
-                              height: 70,
-                              point: interestPoint.point,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.place,
-                                    color: Colors.deepPurple,
-                                    size: 34,
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    color: Colors.white,
-                                    child: Text(
-                                      interestPoint.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (_controller.recordedRoute.length > 1)
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: _controller.recordedRoute,
-                              color: GrabarStyles.primaryPink,
-                              strokeWidth: 7,
-                            ),
-                          ],
-                        ),
-                      if (_controller.recordedRoute.isNotEmpty)
-                        MarkerLayer(
-                          markers: [
-                            if (_controller.recordedRoute.length > 1)
-                              Marker(
-                                width: 42,
-                                height: 48,
-                                point: _controller.recordedRoute.last,
-                                child: const Icon(
-                                  Icons.flag,
-                                  color: Colors.red,
-                                  size: 34,
-                                ),
-                              ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: SafeArea(
-                      child: FloatingActionButton.small(
-                        heroTag: 'share-location',
-                        tooltip: _locationSharing.sharingFriend == null
-                            ? 'Compartir ubicación'
-                            : 'Dejar de compartir ubicación',
-                        backgroundColor: _locationSharing.sharingFriend == null
-                            ? Colors.white
-                            : Colors.green,
-                        foregroundColor: _locationSharing.sharingFriend == null
-                            ? Colors.black87
-                            : Colors.white,
-                        onPressed: _locationSharing.sharingFriend == null
-                            ? _chooseFriendForSharing
-                            : _stopSharing,
-                        child: Icon(
-                          _locationSharing.sharingFriend == null
-                              ? Icons.location_on_outlined
-                              : Icons.location_on,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 16,
-                    bottom: 16,
-                    child: Material(
-                      color: Colors.white,
-                      elevation: 3,
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        tooltip: 'Centrar en mi ubicación',
-                        onPressed: _controller.markers.isEmpty
-                            ? null
-                            : () => _controller.mapController.move(
-                                _controller.markers.first.point,
-                                16,
-                              ),
-                        icon: const Icon(Icons.my_location_outlined),
-                        color: GrabarStyles.primaryGreen,
-                      ),
-                    ),
-                  ),
+                  _buildMapContent(initialCenter),
+                  _buildShareButton(),
+                  _buildCenterLocationButton(),
                 ],
               ),
             ),
@@ -373,14 +409,12 @@ class _GrabarPageState extends State<GrabarPage> {
                       ),
                       GrabarMetricIndicator(
                         label: 'DISTANCIA',
-                        value:
-                            '${_controller.distanceKm.toStringAsFixed(1)} km',
+                        value: '${_controller.distanceKm.toStringAsFixed(1)} km',
                         alignment: CrossAxisAlignment.end,
                       ),
                       GrabarMetricIndicator(
                         label: 'SUBIDA',
-                        value:
-                            '${_controller.elevationGainMeters.toStringAsFixed(0)} m',
+                        value: '${_controller.elevationGainMeters.toStringAsFixed(0)} m',
                         alignment: CrossAxisAlignment.end,
                       ),
                     ],
@@ -395,41 +429,8 @@ class _GrabarPageState extends State<GrabarPage> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  if (_controller.isRecording)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: GrabarActionButton(
-                            isRecording: true,
-                            onPressed: _togglePause,
-                            label: _controller.isPaused ? 'Reanudar' : 'Pausar',
-                            icon: _controller.isPaused
-                                ? Icons.play_arrow
-                                : Icons.pause,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: GrabarActionButton(
-                            isRecording: true,
-                            onPressed: _toggleRecording,
-                            label: 'Detener',
-                            icon: Icons.stop,
-                            style: GrabarStyles.stopButtonStyle,
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    GrabarActionButton(
-                      isRecording: false,
-                      onPressed: _toggleRecording,
-                      label: 'Iniciar trayecto',
-                      icon: Icons.play_arrow,
-                      style: GrabarStyles.primaryButtonStyle,
-                    ),
-                  if (_controller.status.isNotEmpty &&
-                      !_controller.isRecording) ...[
+                  _buildRecordingActions(),
+                  if (_controller.status.isNotEmpty && !_controller.isRecording) ...[
                     const SizedBox(height: 6),
                     Text(
                       _controller.status,

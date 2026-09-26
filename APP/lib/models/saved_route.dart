@@ -18,6 +18,13 @@ class SavedRoute {
 
   bool get isCreatedByUser => metadata?['createdByUser'] as bool? ?? true;
 
+  String? get favoriteSourceKey => metadata?['favoriteSourceKey'] as String?;
+
+  int? get favoriteSenderoId =>
+      (metadata?['favoriteSenderoId'] as num?)?.toInt();
+
+  String? get photoUrl => metadata?['photoUrl'] as String?;
+
   bool get uploadedToR2 => metadata?['uploaded_to_r2'] as bool? ?? false;
 
   String? get r2GpxKey => metadata?['gpx_key'] as String?;

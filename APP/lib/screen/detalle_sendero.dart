@@ -74,6 +74,56 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     }
   }
 
+  void _openTrailTracking() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeguirSenderoPage(
+          routePoints: _routePoints,
+          routeName: widget.trail.name,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrailHero() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 220,
+        width: double.infinity,
+        color: const Color(0xffeaf5df),
+        child: widget.trail.photoUrl == null
+            ? Image.asset('assets/arbol.jpg', fit: BoxFit.contain)
+            : Image.network(
+                widget.trail.photoUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, error, stackTrace) => Image.asset(
+                  'assets/arbol.jpg',
+                  fit: BoxFit.contain,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildFollowTrailButton() {
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: _openTrailTracking,
+          style: FilledButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          icon: const Icon(Icons.directions_walk_outlined),
+          label: const Text('Seguir sendero'),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -85,30 +135,13 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: Container(
-                height: 220,
-                width: double.infinity,
-                color: const Color(0xffeaf5df),
-                child: widget.trail.photoUrl == null
-                    ? Image.asset('assets/arbol.jpg', fit: BoxFit.contain)
-                    : Image.network(
-                        widget.trail.photoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, error, stackTrace) => Image.asset(
-                          'assets/arbol.jpg',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-              ),
-            ),
+            _buildTrailHero(),
             const SizedBox(height: 20),
             Text(
               widget.trail.name,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -124,9 +157,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 24),
             Text(
               'Trayecto',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             _RouteMap(
@@ -137,9 +170,9 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 24),
             Text(
               'Descripción',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -149,30 +182,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 28),
-            SafeArea(
-              top: false,
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SeguirSenderoPage(
-                          routePoints: _routePoints,
-                          routeName: widget.trail.name,
-                        ),
-                      ),
-                    );
-                  },
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  icon: const Icon(Icons.directions_walk_outlined),
-                  label: const Text('Seguir sendero'),
-                ),
-              ),
-            ),
+            _buildFollowTrailButton(),
           ],
         ),
       ),
