@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto/main.dart';
 import 'package:proyecto/models/explore_trail.dart';
 import 'package:proyecto/screen/detalle_sendero.dart';
+import 'package:proyecto/widgets/default_user_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -78,6 +79,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Explorar'), findsNWidgets(2));
+  });
+
+  testWidgets('usa la imagen por defecto cuando no hay foto del usuario', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: Center(child: DefaultUserAvatar())),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final circle = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
+    expect(circle.backgroundImage, isA<AssetImage>());
+    expect((circle.backgroundImage as AssetImage).assetName, 'assets/Logo.png');
   });
 
   testWidgets('muestra el botón de seguir sendero en la vista de detalle', (

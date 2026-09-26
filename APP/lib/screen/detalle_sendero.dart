@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:xml/xml.dart';
 
 import '../models/clima_sendero.dart';
@@ -128,6 +129,79 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     );
   }
 
+  Future<void> _deleteOwnTrail() async {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    final trailId = widget.trail.id;
+
+    if (currentUserId == null || trailId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes iniciar sesión para eliminar senderos.'),
+        ),
+      );
+      return;
+    }
+
+    if (widget.trail.userId != currentUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Solo puedes eliminar tus senderos.')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar sendero'),
+        content: Text(
+          '¿Querés eliminar "${widget.trail.name}"? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await Supabase.instance.client
+          .from('senderos_favoritos')
+          .delete()
+          .eq('sendero_id', trailId);
+
+      await Supabase.instance.client
+          .from('senderos')
+          .delete()
+          .eq('id', trailId)
+          .eq('user_id', currentUserId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Se eliminó "${widget.trail.name}"')),
+      );
+      Navigator.pop(context, true);
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      final message = switch (error.code) {
+        '42501' =>
+          'No se pudo eliminar porque la base de datos bloquea esta acción. Debés habilitar DELETE en la política RLS de la tabla senderos para tu usuario.',
+        _ => 'No se pudo eliminar el sendero: ${error.message}',
+      };
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   Widget _buildTrailHero() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
@@ -159,6 +233,30 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
           ),
           icon: const Icon(Icons.directions_walk_outlined),
           label: const Text('Seguir sendero'),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteTrailButton() {
+    final isOwner =
+        widget.trail.userId == Supabase.instance.client.auth.currentUser?.id;
+
+    if (!isOwner) return const SizedBox.shrink();
+
+    return SafeArea(
+      top: false,
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: _deleteOwnTrail,
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            foregroundColor: Colors.red,
+            side: const BorderSide(color: Colors.red),
+          ),
+          icon: const Icon(Icons.delete_outline),
+          label: const Text('Eliminar sendero'),
         ),
       ),
     );
@@ -239,6 +337,8 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 28),
+            _buildDeleteTrailButton(),
+            const SizedBox(height: 12),
             _buildFollowTrailButton(),
           ],
         ),

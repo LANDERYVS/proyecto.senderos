@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
 import '../services/obtener_sendero.dart';
@@ -27,6 +28,7 @@ class _ExploreContentState extends State<ExploreContent> {
   String _searchTerm = '';
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
+  bool _showOnlyMyTrails = false;
 
   @override
   void initState() {
@@ -128,6 +130,8 @@ class _ExploreContentState extends State<ExploreContent> {
 
   List<ExploreTrail> get _visibleTrails {
     final query = _searchTerm.toLowerCase();
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+
     return _trails.where((trail) {
       final matchesSearch =
           trail.name.toLowerCase().contains(query) ||
@@ -141,48 +145,78 @@ class _ExploreContentState extends State<ExploreContent> {
         'Más de 8 km' => trail.distanceKm > 8,
         _ => true,
       };
-      return matchesSearch && matchesDifficulty && matchesLength;
+      final matchesOwner =
+          !_showOnlyMyTrails ||
+          (currentUserId != null && trail.userId == currentUserId);
+
+      return matchesSearch &&
+          matchesDifficulty &&
+          matchesLength &&
+          matchesOwner;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final visibleTrails = _visibleTrails;
-    return Column(
+
+    return Stack(
       children: [
-        FilterBar(
-          onSearch: (value) => setState(() => _searchTerm = value),
-          onDifficultyChanged: (value) =>
-              setState(() => _difficultyFilter = value),
-          onLengthChanged: (value) => setState(() => _lengthFilter = value),
+        Column(
+          children: [
+            FilterBar(
+              onSearch: (value) => setState(() => _searchTerm = value),
+              onDifficultyChanged: (value) =>
+                  setState(() => _difficultyFilter = value),
+              onLengthChanged: (value) => setState(() => _lengthFilter = value),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _loadError != null
+                  ? _ErrorState(message: _loadError!, onRetry: _loadTrails)
+                  : visibleTrails.isEmpty
+                  ? const Center(child: Text('No se encontraron senderos'))
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                      itemCount: visibleTrails.length,
+                      separatorBuilder: (_, index) =>
+                          const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final trail = visibleTrails[index];
+                        final senderoId = trail.id;
+                        return SenderoCard(
+                          trail: trail,
+                          isFavorite:
+                              senderoId != null &&
+                              _favoriteIds.contains(senderoId),
+                          isSavingFavorite:
+                              senderoId != null &&
+                              _savingFavoriteIds.contains(senderoId),
+                          onFavorite: senderoId == null
+                              ? null
+                              : () => _toggleFavorite(trail),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _loadError != null
-              ? _ErrorState(message: _loadError!, onRetry: _loadTrails)
-              : visibleTrails.isEmpty
-              ? const Center(child: Text('No se encontraron senderos'))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: visibleTrails.length,
-                  separatorBuilder: (_, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final trail = visibleTrails[index];
-                    final senderoId = trail.id;
-                    return SenderoCard(
-                      trail: trail,
-                      isFavorite:
-                          senderoId != null && _favoriteIds.contains(senderoId),
-                      isSavingFavorite:
-                          senderoId != null &&
-                          _savingFavoriteIds.contains(senderoId),
-                      onFavorite: senderoId == null
-                          ? null
-                          : () => _toggleFavorite(trail),
-                    );
-                  },
-                ),
+        Positioned(
+          right: 20,
+          bottom: 20,
+          child: FloatingActionButton.extended(
+            onPressed: () =>
+                setState(() => _showOnlyMyTrails = !_showOnlyMyTrails),
+            icon: Icon(_showOnlyMyTrails ? Icons.person_off : Icons.person),
+            label: Text(_showOnlyMyTrails ? 'Todos' : 'Mis senderos'),
+            backgroundColor: _showOnlyMyTrails
+                ? Theme.of(context).colorScheme.primary
+                : const Color(0xFFBDF2C6),
+            foregroundColor: _showOnlyMyTrails
+                ? Colors.white
+                : const Color(0xFF1B3A2F),
+          ),
         ),
       ],
     );

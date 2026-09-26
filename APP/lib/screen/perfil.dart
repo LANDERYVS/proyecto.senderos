@@ -9,11 +9,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/achievement_service.dart';
 import '../services/almacenamiento_r2.dart';
+import '../services/servicio_autenticacion.dart';
 import '../models/explore_trail.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
 import '../widgets/barra_navegacion.dart';
+import '../widgets/default_user_avatar.dart';
 
 class _ProfilePhotoSaveException implements Exception {
   const _ProfilePhotoSaveException(this.message);
@@ -98,16 +100,26 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     try {
+      await ServicioAutenticacion.syncCurrentUserProfile();
+
       final profile = await Supabase.instance.client
           .from('usuarios')
           .select('name, email, user_photo, premium')
           .eq('id', user.id)
           .maybeSingle();
 
+      final fallbackProfile = {
+        'name': user.userMetadata?['name'] ?? user.userMetadata?['username'] ?? user.email ?? 'Usuario',
+        'email': user.email ?? '',
+        'user_photo': user.userMetadata?['avatar_url'],
+        'premium': false,
+      };
+
       if (!mounted) return;
       setState(() {
-        _profile = profile;
+        _profile = profile ?? fallbackProfile;
         _isLoading = false;
+        _error = null;
       });
     } on PostgrestException {
       if (!mounted) return;
@@ -271,15 +283,12 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Stack(
             alignment: Alignment.bottomRight,
             children: [
-              CircleAvatar(
-                radius: 48,
-                backgroundImage: _photoUrl == null
-                    ? null
-                    : NetworkImage(_photoUrl!),
-                child: _photoUrl == null
-                    ? const Icon(Icons.person, size: 56)
-                    : null,
-              ),
+              _photoUrl == null
+                  ? DefaultUserAvatar(radius: 48)
+                  : CircleAvatar(
+                      radius: 48,
+                      backgroundImage: NetworkImage(_photoUrl!),
+                    ),
               if (_isUploadingPhoto)
                 const Padding(
                   padding: EdgeInsets.all(4),

@@ -6,6 +6,7 @@ class ExploreTrail {
 
   const ExploreTrail({
     this.id,
+    this.userId,
     required this.name,
     required this.description,
     required this.difficulty,
@@ -26,6 +27,7 @@ class ExploreTrail {
 
     return ExploreTrail(
       id: (map['id'] as num?)?.toInt(),
+      userId: userId,
       name: name.isEmpty ? 'Sendero sin nombre' : name,
       description: map['descripcion']?.toString() ?? '',
       difficulty: map['dificultad']?.toString() ?? 'Sin dificultad',
@@ -48,6 +50,7 @@ class ExploreTrail {
   }
 
   final int? id;
+  final String? userId;
   final String name;
   final String description;
   final String difficulty;

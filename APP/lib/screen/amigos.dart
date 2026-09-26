@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ubicacion_amigo.dart';
+import '../widgets/default_user_avatar.dart';
 
 class AmigosContent extends StatefulWidget {
   const AmigosContent({super.key});
@@ -361,17 +362,16 @@ class _FriendTile extends StatelessWidget {
             horizontal: 12,
             vertical: 4,
           ),
-          leading: CircleAvatar(
-            backgroundColor: colors.primaryContainer,
-            foregroundColor: colors.onPrimaryContainer,
-            backgroundImage: friend.photoUrl?.isNotEmpty == true
-                ? NetworkImage(friend.photoUrl!)
-                : null,
-            child: Text(
-              friend.initials,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
+          leading: friend.photoUrl?.isNotEmpty == true
+              ? CircleAvatar(
+                  backgroundColor: colors.primaryContainer,
+                  foregroundColor: colors.onPrimaryContainer,
+                  backgroundImage: NetworkImage(friend.photoUrl!),
+                )
+              : DefaultUserAvatar(
+                  radius: 20,
+                  backgroundColor: colors.primaryContainer,
+                ),
           title: Text(
             friend.name,
             style: const TextStyle(fontWeight: FontWeight.w700),
@@ -408,12 +408,9 @@ class _AddedFriendTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 0,
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: friend.photoUrl?.isNotEmpty == true
-              ? NetworkImage(friend.photoUrl!)
-              : null,
-          child: Text(friend.initials),
-        ),
+        leading: friend.photoUrl?.isNotEmpty == true
+            ? CircleAvatar(backgroundImage: NetworkImage(friend.photoUrl!))
+            : DefaultUserAvatar(radius: 20),
         title: Text(friend.name),
         subtitle: friend.username.isEmpty ? null : Text(friend.username),
         trailing: IconButton(
