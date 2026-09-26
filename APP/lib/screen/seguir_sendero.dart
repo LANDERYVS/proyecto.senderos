@@ -85,7 +85,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
               _userLocation = point;
               _updateTrackingProgress(point, position.altitude);
             });
-            _mapController.move(point, 16);
           },
           onError: (_) {
             if (!mounted) return;
@@ -94,6 +93,17 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
             );
           },
         );
+  }
+
+  void _centerOnUserLocation() {
+    final location = _userLocation;
+    if (location == null) return;
+
+    try {
+      _mapController.move(location, 16);
+    } on StateError {
+      // The map controller may not be attached yet.
+    }
   }
 
   void _updateTrackingProgress(LatLng point, double altitude) {
@@ -182,10 +192,14 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
     if (_userLocation != null) {
       markers.add(
         Marker(
-          width: 60,
-          height: 60,
+          width: 32,
+          height: 32,
           point: _userLocation!,
-          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+          child: const Icon(
+            Icons.navigation,
+            color: Color(0xff1d4ed8),
+            size: 28,
+          ),
         ),
       );
     }
@@ -229,11 +243,28 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
                       child: const Center(child: CircularProgressIndicator()),
                     ),
                   ),
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 3,
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      tooltip: 'Centrar en mi ubicación',
+                      onPressed: _userLocation == null
+                          ? null
+                          : _centerOnUserLocation,
+                      icon: const Icon(Icons.my_location_outlined),
+                      color: const Color(0xff4f8f3a),
+                    ),
+                  ),
+                ),
                 if (_locationError != null)
                   Positioned(
                     left: 16,
                     right: 16,
-                    bottom: 24,
+                    bottom: 80,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,

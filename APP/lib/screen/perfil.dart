@@ -1,12 +1,25 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fifty_achievement_engine/fifty_achievement_engine.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/achievement_service.dart';
+import '../services/almacenamiento_r2.dart';
+import '../models/explore_trail.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
 import '../widgets/barra_navegacion.dart';
+
+class _ProfilePhotoSaveException implements Exception {
+  const _ProfilePhotoSaveException(this.message);
+
+  final String message;
+}
 
 class _Achievement {
   const _Achievement({
@@ -33,8 +46,11 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
   bool _isAchievementLoading = true;
+  bool _isUploadingPhoto = false;
   String? _error;
   final AchievementService _achievementService = AchievementService.instance;
+  final ImagePicker _imagePicker = ImagePicker();
+  final AlmacenamientoR2 _almacenamientoR2 = AlmacenamientoR2();
 
   static const _otherAchievements = [
     _Achievement(
@@ -121,7 +137,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String? get _photoUrl {
     final profilePhoto = _profile?['user_photo']?.toString().trim();
-    if (profilePhoto?.isNotEmpty == true) return profilePhoto;
+    if (profilePhoto?.isNotEmpty == true) {
+      return ExploreTrail.publicR2Url(profilePhoto);
+    }
 
     final metadataPhoto = Supabase
         .instance
@@ -155,18 +173,184 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _imageContentType(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      _ => 'image/jpeg',
+    };
+  }
+
+  String _r2UploadFailure(R2UploadException error) {
+    final reason = switch (error.statusCode) {
+      '401' || '403' =>
+        'R2 rechazó la subida (${error.statusCode}). Revisa los permisos de la función r2-storage y sus credenciales de R2.',
+      '404' =>
+        'No se encontró la función r2-storage (404). Comprueba que esté desplegada en Supabase.',
+      '413' =>
+        'La imagen es demasiado grande (413). Elige una imagen más pequeña o aumenta el límite de subida.',
+      '429' =>
+        'Se hicieron demasiadas subidas en poco tiempo (429). Espera un momento y vuelve a intentarlo.',
+      '500' || '502' || '503' || '504' =>
+        'Falló el servidor de subida (${error.statusCode}). Revisa la configuración del bucket y las credenciales de R2 en la función.',
+      _ =>
+        'La subida a R2 falló (${error.statusCode}). Revisa la función r2-storage y la conexión.',
+    };
+    return '$reason Detalle: ${error.details}';
+  }
+
+  String _profileSaveFailure(PostgrestException error) {
+    final reason = switch (error.code) {
+      '42501' =>
+        'La foto se subió a R2, pero Supabase denegó la actualización. Revisa las políticas RLS de la tabla usuarios.',
+      '42703' =>
+        'La foto se subió a R2, pero no existe la columna user_photo en la tabla usuarios.',
+      '42P01' =>
+        'La foto se subió a R2, pero no se encontró la tabla usuarios.',
+      _ =>
+        'La foto se subió a R2, pero no se pudo guardar su ruta en usuarios. Revisa la conexión y los permisos de la tabla.',
+    };
+    return '$reason Detalle: ${error.message}';
+  }
+
+  Future<void> _changeProfilePhoto() async {
+    if (_isUploadingPhoto) return;
+
+    try {
+      final pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+      if (pickedFile == null || !mounted) return;
+
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        _showMessage('Debes iniciar sesión para cambiar la foto');
+        return;
+      }
+
+      setState(() => _isUploadingPhoto = true);
+
+      final photoKey = await _almacenamientoR2.uploadFileToR2(
+        file: File(pickedFile.path),
+        folder: 'foto_usuarios',
+        contentType: _imageContentType(pickedFile.path),
+      );
+
+      try {
+        final updatedProfile = await Supabase.instance.client
+            .from('usuarios')
+            .update({'user_photo': photoKey})
+            .eq('id', user.id)
+            .select('id')
+            .maybeSingle();
+
+        if (updatedProfile == null) {
+          throw const _ProfilePhotoSaveException(
+            'La foto se subió a R2, pero no se actualizó ninguna fila de usuarios. Revisa que exista el perfil con ese id y que la política RLS permita al usuario actualizar su propia fila.',
+          );
+        }
+      } on PostgrestException catch (error) {
+        throw _ProfilePhotoSaveException(_profileSaveFailure(error));
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _profile = {...?_profile, 'user_photo': photoKey};
+      });
+      _showMessage('Foto de perfil actualizada');
+    } on R2UploadException catch (error) {
+      _showMessage(_r2UploadFailure(error));
+    } on _ProfilePhotoSaveException catch (error) {
+      _showMessage(error.message);
+    } on FileSystemException {
+      _showMessage(
+        'No se pudo leer la imagen del dispositivo. Vuelve a elegir una foto que siga disponible.',
+      );
+    } on SocketException {
+      _showMessage(
+        'No hay conexión con el servidor. Comprueba tu internet y vuelve a intentarlo.',
+      );
+    } on HttpException catch (error) {
+      _showMessage('Falló la comunicación con el servidor: ${error.message}');
+    } on TimeoutException {
+      _showMessage(
+        'La subida tardó demasiado y expiró. Comprueba tu conexión e inténtalo otra vez.',
+      );
+    } on PlatformException catch (error) {
+      _showMessage(
+        'No se pudo abrir la galería (${error.code}). Revisa los permisos de fotos del dispositivo.',
+      );
+    } catch (error) {
+      _showMessage('Ocurrió un error inesperado al actualizar la foto: $error');
+    } finally {
+      if (mounted && _isUploadingPhoto) {
+        setState(() => _isUploadingPhoto = false);
+      }
+    }
+  }
+
   Widget _buildProfileHeader() {
     return Column(
       children: [
         Center(
-          child: CircleAvatar(
-            radius: 48,
-            backgroundImage: _photoUrl == null
-                ? null
-                : NetworkImage(_photoUrl!),
-            child: _photoUrl == null
-                ? const Icon(Icons.person, size: 56)
-                : null,
+          child: Stack(
+            alignment: Alignment.bottomRight,
+            children: [
+              CircleAvatar(
+                radius: 48,
+                backgroundImage: _photoUrl == null
+                    ? null
+                    : NetworkImage(_photoUrl!),
+                child: _photoUrl == null
+                    ? const Icon(Icons.person, size: 56)
+                    : null,
+              ),
+              if (_isUploadingPhoto)
+                const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.white,
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else
+                Positioned(
+                  right: -2,
+                  bottom: -2,
+                  child: InkWell(
+                    onTap: _changeProfilePhoto,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF2E7D32),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 16),

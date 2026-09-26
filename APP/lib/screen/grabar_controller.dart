@@ -10,6 +10,7 @@ import '../services/achievement_service.dart';
 import '../services/guardado_local.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/save_route_dialog.dart';
+import 'grabar_styles.dart';
 import 'localizacion.dart';
 
 class GrabarController extends ChangeNotifier {
@@ -35,6 +36,7 @@ class GrabarController extends ChangeNotifier {
 
   bool isRecording = false;
   bool isPaused = false;
+  bool _hasCenteredOnInitialLocation = false;
   double distanceKm = 0;
   double elevationGainMeters = 0;
   double elevationLossMeters = 0;
@@ -121,10 +123,10 @@ class GrabarController extends ChangeNotifier {
       ..clear()
       ..add(
         Marker(
-          width: 60,
-          height: 60,
+          width: 46,
+          height: 46,
           point: point,
-          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
+          child: GrabarStyles.currentLocationMarker(size: 28),
         ),
       );
 
@@ -150,10 +152,13 @@ class GrabarController extends ChangeNotifier {
       }
     }
 
-    try {
-      mapController.move(point, 16);
-    } on StateError {
-      // The map controller may still be mounting on the first update.
+    if (!_hasCenteredOnInitialLocation) {
+      try {
+        mapController.move(point, 16);
+        _hasCenteredOnInitialLocation = true;
+      } on StateError {
+        // The map controller may still be mounting on the first update.
+      }
     }
   }
 

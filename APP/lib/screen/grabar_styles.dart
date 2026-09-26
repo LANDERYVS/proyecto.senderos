@@ -38,4 +38,13 @@ class GrabarStyles {
 
   static TextStyle statusStyle(BuildContext context) =>
       TextStyle(color: Colors.grey.shade600, fontSize: 10);
+
+  static Widget currentLocationMarker({
+    double size = 34,
+    Color iconColor = const Color(0xff1d4ed8),
+  }) {
+    return Center(
+      child: Icon(Icons.navigation, color: iconColor, size: size),
+    );
+  }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,7 +7,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:xml/xml.dart';
 
+import '../models/clima_sendero.dart';
 import '../models/explore_trail.dart';
+import '../services/servicio_clima_sendero.dart';
+import '../widgets/clima_sendero_card.dart';
 import 'seguir_sendero.dart';
 
 class DetalleSenderoScreen extends StatefulWidget {
@@ -22,11 +26,26 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   List<LatLng> _routePoints = const [];
   bool _isLoadingRoute = true;
   String? _routeError;
+  bool _isLoadingWeather = false;
+  ClimaSendero? _weather;
+  final _weatherService = ServicioClimaSendero();
+  Timer? _weatherRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadRoute();
+    _weatherRefreshTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      if (mounted && _routePoints.isNotEmpty && !_isLoadingWeather) {
+        _loadTrailWeather(_centerOf(_routePoints));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _weatherRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadRoute() async {
@@ -65,11 +84,34 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         _routePoints = points;
         _isLoadingRoute = false;
       });
+      if (points.isNotEmpty) {
+        _loadTrailWeather(_centerOf(points));
+      }
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
         _isLoadingRoute = false;
         _routeError = error.toString();
+      });
+    }
+  }
+
+  Future<void> _loadTrailWeather(LatLng location) async {
+    setState(() {
+      _isLoadingWeather = true;
+    });
+
+    try {
+      final weather = await _weatherService.obtenerClima(location);
+      if (!mounted) return;
+      setState(() {
+        _weather = weather;
+        _isLoadingWeather = false;
+      });
+    } on Exception {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingWeather = false;
       });
     }
   }
@@ -165,6 +207,23 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               isLoading: _isLoadingRoute,
               hasError: _routeError != null,
             ),
+            const SizedBox(height: 20),
+            Text(
+              'Clima del sendero',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            ClimaSenderoCard(
+              isLoading: _isLoadingRoute || _isLoadingWeather,
+              hasRoute: _routePoints.isNotEmpty,
+              weather: _weather,
+              location: _routePoints.isEmpty ? null : _centerOf(_routePoints),
+              onRefresh: _routePoints.isEmpty
+                  ? () {}
+                  : () => _loadTrailWeather(_centerOf(_routePoints)),
+            ),
             const SizedBox(height: 24),
             Text(
               'Descripción',
@@ -185,6 +244,18 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         ),
       ),
     );
+  }
+
+  LatLng _centerOf(List<LatLng> points) {
+    final latitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.latitude,
+    );
+    final longitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.longitude,
+    );
+    return LatLng(latitude / points.length, longitude / points.length);
   }
 }
 

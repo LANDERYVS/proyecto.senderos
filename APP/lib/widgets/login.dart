@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/servicio_autenticacion.dart';
+import 'login_styles.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.home});
@@ -56,6 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  XFile? _selectedAvatar;
   bool isCreatingAccount = false;
 
   @override
@@ -83,6 +87,20 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       _showMessage(error);
     }
+  }
+
+  Future<void> _pickProfileImage() async {
+    final image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1200,
+    );
+
+    if (!mounted || image == null) return;
+
+    setState(() {
+      _selectedAvatar = image;
+    });
   }
 
   Future<void> _createAccount() async {
@@ -122,77 +140,105 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isCreatingAccount ? 'Crear cuenta' : 'Iniciar sesión'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: 'Correo o nombre de usuario',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            if (isCreatingAccount) ...[
-              const SizedBox(height: 16),
-              TextField(
-                controller: usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de usuario',
-                  border: OutlineInputBorder(),
+      backgroundColor: const Color(0xFFEAE1D2),
+      body: Container(
+        decoration: const BoxDecoration(gradient: LoginStyles.screenGradient),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 420),
+                padding: const EdgeInsets.all(26),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(235),
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(35),
+                      blurRadius: 24,
+                      offset: const Offset(0, 16),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LoginStyles.buildLogo(),
+                    const SizedBox(height: 28),
+                    if (isCreatingAccount) ...[
+                      LoginStyles.buildProfileAvatarSelector(
+                        selectedAvatar: _selectedAvatar,
+                        onPick: _pickProfileImage,
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                    if (isCreatingAccount)
+                      LoginStyles.buildInputField(
+                        controller: usernameController,
+                        labelText: 'Nombre de usuario',
+                      ),
+                    if (isCreatingAccount) const SizedBox(height: 16),
+                    LoginStyles.buildInputField(
+                      controller: emailController,
+                      labelText: 'Correo o nombre de usuario',
+                    ),
+                    const SizedBox(height: 16),
+                    LoginStyles.buildInputField(
+                      controller: passwordController,
+                      labelText: 'Contraseña',
+                      obscureText: true,
+                    ),
+                    if (isCreatingAccount) ...[
+                      const SizedBox(height: 16),
+                      LoginStyles.buildInputField(
+                        controller: confirmPasswordController,
+                        labelText: 'Confirmar contraseña',
+                        obscureText: true,
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: isCreatingAccount ? _createAccount : _login,
+                        style: LoginStyles.actionButtonStyle(),
+                        child: Text(
+                          isCreatingAccount ? 'Crear cuenta' : 'Iniciar sesión',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          isCreatingAccount = !isCreatingAccount;
+                          usernameController.clear();
+                          passwordController.clear();
+                          confirmPasswordController.clear();
+                          _selectedAvatar = null;
+                        });
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF2E5E47),
+                      ),
+                      child: Text(
+                        isCreatingAccount
+                            ? 'Ya tengo una cuenta'
+                            : 'No tengo una cuenta, crear una',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Contraseña',
-                border: OutlineInputBorder(),
-              ),
             ),
-            if (isCreatingAccount) ...[
-              const SizedBox(height: 16),
-              TextField(
-                controller: confirmPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Confirmar contraseña',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isCreatingAccount ? _createAccount : _login,
-                child: Text(
-                  isCreatingAccount ? 'Crear cuenta' : 'Iniciar sesión',
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  isCreatingAccount = !isCreatingAccount;
-                  usernameController.clear();
-                  passwordController.clear();
-                  confirmPasswordController.clear();
-                });
-              },
-              child: Text(
-                isCreatingAccount
-                    ? 'Ya tengo una cuenta'
-                    : 'No tengo una cuenta, crear una',
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -2,6 +2,13 @@ import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+class R2UploadException implements Exception {
+  const R2UploadException({required this.statusCode, required this.details});
+
+  final String statusCode;
+  final String details;
+}
+
 /// Sube archivos a Cloudflare R2 mediante la Edge Function de Supabase.
 class AlmacenamientoR2 {
   static const _uploadFunction = 'r2-storage';
@@ -32,9 +39,10 @@ class AlmacenamientoR2 {
         },
       );
     } on FunctionException catch (error) {
-      throw Exception(
-        'Edge Function $_uploadFunction falló (${error.status}): '
-        '${error.details ?? error.reasonPhrase ?? 'sin detalles'}',
+      throw R2UploadException(
+        statusCode: error.status.toString(),
+        details: (error.details ?? error.reasonPhrase ?? 'sin detalles')
+            .toString(),
       );
     }
 
@@ -52,10 +60,7 @@ class AlmacenamientoR2 {
     return data['key'] as String;
   }
 
-  Future<String> uploadGpxToR2({
-    required File file,
-    String? objectPrefix,
-  }) {
+  Future<String> uploadGpxToR2({required File file, String? objectPrefix}) {
     return uploadFileToR2(
       file: file,
       folder: 'gpx',
