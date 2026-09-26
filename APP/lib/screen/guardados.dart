@@ -4,7 +4,9 @@ import 'dart:io';
 import '../filtros.dart';
 import '../models/saved_route.dart';
 import '../services/guardado_local.dart';
+import '../services/gpx_import.dart';
 import '../services/senderos_locales.dart';
+import 'previsualizar_gpx.dart';
 
 class SavedContent extends StatefulWidget {
   const SavedContent({super.key});
@@ -31,6 +33,34 @@ class _SavedContentState extends State<SavedContent> {
 
     if (mounted) {
       setState(() => _routes = routes);
+    }
+  }
+
+  Future<void> _openGpx() async {
+    try {
+      final service = GpxImportService();
+      final file = await service.pickGpxFile();
+      if (file == null || !mounted) return;
+      final route = await service.read(file);
+      if (!mounted) return;
+      final imported = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PrevisualizarGpxScreen(file: file, route: route),
+        ),
+      );
+      if (imported == true) await _loadRoutes();
+    } on GpxImportException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir el archivo GPX')),
+      );
+      debugPrint('Error al abrir GPX: $error');
     }
   }
 
@@ -73,6 +103,17 @@ class _SavedContentState extends State<SavedContent> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openGpx,
+              icon: const Icon(Icons.folder_open_outlined),
+              label: const Text('Abrir archivo GPX'),
+            ),
+          ),
+        ),
         FilterBar(onSearch: (value) => setState(() => _searchTerm = value)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
