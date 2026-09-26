@@ -114,7 +114,7 @@ class GrabarController extends ChangeNotifier {
   }
 
   void handleLocationError(Object error) {
-    status = 'Error de ubicación: $error';
+    status = 'No hay conexión a internet.';
   }
 
   void updateLocation(Position position) {

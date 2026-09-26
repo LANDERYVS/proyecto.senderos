@@ -30,7 +30,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
 
   LatLng? _userLocation;
   bool _isLoadingLocation = true;
-  String? _locationError;
   Duration _elapsedTime = Duration.zero;
   double _distanceKm = 0;
   double _elevationGainMeters = 0;
@@ -58,7 +57,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
     if (!granted) {
       setState(() {
         _isLoadingLocation = false;
-        _locationError = 'No se pudo acceder a la ubicación.';
       });
       return;
     }
@@ -77,22 +75,14 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
 
     _positionSubscription = _localizacionService
         .getPositionStream(showNotification: false)
-        .listen(
-          (position) {
-            if (!mounted) return;
-            final point = LatLng(position.latitude, position.longitude);
-            setState(() {
-              _userLocation = point;
-              _updateTrackingProgress(point, position.altitude);
-            });
-          },
-          onError: (_) {
-            if (!mounted) return;
-            setState(
-              () => _locationError = 'No se pudo actualizar la ubicación.',
-            );
-          },
-        );
+        .listen((position) {
+          if (!mounted) return;
+          final point = LatLng(position.latitude, position.longitude);
+          setState(() {
+            _userLocation = point;
+            _updateTrackingProgress(point, position.altitude);
+          });
+        });
   }
 
   void _centerOnUserLocation() {
@@ -260,26 +250,6 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
                     ),
                   ),
                 ),
-                if (_locationError != null)
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 80,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _locationError!,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),

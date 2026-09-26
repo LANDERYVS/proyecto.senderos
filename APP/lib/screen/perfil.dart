@@ -109,11 +109,11 @@ class _ProfilePageState extends State<ProfilePage> {
         _profile = profile;
         _isLoading = false;
       });
-    } on PostgrestException catch (error) {
+    } on PostgrestException {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = error.message;
+        _error = 'No se pudo cargar el perfil.';
       });
     }
   }
@@ -190,38 +190,6 @@ class _ProfilePageState extends State<ProfilePage> {
     };
   }
 
-  String _r2UploadFailure(R2UploadException error) {
-    final reason = switch (error.statusCode) {
-      '401' || '403' =>
-        'R2 rechazó la subida (${error.statusCode}). Revisa los permisos de la función r2-storage y sus credenciales de R2.',
-      '404' =>
-        'No se encontró la función r2-storage (404). Comprueba que esté desplegada en Supabase.',
-      '413' =>
-        'La imagen es demasiado grande (413). Elige una imagen más pequeña o aumenta el límite de subida.',
-      '429' =>
-        'Se hicieron demasiadas subidas en poco tiempo (429). Espera un momento y vuelve a intentarlo.',
-      '500' || '502' || '503' || '504' =>
-        'Falló el servidor de subida (${error.statusCode}). Revisa la configuración del bucket y las credenciales de R2 en la función.',
-      _ =>
-        'La subida a R2 falló (${error.statusCode}). Revisa la función r2-storage y la conexión.',
-    };
-    return '$reason Detalle: ${error.details}';
-  }
-
-  String _profileSaveFailure(PostgrestException error) {
-    final reason = switch (error.code) {
-      '42501' =>
-        'La foto se subió a R2, pero Supabase denegó la actualización. Revisa las políticas RLS de la tabla usuarios.',
-      '42703' =>
-        'La foto se subió a R2, pero no existe la columna user_photo en la tabla usuarios.',
-      '42P01' =>
-        'La foto se subió a R2, pero no se encontró la tabla usuarios.',
-      _ =>
-        'La foto se subió a R2, pero no se pudo guardar su ruta en usuarios. Revisa la conexión y los permisos de la tabla.',
-    };
-    return '$reason Detalle: ${error.message}';
-  }
-
   Future<void> _changeProfilePhoto() async {
     if (_isUploadingPhoto) return;
 
@@ -260,8 +228,10 @@ class _ProfilePageState extends State<ProfilePage> {
             'La foto se subió a R2, pero no se actualizó ninguna fila de usuarios. Revisa que exista el perfil con ese id y que la política RLS permita al usuario actualizar su propia fila.',
           );
         }
-      } on PostgrestException catch (error) {
-        throw _ProfilePhotoSaveException(_profileSaveFailure(error));
+      } on PostgrestException {
+        throw const _ProfilePhotoSaveException(
+          'No se pudo actualizar la foto.',
+        );
       }
 
       if (!mounted) return;
@@ -269,8 +239,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _profile = {...?_profile, 'user_photo': photoKey};
       });
       _showMessage('Foto de perfil actualizada');
-    } on R2UploadException catch (error) {
-      _showMessage(_r2UploadFailure(error));
+    } on R2UploadException {
+      _showMessage('No se pudo actualizar la foto.');
     } on _ProfilePhotoSaveException catch (error) {
       _showMessage(error.message);
     } on FileSystemException {
@@ -278,21 +248,15 @@ class _ProfilePageState extends State<ProfilePage> {
         'No se pudo leer la imagen del dispositivo. Vuelve a elegir una foto que siga disponible.',
       );
     } on SocketException {
-      _showMessage(
-        'No hay conexión con el servidor. Comprueba tu internet y vuelve a intentarlo.',
-      );
-    } on HttpException catch (error) {
-      _showMessage('Falló la comunicación con el servidor: ${error.message}');
+      _showMessage('No hay conexión a internet.');
+    } on HttpException {
+      _showMessage('No hay conexión a internet.');
     } on TimeoutException {
-      _showMessage(
-        'La subida tardó demasiado y expiró. Comprueba tu conexión e inténtalo otra vez.',
-      );
-    } on PlatformException catch (error) {
-      _showMessage(
-        'No se pudo abrir la galería (${error.code}). Revisa los permisos de fotos del dispositivo.',
-      );
+      _showMessage('No hay conexión a internet.');
+    } on PlatformException {
+      _showMessage('No se pudo abrir la galería.');
     } catch (error) {
-      _showMessage('Ocurrió un error inesperado al actualizar la foto: $error');
+      _showMessage('No se pudo actualizar la foto.');
     } finally {
       if (mounted && _isUploadingPhoto) {
         setState(() => _isUploadingPhoto = false);

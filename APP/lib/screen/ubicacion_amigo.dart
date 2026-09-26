@@ -26,8 +26,6 @@ class _UbicacionAmigoPageState extends State<UbicacionAmigoPage> {
   Timer? _refreshTimer;
   LatLng? _friendLocation;
   bool _isLoading = true;
-  String? _errorMessage;
-  String? _lastShownError;
 
   @override
   void initState() {
@@ -55,23 +53,12 @@ class _UbicacionAmigoPageState extends State<UbicacionAmigoPage> {
       setState(() {
         _friendLocation = location;
         _isLoading = false;
-        _errorMessage = null;
       });
-    } on Exception catch (error) {
+    } on Exception {
       if (!mounted) return;
-      final message = _errorText(error);
       setState(() {
         _isLoading = false;
-        _errorMessage = message;
       });
-      if (message != _lastShownError) {
-        _lastShownError = message;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No se pudo actualizar la ubicación: $message'),
-          ),
-        );
-      }
     }
   }
 
@@ -97,31 +84,6 @@ class _UbicacionAmigoPageState extends State<UbicacionAmigoPage> {
   Widget _buildBody(LatLng? location) {
     if (_isLoading && location == null) {
       return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null && location == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.location_off_outlined, size: 48),
-              const SizedBox(height: 12),
-              const Text(
-                'No se pudo consultar la ubicación.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _loadLocation,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        ),
-      );
     }
 
     if (location == null) {
@@ -166,24 +128,6 @@ class _UbicacionAmigoPageState extends State<UbicacionAmigoPage> {
       ],
     );
 
-    return Column(
-      children: [
-        if (_errorMessage != null)
-          MaterialBanner(
-            content: Text('Actualización pendiente: $_errorMessage'),
-            leading: const Icon(Icons.warning_amber_outlined),
-            actions: [
-              TextButton(
-                onPressed: _loadLocation,
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ),
-        Expanded(child: map),
-      ],
-    );
+    return Column(children: [Expanded(child: map)]);
   }
-
-  String _errorText(Object error) =>
-      error.toString().replaceFirst('Exception: ', '');
 }

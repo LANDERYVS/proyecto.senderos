@@ -142,8 +142,8 @@ class _GrabarPageState extends State<GrabarPage> {
 
       if (selectedFriend == null) return;
       await _startSharingWith(selectedFriend);
-    } on Exception catch (error) {
-      _showMessage('No se pudieron cargar tus amigos: $error');
+    } on Exception {
+      _showMessage('No hay conexión a internet.');
     }
   }
 
@@ -154,8 +154,8 @@ class _GrabarPageState extends State<GrabarPage> {
         setState(() {});
         _showMessage('Ubicación compartida con ${friend.name}.');
       }
-    } on Exception catch (error) {
-      _showMessage('No se pudo compartir la ubicación: ${_errorText(error)}');
+    } on Exception {
+      _showMessage('No hay conexión a internet.');
     }
   }
 
@@ -173,14 +173,9 @@ class _GrabarPageState extends State<GrabarPage> {
         setState(() {});
         _showMessage('Dejaste de compartir tu ubicación.');
       }
-    } on Exception catch (error) {
-      _showMessage('No se pudo detener el envío: ${_errorText(error)}');
+    } on Exception {
+      _showMessage('No hay conexión a internet.');
     }
-  }
-
-  String _errorText(Object error) {
-    if (error is StateError) return error.message;
-    return error.toString().replaceFirst('Exception: ', '');
   }
 
   void _showMessage(String message) {
@@ -432,16 +427,6 @@ class _GrabarPageState extends State<GrabarPage> {
                   ],
                   const SizedBox(height: 12),
                   _buildRecordingActions(),
-                  if (_controller.status.isNotEmpty &&
-                      !_controller.isRecording) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      _controller.status,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GrabarStyles.statusStyle(context),
-                    ),
-                  ],
                 ],
               ),
             ),
