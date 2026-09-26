@@ -3,14 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ubicacion_amigo.dart';
 
-class ComunidadContent extends StatefulWidget {
-  const ComunidadContent({super.key});
+class AmigosContent extends StatefulWidget {
+  const AmigosContent({super.key});
 
   @override
-  State<ComunidadContent> createState() => _ComunidadContentState();
+  State<AmigosContent> createState() => _AmigosContentState();
 }
 
-class _ComunidadContentState extends State<ComunidadContent> {
+class _AmigosContentState extends State<AmigosContent> {
   final _searchController = TextEditingController();
   List<_Friend> _friends = const [];
   List<_Friend> _addedFriends = const [];
@@ -415,11 +415,7 @@ class _AddedFriendTile extends StatelessWidget {
           child: Text(friend.initials),
         ),
         title: Text(friend.name),
-        subtitle: Text(
-          friend.username.isEmpty
-              ? 'target_id: ${friend.id}'
-              : '${friend.username}\ntarget_id: ${friend.id}',
-        ),
+        subtitle: friend.username.isEmpty ? null : Text(friend.username),
         trailing: IconButton(
           onPressed: onViewLocation,
           tooltip: 'Ver ubicación',

@@ -182,10 +182,10 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
     if (_userLocation != null) {
       markers.add(
         Marker(
-          width: 42,
-          height: 42,
+          width: 60,
+          height: 60,
           point: _userLocation!,
-          child: const Icon(Icons.navigation, color: Colors.blue, size: 32),
+          child: const Icon(Icons.location_pin, color: Colors.red, size: 40),
         ),
       );
     }

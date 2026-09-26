@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'comunidad.dart';
+import 'amigos.dart';
 import 'guardados.dart';
 import 'explorar.dart';
 import 'grabar.dart';
@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
       case 1:
         return const SavedContent();
       case 3:
-        return ComunidadContent(key: ValueKey('comunidad-$_communityVersion'));
+        return AmigosContent(key: ValueKey('amigos-$_communityVersion'));
       default:
         return const ExploreContent();
     }
