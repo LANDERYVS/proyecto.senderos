@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
+import 'search_field.dart';
+
 class FilterBar extends StatefulWidget {
   const FilterBar({
     super.key,
     this.onSearch,
     this.onDifficultyChanged,
     this.onLengthChanged,
+    this.showSearchField = true,
   });
 
   final ValueChanged<String>? onSearch;
   final ValueChanged<String>? onDifficultyChanged;
   final ValueChanged<String>? onLengthChanged;
+  final bool showSearchField;
 
   @override
   State<FilterBar> createState() => _FilterBarState();
@@ -84,34 +88,23 @@ class _FilterBarState extends State<FilterBar> {
         padding: const EdgeInsets.fromLTRB(26, 18, 26, 24),
         child: Column(
           children: [
-            // Campo de búsqueda
-            TextField(
-              onChanged: widget.onSearch,
-              decoration: InputDecoration(
+            if (widget.showSearchField) ...[
+              SearchField(
+                onChanged: widget.onSearch,
                 hintText: 'Encontrar senderos',
-                prefixIcon: const Icon(Icons.search, size: 30),
-                filled: true,
-                fillColor: const Color(0xfff2f2f2),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(32),
-                  borderSide: BorderSide.none,
-                ),
               ),
-            ),
-            const SizedBox(height: 26),
-            // Barra de filtros horizontal
+              const SizedBox(height: 26),
+            ],
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  // Botón de dificultad
                   _FilterButton(
                     label: _difficulty,
                     onPressed: () =>
                         _chooseFilter(_difficulty, _difficultyOptions),
                   ),
                   const SizedBox(width: 10),
-                  // Botón de longitud
                   _FilterButton(
                     label: _length,
                     onPressed: () => _chooseFilter(_length, _lengthOptions),

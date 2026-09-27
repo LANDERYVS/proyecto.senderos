@@ -282,9 +282,24 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Publicado por: ${widget.trail.author}',
-              style: TextStyle(color: colors.onSurfaceVariant),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: colors.surfaceContainerHighest,
+                  backgroundImage: widget.trail.authorPhotoUrl != null
+                      ? NetworkImage(widget.trail.authorPhotoUrl!)
+                      : const AssetImage('assets/usuario.png') as ImageProvider,
+                  onBackgroundImageError: (_, __) {},
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Publicado por: ${widget.trail.author}',
+                    style: TextStyle(color: colors.onSurfaceVariant),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             _TrailInfo(

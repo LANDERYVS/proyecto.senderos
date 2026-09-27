@@ -13,7 +13,14 @@ import '../widgets/filtros.dart';
 import 'previsualizar_gpx.dart';
 
 class SavedContent extends StatefulWidget {
-  const SavedContent({super.key});
+  const SavedContent({
+    super.key,
+    this.searchTerm = '',
+    this.onSearchChanged,
+  });
+
+  final String searchTerm;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   State<SavedContent> createState() => _SavedContentState();
@@ -26,7 +33,6 @@ class _SavedContentState extends State<SavedContent> {
   final RouteStorageService _routeStorageService = RouteStorageService();
   List<SavedRoute> _routes = [];
   List<ExploreTrail> _favoriteTrails = [];
-  String _searchTerm = '';
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
   int _selectedTab = 0;
@@ -249,7 +255,8 @@ class _SavedContentState extends State<SavedContent> {
       children: [
         _buildOpenGpxButton(),
         FilterBar(
-          onSearch: (value) => setState(() => _searchTerm = value),
+          showSearchField: false,
+          onSearch: widget.onSearchChanged,
           onDifficultyChanged: (value) =>
               setState(() => _difficultyFilter = value),
           onLengthChanged: (value) => setState(() => _lengthFilter = value),
@@ -261,7 +268,7 @@ class _SavedContentState extends State<SavedContent> {
   }
 
   List<SavedRoute> get _filteredRoutes {
-    final query = _searchTerm.toLowerCase();
+    final query = widget.searchTerm.toLowerCase();
     final routesForTab = _selectedTab == 0
         ? _routes.where((route) => route.isCreatedByUser).toList()
         : _routes
@@ -298,7 +305,7 @@ class _SavedContentState extends State<SavedContent> {
 
   List<ExploreTrail> get _filteredFavoriteTrails {
     if (_selectedTab != 1) return const [];
-    final query = _searchTerm.toLowerCase();
+    final query = widget.searchTerm.toLowerCase();
     return _favoriteTrails.where((trail) {
       final matchesSearch =
           trail.name.toLowerCase().contains(query) ||

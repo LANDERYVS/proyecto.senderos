@@ -9,7 +9,14 @@ import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
 
 class ExploreContent extends StatefulWidget {
-  const ExploreContent({super.key});
+  const ExploreContent({
+    super.key,
+    this.searchTerm = '',
+    this.onSearchChanged,
+  });
+
+  final String searchTerm;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   State<ExploreContent> createState() => _ExploreContentState();
@@ -25,7 +32,6 @@ class _ExploreContentState extends State<ExploreContent> {
   bool _isLoading = true;
   String? _loadError;
 
-  String _searchTerm = '';
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
   bool _showOnlyMyTrails = false;
@@ -129,7 +135,7 @@ class _ExploreContentState extends State<ExploreContent> {
   }
 
   List<ExploreTrail> get _visibleTrails {
-    final query = _searchTerm.toLowerCase();
+    final query = widget.searchTerm.toLowerCase();
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     return _trails.where((trail) {
@@ -162,44 +168,55 @@ class _ExploreContentState extends State<ExploreContent> {
 
     return Stack(
       children: [
-        Column(
-          children: [
-            FilterBar(
-              onSearch: (value) => setState(() => _searchTerm = value),
-              onDifficultyChanged: (value) =>
-                  setState(() => _difficultyFilter = value),
-              onLengthChanged: (value) => setState(() => _lengthFilter = value),
+        CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: FilterBar(
+                showSearchField: false,
+                onSearch: widget.onSearchChanged,
+                onDifficultyChanged: (value) =>
+                    setState(() => _difficultyFilter = value),
+                onLengthChanged: (value) =>
+                    setState(() => _lengthFilter = value),
+              ),
             ),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _loadError != null
-                  ? _ErrorState(message: _loadError!, onRetry: _loadTrails)
-                  : visibleTrails.isEmpty
-                  ? const Center(child: Text('No se encontraron senderos'))
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-                      itemCount: visibleTrails.length,
-                      separatorBuilder: (_, index) =>
-                          const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        final trail = visibleTrails[index];
-                        final senderoId = trail.id;
-                        return SenderoCard(
-                          trail: trail,
-                          isFavorite:
-                              senderoId != null &&
-                              _favoriteIds.contains(senderoId),
-                          isSavingFavorite:
-                              senderoId != null &&
-                              _savingFavoriteIds.contains(senderoId),
-                          onFavorite: senderoId == null
-                              ? null
-                              : () => _toggleFavorite(trail),
-                        );
-                      },
-                    ),
-            ),
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_loadError != null)
+              SliverFillRemaining(
+                child: _ErrorState(
+                  message: _loadError!,
+                  onRetry: _loadTrails,
+                ),
+              )
+            else if (visibleTrails.isEmpty)
+              const SliverFillRemaining(
+                child: Center(child: Text('No se encontraron senderos')),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                sliver: SliverList.separated(
+                  itemCount: visibleTrails.length,
+                  separatorBuilder: (context, _) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final trail = visibleTrails[index];
+                    final senderoId = trail.id;
+                    return SenderoCard(
+                      trail: trail,
+                      isFavorite:
+                          senderoId != null && _favoriteIds.contains(senderoId),
+                      isSavingFavorite:
+                          senderoId != null && _savingFavoriteIds.contains(senderoId),
+                      onFavorite: senderoId == null
+                          ? null
+                          : () => _toggleFavorite(trail),
+                    );
+                  },
+                ),
+              ),
           ],
         ),
         Positioned(

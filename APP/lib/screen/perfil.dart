@@ -109,7 +109,11 @@ class _ProfilePageState extends State<ProfilePage> {
           .maybeSingle();
 
       final fallbackProfile = {
-        'name': user.userMetadata?['name'] ?? user.userMetadata?['username'] ?? user.email ?? 'Usuario',
+        'name':
+            user.userMetadata?['name'] ??
+            user.userMetadata?['username'] ??
+            user.email ??
+            'Usuario',
         'email': user.email ?? '',
         'user_photo': user.userMetadata?['avatar_url'],
         'premium': false,

@@ -36,19 +36,24 @@ class ObtenerSenderoService {
           .toSet()
           .toList();
       final userNames = <String, String>{};
+      final userPhotos = <String, String>{};
 
       if (userIds.isNotEmpty) {
         try {
           final profiles = await _supabase
               .from('usuarios')
-              .select('id, name')
+              .select('id, name, user_photo')
               .inFilter('id', userIds);
           for (final profile in profiles as List) {
             final profileMap = profile as Map<String, dynamic>;
             final id = profileMap['id']?.toString();
             final name = profileMap['name']?.toString().trim();
+            final photo = profileMap['user_photo']?.toString().trim();
             if (id != null && name != null && name.isNotEmpty) {
               userNames[id] = name;
+            }
+            if (id != null && photo != null && photo.isNotEmpty) {
+              userPhotos[id] = photo;
             }
           }
         } on Exception {
@@ -57,7 +62,13 @@ class ObtenerSenderoService {
       }
 
       return rawTrails
-          .map((row) => ExploreTrail.fromMap(row, userNames: userNames))
+          .map(
+            (row) => ExploreTrail.fromMap(
+              row,
+              userNames: userNames,
+              userPhotos: userPhotos,
+            ),
+          )
           .toList();
     } on PostgrestException catch (error) {
       throw ObtenerSenderoException(_postgrestError(error), cause: error);

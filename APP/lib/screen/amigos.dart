@@ -5,14 +5,20 @@ import 'ubicacion_amigo.dart';
 import '../widgets/default_user_avatar.dart';
 
 class AmigosContent extends StatefulWidget {
-  const AmigosContent({super.key});
+  const AmigosContent({
+    super.key,
+    this.searchTerm = '',
+    this.onSearchChanged,
+  });
+
+  final String searchTerm;
+  final ValueChanged<String>? onSearchChanged;
 
   @override
   State<AmigosContent> createState() => _AmigosContentState();
 }
 
 class _AmigosContentState extends State<AmigosContent> {
-  final _searchController = TextEditingController();
   List<_Friend> _friends = const [];
   List<_Friend> _addedFriends = const [];
   Set<String> _sentRequestIds = <String>{};
@@ -23,12 +29,6 @@ class _AmigosContentState extends State<AmigosContent> {
   void initState() {
     super.initState();
     _loadUsers();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadUsers() async {
@@ -164,28 +164,6 @@ class _AmigosContentState extends State<AmigosContent> {
     }
   }
 
-  Widget _buildSearchField(ColorScheme colors) {
-    return TextField(
-      controller: _searchController,
-      onChanged: (_) => setState(() {}),
-      decoration: InputDecoration(
-        hintText: 'Buscar por nombre o usuario',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: IconButton(
-          onPressed: () {},
-          tooltip: 'Filtros',
-          icon: const Icon(Icons.tune_outlined),
-        ),
-        filled: true,
-        fillColor: colors.surfaceContainerHighest,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-
   Widget _buildSectionHeader(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -230,20 +208,7 @@ class _AmigosContentState extends State<AmigosContent> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        Text(
-          'Encuentra tu grupo',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Conecta con personas que también disfrutan salir a explorar.',
-          style: TextStyle(color: colors.onSurfaceVariant),
-        ),
-        const SizedBox(height: 20),
-        _buildSearchField(colors),
-        const SizedBox(height: 24),
+        const SizedBox(height: 8),
         _buildSectionHeader('Agregar personas'),
         const SizedBox(height: 4),
         if (_isLoading)
@@ -287,7 +252,7 @@ class _AmigosContentState extends State<AmigosContent> {
   }
 
   List<_Friend> get _filteredFriends {
-    final query = _searchController.text.trim().toLowerCase();
+    final query = widget.searchTerm.trim().toLowerCase();
     if (query.isEmpty) return _friends;
     return _friends.where((friend) {
       return friend.name.toLowerCase().contains(query) ||

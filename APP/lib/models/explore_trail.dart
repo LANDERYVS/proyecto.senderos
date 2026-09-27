@@ -13,6 +13,7 @@ class ExploreTrail {
     required this.distanceKm,
     required this.elevation,
     required this.author,
+    this.authorPhotoUrl,
     this.photoUrl,
     this.gpxKey,
   });
@@ -20,10 +21,13 @@ class ExploreTrail {
   factory ExploreTrail.fromMap(
     Map<String, dynamic> map, {
     Map<String, String> userNames = const {},
+    Map<String, String> userPhotos = const {},
   }) {
     final userId = map['user_id']?.toString() ?? 'Usuario desconocido';
     final name = map['sendero_nick']?.toString().trim() ?? '';
     final photo = publicR2Url(map['foto_sendero']?.toString());
+    final authorName = userNames[userId] ?? userId;
+    final authorPhoto = publicR2Url(userPhotos[userId]);
 
     return ExploreTrail(
       id: (map['id'] as num?)?.toInt(),
@@ -33,7 +37,8 @@ class ExploreTrail {
       difficulty: map['dificultad']?.toString() ?? 'Sin dificultad',
       distanceKm: (map['distancia'] as num?)?.toDouble() ?? 0,
       elevation: 'Desnivel no disponible',
-      author: userNames[userId] ?? userId,
+      author: authorName,
+      authorPhotoUrl: authorPhoto,
       photoUrl: photo,
       gpxKey: map['gpx_key']?.toString(),
     );
@@ -57,6 +62,7 @@ class ExploreTrail {
   final double distanceKm;
   final String elevation;
   final String author;
+  final String? authorPhotoUrl;
   final String? photoUrl;
   final String? gpxKey;
 
