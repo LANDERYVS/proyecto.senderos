@@ -140,6 +140,55 @@ class _SavedContentState extends State<SavedContent> {
     }
   }
 
+  Future<void> _deleteRoute(SavedRoute route) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Borrar sendero'),
+        content: Text(
+          '¿Querés borrar "${route.name}" de este dispositivo?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final metadataFile = File(route.file.path.replaceFirst('.gpx', '.json'));
+      if (await metadataFile.exists()) await metadataFile.delete();
+      if (await route.file.exists()) await route.file.delete();
+
+      final photoFolder = Directory(
+        route.file.path.replaceFirst(RegExp(r'\.gpx$', caseSensitive: false), ''),
+      );
+      if (await photoFolder.exists()) await photoFolder.delete(recursive: true);
+
+      if (!mounted) return;
+      setState(() {
+        _routes.removeWhere((savedRoute) => savedRoute.file.path == route.file.path);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sendero "${route.name}" eliminado')),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo borrar el sendero: $error')),
+      );
+    }
+  }
+
   Future<void> _publishRoute(SavedRoute route) async {
     try {
       await _routeStorageService.publishRoute(route);
@@ -165,16 +214,12 @@ class _SavedContentState extends State<SavedContent> {
   }
 
   Widget _buildOpenGpxButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: _openGpx,
-          icon: const Icon(Icons.folder_open_outlined),
-          label: const Text('Abrir archivo GPX'),
-        ),
-      ),
+    return FloatingActionButton.extended(
+      onPressed: _openGpx,
+      icon: const Icon(Icons.folder_open_outlined),
+      label: const Text('Abrir GPX'),
+      backgroundColor: const Color(0xFFBDF2C6),
+      foregroundColor: const Color(0xFF1B3A2F),
     );
   }
 
@@ -235,6 +280,7 @@ class _SavedContentState extends State<SavedContent> {
             route: route,
             onShare: () => _shareRoute(route),
             onPublish: () => _publishRoute(route),
+            onDelete: () => _deleteRoute(route),
           );
         }
 
@@ -251,18 +297,26 @@ class _SavedContentState extends State<SavedContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Stack(
       children: [
-        _buildOpenGpxButton(),
-        FilterBar(
-          showSearchField: false,
-          onSearch: widget.onSearchChanged,
-          onDifficultyChanged: (value) =>
-              setState(() => _difficultyFilter = value),
-          onLengthChanged: (value) => setState(() => _lengthFilter = value),
+        Column(
+          children: [
+            FilterBar(
+              showSearchField: false,
+              onSearch: widget.onSearchChanged,
+              onDifficultyChanged: (value) =>
+                  setState(() => _difficultyFilter = value),
+              onLengthChanged: (value) => setState(() => _lengthFilter = value),
+            ),
+            _buildRouteTabs(),
+            Expanded(child: _buildRouteList()),
+          ],
         ),
-        _buildRouteTabs(),
-        Expanded(child: _buildRouteList()),
+        Positioned(
+          right: 20,
+          bottom: 20,
+          child: _buildOpenGpxButton(),
+        ),
       ],
     );
   }
@@ -324,16 +378,20 @@ class _SavedContentState extends State<SavedContent> {
   }
 }
 
+enum _SavedRouteAction { publish, delete, share }
+
 class _SavedRouteCard extends StatelessWidget {
   const _SavedRouteCard({
     required this.route,
     required this.onShare,
     required this.onPublish,
+    required this.onDelete,
   });
 
   final SavedRoute route;
   final VoidCallback onShare;
   final VoidCallback onPublish;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -362,18 +420,50 @@ class _SavedRouteCard extends StatelessWidget {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Publicar sendero',
-              icon: const Icon(Icons.cloud_upload_outlined),
-              onPressed: route.isCreatedByUser ? onPublish : null,
+        trailing: PopupMenuButton<_SavedRouteAction>(
+          tooltip: 'Más opciones',
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) {
+            switch (value) {
+              case _SavedRouteAction.publish:
+                onPublish();
+              case _SavedRouteAction.delete:
+                onDelete();
+              case _SavedRouteAction.share:
+                onShare();
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: _SavedRouteAction.publish,
+              enabled: route.isCreatedByUser,
+              child: const Row(
+                children: [
+                  Icon(Icons.cloud_upload_outlined),
+                  SizedBox(width: 8),
+                  Text('Subir sendero'),
+                ],
+              ),
             ),
-            IconButton(
-              tooltip: 'Compartir trayecto',
-              icon: const Icon(Icons.share_outlined),
-              onPressed: onShare,
+            const PopupMenuItem(
+              value: _SavedRouteAction.delete,
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Borrar', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: _SavedRouteAction.share,
+              child: Row(
+                children: [
+                  Icon(Icons.share_outlined),
+                  SizedBox(width: 8),
+                  Text('Compartir'),
+                ],
+              ),
             ),
           ],
         ),
