@@ -1,252 +1,144 @@
 # Proyecto Senderos
 
-Aplicación móvil desarrollada con Flutter para explorar, guardar, registrar y compartir rutas de senderismo. La app permite ver senderos disponibles, autenticar usuarios, crear rutas desde GPS, importar archivos GPX, consultar clima y gestionar comunidad/seguimiento.
+Aplicación móvil desarrollada en Flutter para explorar, registrar, guardar y compartir rutas de senderismo. La app combina navegación GPS, mapas interactivos, autenticación con Supabase y gestión de comunidad para que el usuario pueda documentar recorridos y seguir rutas de otros usuarios.
 
-## ¿Qué hace esta app?
+## Descripción general
 
-La aplicación está pensada como una plataforma tipo social y de registro para senderistas:
+Proyecto Senderos es una app orientada a senderistas que permite:
 
-- Explorar senderos publicados por otros usuarios.
-- Guardar senderos como favoritos y acceder a rutas locales.
-- Registrar rutas en tiempo real con GPS.
-- Añadir puntos de interés a una ruta.
+- Explorar senderos publicados y buscar rutas por nombre o tipo.
+- Guardar rutas como favoritas o en almacenamiento local.
+- Registrar recorridos en tiempo real con GPS.
 - Importar y previsualizar archivos GPX.
-- Compartir ubicación con amigos.
-- Consultar información del clima para cada sendero.
-- Gestionar login, perfil y comunidad.
+- Consultar información del sendero, clima y métricas de la ruta.
+- Gestionar amigos y compartir ubicación.
+- Mantener un perfil con logros y estadísticas de actividad.
 
-## Tecnologías principales
+## Stack tecnológico
 
 - Flutter + Dart
-- Supabase para autenticación y base de datos
-- Flutter Map para renderizado de mapas
-- Geolocator para ubicación GPS
+- Supabase para autenticación, almacenamiento y datos de usuario
+- Flutter Map para renderización de mapas
+- Geolocator + Permission Handler para localización y permisos
 - App Links para abrir archivos GPX externos
-- File Picker / Image Picker
-- Shared Preferences y almacenamiento local
+- File Picker y Image Picker para importar y adjuntar contenido
+- Shared Preferences para persistencia local
+- XML para lectura de archivos GPX
 
-## Estructura general del proyecto
+## Requisitos previos
+
+Antes de ejecutar el proyecto necesitas:
+
+- Flutter SDK 3.12.2 o superior
+- Android Studio o VS Code con herramientas de Flutter
+- Emulador Android o dispositivo físico
+- Cuenta de Supabase activa
+
+## Instalación
+
+1. Clona el repositorio:
+
+```bash
+git clone <url-del-repositorio>
+cd APP
+```
+
+2. Instala las dependencias:
+
+```bash
+flutter pub get
+```
+
+3. Configura Supabase en el archivo principal:
+
+Abre `lib/main.dart` y revisa la inicialización de Supabase. Actualmente la app usa la URL y la clave pública directamente en código.
+
+```dart
+await Supabase.initialize(
+  url: 'https://tu-proyecto.supabase.co',
+  publishableKey: 'tu-clave-publica',
+);
+```
+
+4. Ejecuta la aplicación:
+
+```bash
+flutter run
+```
+
+## Comandos útiles
+
+```bash
+flutter pub get
+flutter analyze
+flutter test
+flutter run
+flutter build apk --release
+flutter build appbundle --release
+```
+
+## Estructura del proyecto
 
 ```text
 APP/
-├── android/                 # Configuración nativa Android
-├── assets/                  # Imágenes / recursos estáticos
+├── android/                  # Configuración nativa Android
+├── assets/                   # Recursos visuales del proyecto
 ├── lib/
-│   ├── main.dart            # Inicio de la app, inicialización y apertura de GPX
-│   ├── models/              # Modelos de datos
-│   ├── screen/              # Pantallas principales de la app
-│   ├── services/            # Lógica de negocio, supabase, GPX, clima, almacenamiento
-│   ├── utils/              # Utilidades y cálculos
-│   └── widgets/            # Componentes reutilizables
-├── test/                    # Pruebas unitarias y de widgets
-├── analysis_options.yaml    # Reglas de linting
-├── pubspec.yaml             # Dependencias y configuración Flutter
-├── README.md                # Documentación del proyecto
+│   ├── main.dart             # Punto de entrada de la aplicación
+│   ├── models/               # Modelos de datos
+│   ├── screen/               # Pantallas principales
+│   ├── services/             # Servicios, Supabase, GPS, GPX, clima
+│   ├── utils/                # Utilidades y cálculos
+│   └── widgets/              # Componentes reutilizables
+├── test/                     # Pruebas unitarias y de widgets
+├── analysis_options.yaml     # Reglas de lintado
+├── pubspec.yaml              # Dependencias y configuración Flutter
+├── supabase_logros.sql        # Script SQL para logros/funcionalidades de Supabase
+├── BACKGROUND_LOCATION_SETUP.md
+├── README.md
 └── ...
 ```
 
-## Flujo principal de funcionamiento
+## Funcionalidades principales
 
-### 1. Inicio de la aplicación
-El punto de entrada es `lib/main.dart`:
+### 1. Autenticación y perfil
+La aplicación inicializa Supabase y gestiona la sesión del usuario desde la pantalla de login. El flujo principal se mueve por la autenticación, el perfil y la gestión de comunidad.
 
-- Inicializa Flutter.
-- Configura Supabase con la URL y la clave pública.
-- Lanza la aplicación con `MyApp`.
-- Crea `GpxOpenService` para detectar archivos GPX abiertos desde fuera de la app.
-- Si llega un archivo GPX, muestra un diálogo para previsualizarlo.
+### 2. Exploración de senderos
+La carpeta `lib/screen` incluye pantallas como `explorar.dart`, `detalle_sendero.dart` y `inicio.dart` para navegar por rutas, filtrar contenido y consultar información de cada recorrido.
 
-### 2. Autenticación
-La pantalla de login está en `lib/widgets/login.dart` y usa `ServicioAutenticacion` en `lib/services/servicio_autenticacion.dart`.
+### 3. Grabación de rutas
+Las pantallas `grabar.dart` y `grabar_controller.dart` gestionan la grabación de rutas con permisos de ubicación, trazado del recorrido, métricas y guardado del archivo GPX.
 
-- Si hay sesión guardada, la app entra directamente.
-- Si no, se muestra el login.
-- Se pueden crear cuentas y sincronizar el perfil con Supabase.
+### 4. Importación de GPX
+El proyecto cuenta con servicios para parsear XML GPX, abrir rutas externas y mostrar una vista previa antes de integrarlas en la app.
 
-### 3. Navegación principal
-La pantalla inicial `lib/screen/inicio.dart` funciona como home con un `BottomNavigationBar`:
+### 5. Comunidad y ubicación
+Se incluye soporte para amigos, ubicación compartida y visualización del estado de otras personas dentro de la red social del senderismo.
 
-- Explorar senderos
-- Guardados
-- Grabar ruta
-- Comunidad / amigos
-- Perfil
+### 6. Logros y progreso
+La app incluye un servicio de logros para medir progreso del usuario y exponer estadísticas dentro del perfil.
 
-### 4. Exploración de senderos
-`lib/screen/explorar.dart`:
+## Archivos clave
 
-- Carga senderos desde Supabase.
-- Filtra por nombre, dificultad y distancia.
-- Permite marcar/desmarcar favoritos.
-- Muestra cards con información del sendero.
+- `lib/main.dart`: inicializa la app y gestiona la apertura de archivos GPX externos.
+- `lib/screen/inicio.dart`: pantalla principal con navegación.
+- `lib/screen/explorar.dart`: listado y exploración de senderos.
+- `lib/screen/grabar.dart`: interfaz de grabación del recorrido.
+- `lib/screen/perfil.dart`: perfil del usuario y logros.
+- `lib/services/servicio_autenticacion.dart`: autenticación con Supabase.
+- `lib/services/gpx_import.dart`: importación y parseo de GPX.
+- `lib/services/gpx_open_service.dart`: apertura de archivos GPX externos.
+- `lib/services/achievement_service.dart`: lógica de logros.
+- `supabase_logros.sql`: base de datos para logros y funcionalidades relacionadas.
 
-### 5. Grabación de rutas
-`lib/screen/grabar.dart` + `lib/screen/grabar_controller.dart`:
+## Nota importante
 
-- Piden permisos de ubicación.
-- Inician seguimiento GPS.
-- Dibuja la ruta en un mapa.
-- Mide tiempo, distancia, subida, pausa y parada.
-- Guarda la ruta y, si procede, la publica.
+El proyecto está en una fase de desarrollo activa y la configuración de Supabase está actualmente integrada directamente en el código. Para producción y despliegue seguro, se recomienda mover las credenciales a variables de entorno o a un archivo de configuración no versionado.
 
-### 6. Guardado y publicación
-`lib/services/guardado_local.dart` y `lib/services/almacenamiento_r2.dart`:
+## Estado del proyecto
 
-- Guardan el archivo GPX y fotos en el almacenamiento local.
-- Suben el contenido a R2 (Cloudflare) para compartirlo.
-- Guardan metadata de la ruta.
-
-### 7. Importación y previsualización GPX
-`lib/services/gpx_import.dart` y `lib/services/gpx_open_service.dart`:
-
-- Abren archivos `.gpx` desde el dispositivo o enlaces externos.
-- Parsean el XML para leer puntos de la ruta.
-- Generan una vista previa con el mapa y el nombre de la ruta.
-
-## Descripción de archivos importantes
-
-### Archivo principal
-
-#### `lib/main.dart`
-Inicializa la aplicación, configura Supabase y abre la app en la pantalla principal. También escucha archivos GPX externos para mostrar una vista previa antes de abrir la ruta dentro de la app.
-
-### Modelos
-
-#### `lib/models/explore_trail.dart`
-Representa un sendero que se muestra en el listado de exploración. Incluye nombre, descripción, dificultad, distancia, foto, autor y URL del GPX.
-
-#### `lib/models/saved_route.dart`
-Modelo para rutas guardadas localmente, con datos como nombre, descripción, puntos, fotos y metadata de publicación.
-
-#### `lib/models/clima_sendero.dart`
-Define los modelos del clima para mostrar temperatura, condiciones, humedad y pronóstico diario.
-
-#### `lib/models/detalles_sendero.dart`
-Modelo para la estructura de detalle de rutas, útil para mostrar información ampliada de cada sendero.
-
-### Pantallas
-
-#### `lib/screen/inicio.dart`
-Pantalla principal de la app. Contiene la barra de navegación, la cabecera de búsqueda y el contenido activo según la sección seleccionada.
-
-#### `lib/screen/explorar.dart`
-Lista los senderos disponibles, aplica filtros y permite añadirlos a favoritos.
-
-#### `lib/screen/guardados.dart`
-Muestra senderos guardados localmente o favoritos. Permite abrir, importar y gestionar rutas guardadas.
-
-#### `lib/screen/grabar.dart`
-Pantalla de grabación del recorrido. Gestiona el mapa, GPS, pausa, parada, ubicación compartida y métricas.
-
-#### `lib/screen/grabar_controller.dart`
-Lógica de control del proceso de grabación: permisos, rutas, puntos de interés, almacenamiento y confirmación de salida.
-
-#### `lib/screen/detalle_sendero.dart`
-Muestra la información completa de un sendero: foto, ruta en mapa, clima y posibilidad de seguir la ruta.
-
-#### `lib/screen/seguir_sendero.dart`
-Pantalla que guía al usuario durante la navegación de un sendero con métricas y seguimiento visual del recorrido.
-
-#### `lib/screen/previsualizar_gpx.dart`
-Presenta un archivo GPX antes de abrirlo completamente en la app, con mapa y puntos cargados desde el XML.
-
-#### `lib/screen/amigos.dart`
-Muestra la comunidad y la gestión de amigos. Permite buscar usuarios, añadir amigos y ver ubicaciones.
-
-#### `lib/screen/ubicacion_amigo.dart`
-Pantalla para visualizar en mapa la ubicación compartida por un amigo.
-
-#### `lib/screen/perfil.dart`
-Perfil del usuario, logros, fotos, estadísticas y acciones de cierre de sesión.
-
-#### `lib/screen/configuracion.dart`
-Pantalla de ajustes con navegación entre secciones de la aplicación.
-
-#### `lib/screen/localizacion.dart`
-Servicio o helper de localización, usado para resolver la posición del usuario y la gestión del GPS.
-
-#### `lib/screen/notificaciones.dart`
-Pantalla de notificaciones del usuario.
-
-### Servicios
-
-#### `lib/services/servicio_autenticacion.dart`
-Centraliza el inicio de sesión, registro, cierre de sesión y sincronización del perfil con Supabase.
-
-#### `lib/services/obtener_sendero.dart`
-Consulta los senderos publicados en la tabla `senderos` y adapta los datos para mostrarlos en la app.
-
-#### `lib/services/guardado_local.dart`
-Guarda las rutas creadas por el usuario en almacenamiento local, junto con fotos y metadata del sendero.
-
-#### `lib/services/almacenamiento_r2.dart`
-Sube archivos GPX y fotos a un bucket de R2 para que puedan publicarse y descargarse por otros usuarios.
-
-#### `lib/services/gpx_import.dart`
-Lee archivos GPX guardados en el dispositivo, valida puntos y genera un modelo de ruta utilizable por la app.
-
-#### `lib/services/gpx_open_service.dart`
-Escucha enlaces externos o archivos GPX abiertos desde Android y los convierte para cargarlos en una vista previa dentro de la app.
-
-#### `lib/services/compartir_ubicacion.dart`
-Gestiona la funcionalidad de compartir ubicación con amigos a través de Supabase.
-
-#### `lib/services/senderos_favoritos.dart`
-Maneja favoritos de senderos. Añade, elimina y carga ids guardados por el usuario.
-
-#### `lib/services/senderos_locales.dart`
-Controla rutas locales y caché de senderos guardados en el dispositivo.
-
-#### `lib/services/servicio_clima_sendero.dart`
-Consulta el clima en función de la ubicación del sendero usando la API externa que la app tenga configurada.
-
-#### `lib/services/achievement_service.dart`
-Lógica de logros y progresos para el perfil del usuario.
-
-#### `lib/services/offline_tile_service.dart`
-Ayuda a manejar tiles del mapa offline para poder navegar sin conexión.
-
-### Widgets reutilizables
-
-#### `lib/widgets/login.dart`
-Pantalla de login/registro con formulario y gestión del avatar de perfil.
-
-#### `lib/widgets/barra_navegacion.dart`
-Componente de navegación inferior reutilizable para todas las pantallas principales.
-
-#### `lib/widgets/sendero_card.dart`
-Tarjeta visual de un sendero con imagen, nombre, dificultad, distancia y botón de favorito.
-
-#### `lib/widgets/filtros.dart`
-Barra de filtros y búsqueda para explorar y ordenar senderos.
-
-#### `lib/widgets/grabar_action_button.dart`
-Botón reutilizable para iniciar, pausar o detener una grabación.
-
-#### `lib/widgets/grabar_metric_indicator.dart`
-Muestra datos de métricas como tiempo, distancia o elevación.
-
-#### `lib/widgets/config_card.dart`
-Tarjeta visual reutilizable para opciones de configuración.
-
-#### `lib/widgets/clima_sendero_card.dart`
-Widget para mostrar el clima del sendero en una tarjeta visual.
-
-#### `lib/widgets/save_route_dialog.dart`
-Diálogo para guardar una ruta o completar la metadata antes de publicarla.
-
-#### `lib/widgets/search_field.dart`
-Campo de búsqueda reutilizable para explorar, guardados y comunidad.
-
-### Utilidades
-
-#### `lib/utils/route_calculator.dart`
-Calcula distancias y encuentra el punto más cercano sobre una ruta. Es útil para saber si el usuario está cerca de un tramo o para controlar seguimiento de recorrido.
-
-## Archivos de configuración
-
-### `pubspec.yaml`
-Define todas las dependencias de Flutter y los assets. Aquí se declaran paquetes esenciales como `flutter_map`, `geolocator`, `supabase_flutter`, `image_picker`, `share_plus`, etc.
+La aplicación incluye funcionalidad de autenticación, mapas, grabación GPS, perfiles, GPX y comunidad, con una base sólida para seguir ampliando la experiencia de senderismo y la capa social de la app.
 
 ### `analysis_options.yaml`
 Configura las reglas de lint para mantener el código limpio y consistente.

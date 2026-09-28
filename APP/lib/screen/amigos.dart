@@ -161,6 +161,74 @@ class _AmigosContentState extends State<AmigosContent> {
     }
   }
 
+  Future<void> _removeFriend(_Friend friend) async {
+    final client = Supabase.instance.client;
+    final currentUser = client.auth.currentUser;
+    if (currentUser == null) return;
+
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar amigo'),
+        content: Text('¿Quieres quitar a ${friend.name} de tus amigos?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRemove != true) return;
+
+    try {
+      final directMatch = await client
+          .from('amistades')
+          .delete()
+          .eq('users_id', currentUser.id)
+          .eq('target_id', friend.id)
+          .select();
+
+      if (directMatch.isEmpty) {
+        await client
+            .from('amistades')
+            .delete()
+            .eq('users_id', friend.id)
+            .eq('target_id', currentUser.id)
+            .select();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _addedFriends = [..._addedFriends]
+          ..removeWhere((item) => item.id == friend.id);
+        _friends = [
+          ..._friends,
+          friend,
+        ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${friend.name} ya no está en tus amigos.')),
+      );
+    } on PostgrestException catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar al amigo.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo eliminar al amigo.')),
+      );
+    }
+  }
+
   Widget _buildSectionHeader(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -241,6 +309,7 @@ class _AmigosContentState extends State<AmigosContent> {
                   ),
                 ),
               ),
+              onRemoveFriend: () => _removeFriend(friend),
             ),
         const SizedBox(height: 16),
         _buildCommunityInfoCard(colors),
@@ -354,10 +423,15 @@ class _FriendTile extends StatelessWidget {
 }
 
 class _AddedFriendTile extends StatelessWidget {
-  const _AddedFriendTile({required this.friend, required this.onViewLocation});
+  const _AddedFriendTile({
+    required this.friend,
+    required this.onViewLocation,
+    required this.onRemoveFriend,
+  });
 
   final _Friend friend;
   final VoidCallback onViewLocation;
+  final VoidCallback onRemoveFriend;
 
   @override
   Widget build(BuildContext context) {
@@ -368,10 +442,20 @@ class _AddedFriendTile extends StatelessWidget {
         leading: DefaultUserAvatar(radius: 20, imageUrl: friend.photoUrl),
         title: Text(friend.name),
         subtitle: friend.username.isEmpty ? null : Text(friend.username),
-        trailing: IconButton(
-          onPressed: onViewLocation,
-          tooltip: 'Ver ubicación',
-          icon: const Icon(Icons.location_on_outlined),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: onViewLocation,
+              tooltip: 'Ver ubicación',
+              icon: const Icon(Icons.location_on_outlined),
+            ),
+            IconButton(
+              onPressed: onRemoveFriend,
+              tooltip: 'Eliminar amigo',
+              icon: const Icon(Icons.person_remove_alt_1_outlined),
+            ),
+          ],
         ),
       ),
     );
