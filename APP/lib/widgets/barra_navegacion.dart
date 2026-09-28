@@ -22,9 +22,9 @@ const navigationDestinations = <NavigationDestination>[
     label: 'Amigos',
   ),
   NavigationDestination(
-    icon: Icon(Icons.person_outline),
-    selectedIcon: Icon(Icons.person),
-    label: 'Perfil',
+    icon: Icon(Icons.search_outlined),
+    selectedIcon: Icon(Icons.search),
+    label: 'Espectador',
   ),
 ];
 

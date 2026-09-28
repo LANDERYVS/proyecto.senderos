@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/explore_trail.dart';
 import 'amigos.dart';
 import 'guardados.dart';
 import 'explorar.dart';
 import 'grabar.dart';
 import 'notificaciones.dart';
 import '../widgets/barra_navegacion.dart';
+import '../widgets/default_user_avatar.dart';
 import '../widgets/search_field.dart';
 import 'perfil.dart';
 
@@ -24,11 +27,37 @@ class _HomePageState extends State<HomePage> {
   String _exploreSearchTerm = '';
   String _friendsSearchTerm = '';
   String _savedSearchTerm = '';
+  String? _userPhotoUrl;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex.clamp(0, 4);
+    _loadCurrentUserPhoto();
+  }
+
+  Future<void> _loadCurrentUserPhoto() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final profile = await Supabase.instance.client
+          .from('usuarios')
+          .select('user_photo')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      final profilePhoto = profile?['user_photo']?.toString().trim();
+      final resolvedPhoto = profilePhoto?.isNotEmpty == true
+          ? ExploreTrail.publicR2Url(profilePhoto)
+          : user.userMetadata?['avatar_url']?.toString().trim();
+
+      if (!mounted) return;
+      setState(() => _userPhotoUrl = resolvedPhoto);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _userPhotoUrl = user.userMetadata?['avatar_url']?.toString());
+    }
   }
 
   Widget _buildBody() {
@@ -36,7 +65,8 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return ExploreContent(
           searchTerm: _exploreSearchTerm,
-          onSearchChanged: (value) => setState(() => _exploreSearchTerm = value),
+          onSearchChanged: (value) =>
+              setState(() => _exploreSearchTerm = value),
         );
       case 1:
         return SavedContent(
@@ -47,12 +77,14 @@ class _HomePageState extends State<HomePage> {
         return AmigosContent(
           key: ValueKey('amigos-$_communityVersion'),
           searchTerm: _friendsSearchTerm,
-          onSearchChanged: (value) => setState(() => _friendsSearchTerm = value),
+          onSearchChanged: (value) =>
+              setState(() => _friendsSearchTerm = value),
         );
       default:
         return ExploreContent(
           searchTerm: _exploreSearchTerm,
-          onSearchChanged: (value) => setState(() => _exploreSearchTerm = value),
+          onSearchChanged: (value) =>
+              setState(() => _exploreSearchTerm = value),
         );
     }
   }
@@ -109,6 +141,28 @@ class _HomePageState extends State<HomePage> {
     return const SizedBox.shrink();
   }
 
+  Widget _buildProfileButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ProfilePage()),
+        );
+      },
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xffe2e2e2), width: 1.5),
+        ),
+        child: ClipOval(
+          child: DefaultUserAvatar(radius: 20, imageUrl: _userPhotoUrl),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -128,13 +182,12 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Row(
               children: [
+                _buildProfileButton(),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 520),
-                      child: _buildHeaderSearch(),
-                    ),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: _buildHeaderSearch(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -144,7 +197,9 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () async {
                     await Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const NotificacionesScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const NotificacionesScreen(),
+                      ),
                     );
                     if (!mounted) return;
                     setState(() => _communityVersion++);
