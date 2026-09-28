@@ -263,7 +263,7 @@ class GrabarController extends ChangeNotifier {
         if (unlocked) {
           AchievementView(
             title: '¡Logro desbloqueado!',
-            subTitle: 'Creaste tu primer sendero',
+            subTitle: AchievementService.instance.firstTrailAchievement.name,
             icon: const Icon(Icons.emoji_events, color: Colors.white),
             color: Theme.of(context).colorScheme.primary,
             alignment: Alignment.topCenter,

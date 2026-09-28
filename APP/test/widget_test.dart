@@ -93,31 +93,60 @@ void main() {
 
     final circle = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
     expect(circle.backgroundImage, isA<AssetImage>());
-    expect((circle.backgroundImage as AssetImage).assetName, 'assets/Logo.png');
+    expect(
+      (circle.backgroundImage as AssetImage).assetName,
+      'assets/usuario.png',
+    );
   });
 
-  testWidgets('muestra la foto y el nombre del autor en el detalle del sendero', (
-    tester,
-  ) async {
-    final trail = ExploreTrail(
-      name: 'Sendero de prueba',
-      description: 'Descripción corta',
-      difficulty: 'Moderado',
-      distanceKm: 4.5,
-      elevation: '180 m',
-      author: 'Senderista',
-      authorPhotoUrl: 'https://example.com/avatar.png',
-      photoUrl: null,
-    );
+  testWidgets(
+    'normaliza la foto del usuario almacenada como clave de storage',
+    (tester) async {
+      const photoKey = 'avatars/test-user.png';
 
-    await tester.pumpWidget(
-      MaterialApp(home: DetalleSenderoScreen(trail: trail)),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(child: DefaultUserAvatar(imageUrl: photoKey)),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Publicado por: Senderista'), findsOneWidget);
-    expect(find.byType(CircleAvatar), findsOneWidget);
-  });
+      final circle = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
+      expect(circle.backgroundImage, isA<NetworkImage>());
+      expect(
+        (circle.backgroundImage as NetworkImage).url,
+        contains(
+          'pub-a4c1361bdcbd4ab38809613ea21575c2.r2.dev/avatars/test-user.png',
+        ),
+      );
+    },
+  );
+
+  testWidgets(
+    'muestra la foto y el nombre del autor en el detalle del sendero',
+    (tester) async {
+      final trail = ExploreTrail(
+        name: 'Sendero de prueba',
+        description: 'Descripción corta',
+        difficulty: 'Moderado',
+        distanceKm: 4.5,
+        elevation: '180 m',
+        author: 'Senderista',
+        authorPhotoUrl: 'https://example.com/avatar.png',
+        photoUrl: null,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: DetalleSenderoScreen(trail: trail)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Publicado por: Senderista'), findsOneWidget);
+      expect(find.byType(CircleAvatar), findsOneWidget);
+    },
+  );
 
   testWidgets('muestra el botón de seguir sendero en la vista de detalle', (
     tester,

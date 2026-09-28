@@ -1,7 +1,10 @@
+import 'package:achievement_view/achievement_view.dart';
+import 'package:fifty_achievement_engine/fifty_achievement_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
+import '../services/achievement_service.dart';
 import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
@@ -9,11 +12,7 @@ import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
 
 class ExploreContent extends StatefulWidget {
-  const ExploreContent({
-    super.key,
-    this.searchTerm = '',
-    this.onSearchChanged,
-  });
+  const ExploreContent({super.key, this.searchTerm = '', this.onSearchChanged});
 
   final String searchTerm;
   final ValueChanged<String>? onSearchChanged;
@@ -107,6 +106,13 @@ class _ExploreContentState extends State<ExploreContent> {
           );
         }
       }
+      Achievement<void>? unlockedAchievement;
+      if (!wasFavorite) {
+        unlockedAchievement = await AchievementService.instance.recordEvent(
+          'favorite_saved',
+        );
+      }
+
       if (!mounted) return;
       setState(() {
         if (wasFavorite) {
@@ -115,6 +121,18 @@ class _ExploreContentState extends State<ExploreContent> {
           _favoriteIds.add(senderoId);
         }
       });
+
+      if (unlockedAchievement != null && mounted) {
+        AchievementView(
+          title: '¡Logro desbloqueado!',
+          subTitle: unlockedAchievement.name,
+          icon: const Icon(Icons.emoji_events, color: Colors.white),
+          color: Theme.of(context).colorScheme.primary,
+          alignment: Alignment.topCenter,
+          duration: const Duration(seconds: 4),
+        ).show(context);
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -186,10 +204,7 @@ class _ExploreContentState extends State<ExploreContent> {
               )
             else if (_loadError != null)
               SliverFillRemaining(
-                child: _ErrorState(
-                  message: _loadError!,
-                  onRetry: _loadTrails,
-                ),
+                child: _ErrorState(message: _loadError!, onRetry: _loadTrails),
               )
             else if (visibleTrails.isEmpty)
               const SliverFillRemaining(
@@ -209,7 +224,8 @@ class _ExploreContentState extends State<ExploreContent> {
                       isFavorite:
                           senderoId != null && _favoriteIds.contains(senderoId),
                       isSavingFavorite:
-                          senderoId != null && _savingFavoriteIds.contains(senderoId),
+                          senderoId != null &&
+                          _savingFavoriteIds.contains(senderoId),
                       onFavorite: senderoId == null
                           ? null
                           : () => _toggleFavorite(trail),

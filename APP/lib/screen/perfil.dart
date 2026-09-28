@@ -23,20 +23,6 @@ class _ProfilePhotoSaveException implements Exception {
   final String message;
 }
 
-class _Achievement {
-  const _Achievement({
-    required this.title,
-    required this.description,
-    required this.requirement,
-    required this.icon,
-  });
-
-  final String title;
-  final String description;
-  final String requirement;
-  final IconData icon;
-}
-
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -53,15 +39,6 @@ class _ProfilePageState extends State<ProfilePage> {
   final AchievementService _achievementService = AchievementService.instance;
   final ImagePicker _imagePicker = ImagePicker();
   final AlmacenamientoR2 _almacenamientoR2 = AlmacenamientoR2();
-
-  static const _otherAchievements = [
-    _Achievement(
-      title: 'Explorador',
-      description: 'Descubre nuevos lugares',
-      requirement: 'Descubre 5 lugares para desbloquearlo',
-      icon: Icons.explore,
-    ),
-  ];
 
   @override
   void initState() {
@@ -401,15 +378,14 @@ class _ProfilePageState extends State<ProfilePage> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          _FirstTrailAchievementCard(
-            achievement: _achievementService.firstTrailAchievement,
-            isUnlocked:
-                !_isAchievementLoading &&
-                _achievementService.isFirstTrailUnlocked,
-            isLoading: _isAchievementLoading,
-          ),
-          for (final achievement in _otherAchievements)
-            _LockedAchievementCard(achievement: achievement),
+          for (final achievement in _achievementService.controller.achievements)
+            _ProfileAchievementCard(
+              achievement: achievement,
+              isUnlocked:
+                  !_isAchievementLoading &&
+                  _achievementService.controller.isUnlocked(achievement.id),
+              isLoading: _isAchievementLoading,
+            ),
           const SizedBox(height: 8),
           ListTile(
             leading: const Icon(Icons.arrow_back),
@@ -432,8 +408,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
-class _FirstTrailAchievementCard extends StatelessWidget {
-  const _FirstTrailAchievementCard({
+class _ProfileAchievementCard extends StatelessWidget {
+  const _ProfileAchievementCard({
     required this.achievement,
     required this.isUnlocked,
     required this.isLoading,
@@ -447,6 +423,12 @@ class _FirstTrailAchievementCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final iconColor = isUnlocked ? colors.primary : colors.onSurfaceVariant;
+    final description = achievement.description ?? 'Sin descripción';
+    final subtitle = isLoading
+        ? description
+        : isUnlocked
+        ? '$description\nDesbloqueado · ${achievement.points} puntos'
+        : '$description\nBloqueado';
 
     return Card(
       color: isUnlocked
@@ -456,54 +438,20 @@ class _FirstTrailAchievementCard extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: iconColor.withValues(alpha: 0.12),
           child: Icon(
-            isUnlocked ? achievement.icon : Icons.lock_outline,
+            isUnlocked && achievement.icon != null
+                ? achievement.icon!
+                : Icons.lock_outline,
             color: iconColor,
           ),
         ),
         title: Text(achievement.name),
         subtitle: Text(
-          isLoading
-              ? achievement.description ?? ''
-              : isUnlocked
-              ? '${achievement.description}\nDesbloqueado · ${achievement.points} puntos'
-              : '${achievement.description}\nBloqueado · Guarda tu primer sendero grabado',
+          subtitle,
           style: TextStyle(
             color: isUnlocked ? colors.onPrimaryContainer : null,
           ),
         ),
         isThreeLine: !isLoading,
-      ),
-    );
-  }
-}
-
-class _LockedAchievementCard extends StatelessWidget {
-  const _LockedAchievementCard({required this.achievement});
-
-  final _Achievement achievement;
-
-  @override
-  Widget build(BuildContext context) {
-    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
-
-    return Card(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: mutedColor.withValues(alpha: 0.12),
-          child: Icon(Icons.lock_outline, color: mutedColor),
-        ),
-        title: Row(
-          children: [
-            Expanded(child: Text(achievement.title)),
-            Icon(achievement.icon, size: 20, color: mutedColor),
-          ],
-        ),
-        subtitle: Text(
-          '${achievement.description}\nBloqueado · ${achievement.requirement}',
-          style: TextStyle(color: mutedColor),
-        ),
-        isThreeLine: true,
       ),
     );
   }

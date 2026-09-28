@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'achievement_service.dart';
+
 class SenderosFavoritosException implements Exception {
   const SenderosFavoritosException(this.message);
 

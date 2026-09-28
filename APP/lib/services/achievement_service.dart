@@ -15,22 +15,86 @@ class AchievementService {
   static final AchievementService instance = AchievementService();
   static const _progressKey = 'achievement_progress_v1';
   static const _tableName = 'progreso_logros';
+  static const _achievementTableName = 'logros';
   static const firstTrailId = 'first_trail';
 
+  static List<Achievement<void>> _defaultAchievements() => [
+    Achievement<void>(
+      id: firstTrailId,
+      name: 'Creaste tu primer sendero',
+      description: 'Graba y guarda tu primer sendero.',
+      condition: EventCondition('first_trail_created'),
+      rarity: AchievementRarity.common,
+      points: 10,
+      category: 'Senderismo',
+      icon: Icons.emoji_events_outlined,
+    ),
+  ];
+
   final AchievementController<void> controller = AchievementController<void>(
-    achievements: [
-      Achievement<void>(
-        id: firstTrailId,
-        name: 'Creaste tu primer sendero',
-        description: 'Graba y guarda tu primer sendero.',
-        condition: EventCondition('first_trail_created'),
-        rarity: AchievementRarity.common,
-        points: 10,
-        category: 'Senderismo',
-        icon: Icons.emoji_events_outlined,
-      ),
-    ],
+    achievements: _defaultAchievements(),
   );
+
+  static List<Achievement<void>> achievementDefinitionsFromRows(
+    List<Map<String, dynamic>> rows,
+  ) {
+    final achievements = <Achievement<void>>[];
+
+    for (final row in rows) {
+      final id =
+          _stringValue(row, ['id', 'slug', 'code', 'key']) ??
+          _stringValue(row, ['name', 'nombre', 'title', 'titulo']);
+      if (id == null || id.isEmpty) continue;
+
+      final eventName = _stringValue(row, [
+        'event',
+        'event_name',
+        'evento',
+        'condition',
+        'trigger',
+      ]);
+      final rawTarget = _numValue(row, [
+        'target',
+        'quantity',
+        'cantidad',
+        'meta',
+        'count',
+        'required',
+      ]);
+      final points =
+          _numValue(row, ['points', 'puntos', 'score'])?.toInt() ?? 10;
+      final name =
+          _stringValue(row, ['name', 'nombre', 'title', 'titulo']) ?? id;
+      final description = _stringValue(row, [
+        'description',
+        'descripcion',
+        'details',
+        'detalle',
+      ]);
+      final category = _stringValue(row, ['category', 'categoria', 'group']);
+
+      final condition = eventName == null
+          ? EventCondition('${id}_completed')
+          : rawTarget != null && rawTarget > 1
+          ? CountCondition(eventName, target: rawTarget.toInt())
+          : EventCondition(eventName);
+
+      achievements.add(
+        Achievement<void>(
+          id: id,
+          name: name,
+          description: description,
+          condition: condition,
+          rarity: _rarityFromRow(row),
+          points: points,
+          category: category,
+          icon: Icons.emoji_events_outlined,
+        ),
+      );
+    }
+
+    return achievements;
+  }
 
   SharedPreferences? _preferences;
   final SupabaseClient? _supabaseClient;
@@ -71,8 +135,47 @@ class AchievementService {
     return isFirstTrailUnlocked;
   }
 
+  Future<Achievement<void>?> recordEvent(String eventName) async {
+    await initialize();
+    if (eventName.trim().isEmpty) return null;
+
+    final unlockedBefore = <String>{...controller.unlockedIds};
+    controller.trackEvent(eventName);
+    await _saveProgress(_loadedUserId);
+
+    for (final achievement in controller.achievements) {
+      final matchesEvent = _achievementUsesEvent(achievement, eventName);
+      final newlyUnlocked =
+          matchesEvent &&
+          !unlockedBefore.contains(achievement.id) &&
+          controller.isUnlocked(achievement.id);
+
+      if (newlyUnlocked) {
+        return achievement;
+      }
+    }
+
+    return null;
+  }
+
+  bool _achievementUsesEvent(Achievement<void> achievement, String eventName) {
+    final condition = achievement.condition;
+
+    if (condition is EventCondition) {
+      return condition.event == eventName;
+    }
+
+    if (condition is CountCondition) {
+      return condition.event == eventName;
+    }
+
+    return false;
+  }
+
   Future<void> _loadProgress(String? userId, int generation) async {
     _preferences ??= await SharedPreferences.getInstance();
+    await _loadAchievementCatalog();
+
     final localKey = _localProgressKey(userId);
     final localProgress = _decodeProgress(_preferences!.getString(localKey));
     Map<String, dynamic>? remoteProgress;
@@ -100,6 +203,24 @@ class AchievementService {
     await _preferences!.setString(localKey, jsonEncode(progress));
     if (userId != null && remoteReadSucceeded) {
       await _syncProgress(userId, progress);
+    }
+  }
+
+  Future<void> _loadAchievementCatalog() async {
+    try {
+      final rows = await _client.from(_achievementTableName).select();
+      final achievements = achievementDefinitionsFromRows(
+        (rows as List).map((item) => Map<String, dynamic>.from(item)).toList(),
+      );
+      final existingIds = controller.achievements.map((a) => a.id).toSet();
+      final additions = achievements.where(
+        (achievement) => !existingIds.contains(achievement.id),
+      );
+      if (additions.isNotEmpty) {
+        controller.addAchievements(additions.toList());
+      }
+    } on Exception catch (error) {
+      debugPrint('No se pudo cargar el catálogo de logros: $error');
     }
   }
 
@@ -139,6 +260,57 @@ class AchievementService {
       return _asStringMap(jsonDecode(encoded));
     } on FormatException {
       return null;
+    }
+  }
+
+  static String? _stringValue(Map<String, dynamic> row, List<String> keys) {
+    for (final key in keys) {
+      final value = row[key];
+      if (value == null) continue;
+      final text = value.toString();
+      if (text.trim().isNotEmpty) return text;
+    }
+    return null;
+  }
+
+  static num? _numValue(Map<String, dynamic> row, List<String> keys) {
+    for (final key in keys) {
+      final value = row[key];
+      if (value == null) continue;
+      if (value is num) return value;
+      final parsed = num.tryParse(value.toString());
+      if (parsed != null) return parsed;
+    }
+    return null;
+  }
+
+  static AchievementRarity _rarityFromRow(Map<String, dynamic> row) {
+    final value = _stringValue(row, [
+      'rarity',
+      'rareza',
+      'tier',
+      'nivel',
+    ])?.toLowerCase();
+
+    switch (value) {
+      case 'uncommon':
+      case 'poco_comun':
+      case 'incomun':
+        return AchievementRarity.uncommon;
+      case 'rare':
+      case 'raro':
+        return AchievementRarity.rare;
+      case 'epic':
+      case 'epico':
+        return AchievementRarity.epic;
+      case 'legendary':
+      case 'legendario':
+        return AchievementRarity.legendary;
+      case 'common':
+      case 'comun':
+      case 'normal':
+      default:
+        return AchievementRarity.common;
     }
   }
 

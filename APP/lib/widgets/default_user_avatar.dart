@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../models/explore_trail.dart';
+
 class DefaultUserAvatar extends StatelessWidget {
   const DefaultUserAvatar({
     super.key,
@@ -14,10 +16,11 @@ class DefaultUserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normalizedUrl = ExploreTrail.publicR2Url(imageUrl?.trim());
     final ImageProvider<Object> resolvedImage =
-        (imageUrl != null && imageUrl!.trim().isNotEmpty)
-        ? NetworkImage(imageUrl!)
-        : const AssetImage('assets/Logo.png');
+        (normalizedUrl != null && normalizedUrl.isNotEmpty)
+        ? NetworkImage(normalizedUrl)
+        : const AssetImage('assets/usuario.png');
 
     return CircleAvatar(
       radius: radius,
