@@ -7,8 +7,8 @@ const navigationDestinations = <NavigationDestination>[
     label: 'Explorar',
   ),
   NavigationDestination(
-    icon: Icon(Icons.route_outlined),
-    selectedIcon: Icon(Icons.route),
+    icon: Icon(Icons.folder_outlined),
+    selectedIcon: Icon(Icons.folder),
     label: 'Guardados',
   ),
   NavigationDestination(
@@ -22,8 +22,8 @@ const navigationDestinations = <NavigationDestination>[
     label: 'Amigos',
   ),
   NavigationDestination(
-    icon: Icon(Icons.search_outlined),
-    selectedIcon: Icon(Icons.search),
+    icon: Icon(Icons.visibility_outlined),
+    selectedIcon: Icon(Icons.visibility),
     label: 'Espectador',
   ),
 ];

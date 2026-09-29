@@ -27,6 +27,7 @@ class _HomePageState extends State<HomePage> {
   String _exploreSearchTerm = '';
   String _friendsSearchTerm = '';
   String _savedSearchTerm = '';
+  bool _filtersExpanded = false;
   String? _userPhotoUrl;
 
   @override
@@ -56,7 +57,9 @@ class _HomePageState extends State<HomePage> {
       setState(() => _userPhotoUrl = resolvedPhoto);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _userPhotoUrl = user.userMetadata?['avatar_url']?.toString());
+      setState(
+        () => _userPhotoUrl = user.userMetadata?['avatar_url']?.toString(),
+      );
     }
   }
 
@@ -65,12 +68,14 @@ class _HomePageState extends State<HomePage> {
       case 0:
         return ExploreContent(
           searchTerm: _exploreSearchTerm,
+          showFilters: _filtersExpanded,
           onSearchChanged: (value) =>
               setState(() => _exploreSearchTerm = value),
         );
       case 1:
         return SavedContent(
           searchTerm: _savedSearchTerm,
+          showFilters: _filtersExpanded,
           onSearchChanged: (value) => setState(() => _savedSearchTerm = value),
         );
       case 3:
@@ -92,6 +97,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildExploreSearchField() {
     return SearchField(
       onChanged: (value) => setState(() => _exploreSearchTerm = value),
+      onTap: () => setState(() => _filtersExpanded = true),
       hintText: 'Encontrar senderos',
     );
   }
@@ -106,6 +112,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSavedSearchField() {
     return SearchField(
       onChanged: (value) => setState(() => _savedSearchTerm = value),
+      onTap: () => setState(() => _filtersExpanded = true),
       hintText: 'Buscar guardados',
     );
   }
@@ -125,7 +132,10 @@ class _HomePageState extends State<HomePage> {
       );
       return;
     }
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+      _filtersExpanded = false;
+    });
   }
 
   Widget _buildHeaderSearch() {

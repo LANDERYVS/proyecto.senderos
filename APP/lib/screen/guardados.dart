@@ -17,10 +17,12 @@ class SavedContent extends StatefulWidget {
     super.key,
     this.searchTerm = '',
     this.onSearchChanged,
+    this.showFilters = true,
   });
 
   final String searchTerm;
   final ValueChanged<String>? onSearchChanged;
+  final bool showFilters;
 
   @override
   State<SavedContent> createState() => _SavedContentState();
@@ -145,9 +147,7 @@ class _SavedContentState extends State<SavedContent> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Borrar sendero'),
-        content: Text(
-          '¿Querés borrar "${route.name}" de este dispositivo?',
-        ),
+        content: Text('¿Querés borrar "${route.name}" de este dispositivo?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -170,13 +170,18 @@ class _SavedContentState extends State<SavedContent> {
       if (await route.file.exists()) await route.file.delete();
 
       final photoFolder = Directory(
-        route.file.path.replaceFirst(RegExp(r'\.gpx$', caseSensitive: false), ''),
+        route.file.path.replaceFirst(
+          RegExp(r'\.gpx$', caseSensitive: false),
+          '',
+        ),
       );
       if (await photoFolder.exists()) await photoFolder.delete(recursive: true);
 
       if (!mounted) return;
       setState(() {
-        _routes.removeWhere((savedRoute) => savedRoute.file.path == route.file.path);
+        _routes.removeWhere(
+          (savedRoute) => savedRoute.file.path == route.file.path,
+        );
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sendero "${route.name}" eliminado')),
@@ -303,6 +308,7 @@ class _SavedContentState extends State<SavedContent> {
           children: [
             FilterBar(
               showSearchField: false,
+              showFilters: widget.showFilters,
               onSearch: widget.onSearchChanged,
               onDifficultyChanged: (value) =>
                   setState(() => _difficultyFilter = value),
@@ -312,11 +318,7 @@ class _SavedContentState extends State<SavedContent> {
             Expanded(child: _buildRouteList()),
           ],
         ),
-        Positioned(
-          right: 20,
-          bottom: 20,
-          child: _buildOpenGpxButton(),
-        ),
+        Positioned(right: 20, bottom: 20, child: _buildOpenGpxButton()),
       ],
     );
   }

@@ -9,12 +9,14 @@ class FilterBar extends StatefulWidget {
     this.onDifficultyChanged,
     this.onLengthChanged,
     this.showSearchField = true,
+    this.showFilters = true,
   });
 
   final ValueChanged<String>? onSearch;
   final ValueChanged<String>? onDifficultyChanged;
   final ValueChanged<String>? onLengthChanged;
   final bool showSearchField;
+  final bool showFilters;
 
   @override
   State<FilterBar> createState() => _FilterBarState();
@@ -24,6 +26,7 @@ class _FilterBarState extends State<FilterBar> {
   // Variables que guardan el estado actual de cada filtro
   String _difficulty = 'Dificultad';
   String _length = 'Longitud';
+  bool _filtersExpanded = false;
 
   // Listas de opciones para cada filtro
   static const _difficultyOptions = [
@@ -82,36 +85,45 @@ class _FilterBarState extends State<FilterBar> {
 
   @override
   Widget build(BuildContext context) {
+    final filtersVisible = widget.showFilters || _filtersExpanded;
+
     return Container(
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(26, 18, 26, 24),
+        padding: EdgeInsets.fromLTRB(
+          26,
+          widget.showSearchField || filtersVisible ? 18 : 0,
+          26,
+          filtersVisible ? 24 : 0,
+        ),
         child: Column(
           children: [
             if (widget.showSearchField) ...[
               SearchField(
                 onChanged: widget.onSearch,
+                onTap: () => setState(() => _filtersExpanded = true),
                 hintText: 'Encontrar senderos',
               ),
-              const SizedBox(height: 26),
+              if (filtersVisible) const SizedBox(height: 26),
             ],
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _FilterButton(
-                    label: _difficulty,
-                    onPressed: () =>
-                        _chooseFilter(_difficulty, _difficultyOptions),
-                  ),
-                  const SizedBox(width: 10),
-                  _FilterButton(
-                    label: _length,
-                    onPressed: () => _chooseFilter(_length, _lengthOptions),
-                  ),
-                ],
+            if (filtersVisible)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _FilterButton(
+                      label: _difficulty,
+                      onPressed: () =>
+                          _chooseFilter(_difficulty, _difficultyOptions),
+                    ),
+                    const SizedBox(width: 10),
+                    _FilterButton(
+                      label: _length,
+                      onPressed: () => _chooseFilter(_length, _lengthOptions),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

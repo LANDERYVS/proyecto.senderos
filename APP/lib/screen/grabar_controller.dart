@@ -9,6 +9,7 @@ import '../services/offline_tile_service.dart';
 import '../services/achievement_service.dart';
 import '../services/guardado_local.dart';
 import '../utils/route_calculator.dart';
+import '../widgets/confirm_exit_recording_dialog.dart';
 import '../widgets/save_route_dialog.dart';
 import 'grabar_styles.dart';
 import 'localizacion.dart';
@@ -367,21 +368,9 @@ class GrabarController extends ChangeNotifier {
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('¿Seguro que quieres salir?'),
-        content: const Text(
-          'Hay un trayecto en grabación. Si sales, se perderá la ruta actual.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Salir'),
-          ),
-        ],
+      builder: (dialogContext) => ConfirmExitRecordingDialog(
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onExit: () => Navigator.pop(dialogContext, true),
       ),
     );
 

@@ -12,10 +12,16 @@ import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
 
 class ExploreContent extends StatefulWidget {
-  const ExploreContent({super.key, this.searchTerm = '', this.onSearchChanged});
+  const ExploreContent({
+    super.key,
+    this.searchTerm = '',
+    this.onSearchChanged,
+    this.showFilters = true,
+  });
 
   final String searchTerm;
   final ValueChanged<String>? onSearchChanged;
+  final bool showFilters;
 
   @override
   State<ExploreContent> createState() => _ExploreContentState();
@@ -191,6 +197,7 @@ class _ExploreContentState extends State<ExploreContent> {
             SliverToBoxAdapter(
               child: FilterBar(
                 showSearchField: false,
+                showFilters: widget.showFilters,
                 onSearch: widget.onSearchChanged,
                 onDifficultyChanged: (value) =>
                     setState(() => _difficultyFilter = value),

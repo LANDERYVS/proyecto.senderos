@@ -5,12 +5,14 @@ class SearchField extends StatelessWidget {
     super.key,
     this.controller,
     this.onChanged,
+    this.onTap,
     this.hintText = 'Buscar',
     this.suffixIcon,
   });
 
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
+  final VoidCallback? onTap;
   final String hintText;
   final Widget? suffixIcon;
 
@@ -21,6 +23,7 @@ class SearchField extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
+        onTap: onTap,
         textAlignVertical: TextAlignVertical.center,
         decoration: InputDecoration(
           hintText: hintText,
@@ -29,11 +32,11 @@ class SearchField extends StatelessWidget {
           filled: true,
           fillColor: const Color(0xfff2f2f2),
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          hintStyle: const TextStyle(
-            color: Color(0xff8d8d8d),
-            fontSize: 15,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
           ),
+          hintStyle: const TextStyle(color: Color(0xff8d8d8d), fontSize: 15),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
             borderSide: BorderSide.none,

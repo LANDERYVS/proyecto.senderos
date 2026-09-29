@@ -4,12 +4,12 @@ import 'package:latlong2/latlong.dart';
 
 import '../services/compartir_ubicacion.dart';
 import '../widgets/barra_navegacion.dart';
+import '../widgets/grabar_metrics_panel.dart';
 import 'grabar_controller.dart';
 import 'grabar_styles.dart';
 import 'inicio.dart';
 import 'perfil.dart';
 import '../widgets/grabar_action_button.dart';
-import '../widgets/grabar_metric_indicator.dart';
 
 class GrabarPage extends StatefulWidget {
   const GrabarPage({
@@ -390,45 +390,14 @@ class _GrabarPageState extends State<GrabarPage> {
                 ],
               ),
             ),
-            Container(
-              color: GrabarStyles.panelBackground,
-              padding: GrabarStyles.panelPadding,
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GrabarMetricIndicator(
-                        label: 'TIEMPO',
-                        value: _controller.formattedDuration,
-                      ),
-                      GrabarMetricIndicator(
-                        label: 'DISTANCIA',
-                        value:
-                            '${_controller.distanceKm.toStringAsFixed(1)} km',
-                        alignment: CrossAxisAlignment.end,
-                      ),
-                      GrabarMetricIndicator(
-                        label: 'SUBIDA',
-                        value:
-                            '${_controller.elevationGainMeters.toStringAsFixed(0)} m',
-                        alignment: CrossAxisAlignment.end,
-                      ),
-                    ],
-                  ),
-                  if (_controller.isRecording) ...[
-                    const SizedBox(height: 5),
-                    Text(
-                      _controller.recordingStatus,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GrabarStyles.statusStyle(context),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  _buildRecordingActions(),
-                ],
-              ),
+            GrabarMetricsPanel(
+              duration: _controller.formattedDuration,
+              distanceKm: _controller.distanceKm,
+              elevationGainMeters: _controller.elevationGainMeters,
+              status: _controller.isRecording
+                  ? _controller.recordingStatus
+                  : null,
+              footer: _buildRecordingActions(),
             ),
           ],
         ),

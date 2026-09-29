@@ -5,6 +5,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../widgets/confirm_exit_recording_dialog.dart';
+import '../widgets/grabar_metrics_panel.dart';
 import 'localizacion.dart';
 
 class SeguirSenderoPage extends StatefulWidget {
@@ -35,6 +37,7 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
   double _elevationGainMeters = 0;
   double? _lastAltitude;
   DateTime? _startTime;
+  bool _allowPop = false;
 
   @override
   void initState() {
@@ -151,6 +154,23 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
     return '$hours:$minutes:$seconds';
   }
 
+  Future<void> _confirmExit() async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => ConfirmExitRecordingDialog(
+        message:
+            'El seguimiento del sendero se detendrá y se perderá el progreso actual.',
+        onCancel: () => Navigator.pop(dialogContext, false),
+        onExit: () => Navigator.pop(dialogContext, true),
+      ),
+    );
+
+    if (!mounted || shouldExit != true) return;
+    setState(() => _allowPop = true);
+    Navigator.of(context).pop();
+  }
+
   LatLng _centerOf(List<LatLng> points) {
     final latitude = points.fold<double>(
       0,
@@ -194,107 +214,79 @@ class _SeguirSenderoPageState extends State<SeguirSenderoPage> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.routeName ?? 'Siguiendo sendero')),
-      body: Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: initialCenter,
-                    initialZoom: routePoints.isNotEmpty ? 15 : 13,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'proyecto.senderos',
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || _allowPop) return;
+        _confirmExit();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text(widget.routeName ?? 'Siguiendo sendero')),
+        body: Column(
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: initialCenter,
+                      initialZoom: routePoints.isNotEmpty ? 15 : 13,
                     ),
-                    if (routePoints.length > 1)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: routePoints,
-                            color: const Color(0xff4f8f3a),
-                            strokeWidth: 6,
-                          ),
-                        ],
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'proyecto.senderos',
                       ),
-                    if (markers.isNotEmpty) MarkerLayer(markers: markers),
-                  ],
-                ),
-                if (_isLoadingLocation)
-                  Positioned.fill(
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      child: const Center(child: CircularProgressIndicator()),
+                      if (routePoints.length > 1)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: routePoints,
+                              color: const Color(0xff4f8f3a),
+                              strokeWidth: 6,
+                            ),
+                          ],
+                        ),
+                      if (markers.isNotEmpty) MarkerLayer(markers: markers),
+                    ],
+                  ),
+                  if (_isLoadingLocation)
+                    Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        child: const Center(child: CircularProgressIndicator()),
+                      ),
+                    ),
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Material(
+                      color: Colors.white,
+                      elevation: 3,
+                      shape: const CircleBorder(),
+                      child: IconButton(
+                        tooltip: 'Centrar en mi ubicación',
+                        onPressed: _userLocation == null
+                            ? null
+                            : _centerOnUserLocation,
+                        icon: const Icon(Icons.my_location_outlined),
+                        color: const Color(0xff4f8f3a),
+                      ),
                     ),
                   ),
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: Material(
-                    color: Colors.white,
-                    elevation: 3,
-                    shape: const CircleBorder(),
-                    child: IconButton(
-                      tooltip: 'Centrar en mi ubicación',
-                      onPressed: _userLocation == null
-                          ? null
-                          : _centerOnUserLocation,
-                      icon: const Icon(Icons.my_location_outlined),
-                      color: const Color(0xff4f8f3a),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Container(
-            color: const Color(0xfff5f4ef),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _MetricColumn(label: 'TIEMPO', value: _formattedDuration),
-                _MetricColumn(
-                  label: 'DISTANCIA',
-                  value: '${_distanceKm.toStringAsFixed(1)} km',
-                ),
-                _MetricColumn(
-                  label: 'SUBIDA',
-                  value: '${_elevationGainMeters.toStringAsFixed(0)} m',
-                ),
-              ],
+            GrabarMetricsPanel(
+              duration: _formattedDuration,
+              distanceKm: _distanceKm,
+              elevationGainMeters: _elevationGainMeters,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricColumn extends StatelessWidget {
-  const _MetricColumn({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
