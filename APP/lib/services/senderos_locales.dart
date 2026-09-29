@@ -42,6 +42,122 @@ class SenderosLocalesService {
     return routes;
   }
 
+  Future<File?> findDownloadedTrail(ExploreTrail trail) async {
+    final sourceKey = trail.gpxKey;
+    if (sourceKey == null || sourceKey.isEmpty) return null;
+
+    for (final route in await loadRoutes()) {
+      if (route.favoriteSourceKey != sourceKey &&
+          route.downloadedSourceKey != sourceKey) {
+        continue;
+      }
+      if (await route.file.exists()) return route.file;
+    }
+    return null;
+  }
+
+  Future<File> downloadTrailForOffline(ExploreTrail trail) async {
+    final sourceKey = trail.gpxKey;
+    final url = trail.gpxUrl;
+    if (sourceKey == null || sourceKey.isEmpty || url == null) {
+      throw const HttpException(
+        'Este sendero no tiene un archivo GPX disponible.',
+      );
+    }
+
+    final routes = await loadRoutes();
+    for (final route in routes) {
+      if (route.favoriteSourceKey != sourceKey &&
+          route.downloadedSourceKey != sourceKey) {
+        continue;
+      }
+      final metadata = Map<String, dynamic>.from(route.metadata ?? {})
+        ..['downloadedSourceKey'] = sourceKey
+        ..['gpxDownloaded'] = true
+        ..['senderoId'] = trail.id
+        ..['name'] = trail.name;
+      await File(
+        route.file.path.replaceFirst(
+          RegExp(r'\.gpx$', caseSensitive: false),
+          '.json',
+        ),
+      ).writeAsString(jsonEncode(metadata));
+      return route.file;
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    final fileBaseName = 'sendero_${_uuid.v4()}';
+    final routeFile = File('${directory.path}/$fileBaseName.gpx');
+    final temporaryFile = File('${routeFile.path}.download');
+    final metadataFile = File('${directory.path}/$fileBaseName.json');
+    final metadataTemporaryFile = File('${metadataFile.path}.tmp');
+    final client = HttpClient();
+
+    try {
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.ok) {
+        throw HttpException('HTTP ${response.statusCode}', uri: Uri.parse(url));
+      }
+      await response.pipe(temporaryFile.openWrite());
+      await metadataTemporaryFile.writeAsString(
+        jsonEncode({
+          'name': trail.name,
+          'description': trail.description,
+          'difficulty': trail.difficulty,
+          'distanceKm': trail.distanceKm,
+          'createdByUser': false,
+          'isFavorite': false,
+          'availableOffline': false,
+          'gpxDownloaded': true,
+          'downloadedSourceKey': sourceKey,
+          'senderoId': trail.id,
+          'photoUrl': trail.photoUrl,
+          'createdAt': DateTime.now().toIso8601String(),
+        }),
+      );
+      await temporaryFile.rename(routeFile.path);
+      await metadataTemporaryFile.rename(metadataFile.path);
+      return routeFile;
+    } on Exception {
+      if (await temporaryFile.exists()) await temporaryFile.delete();
+      if (await metadataTemporaryFile.exists()) {
+        await metadataTemporaryFile.delete();
+      }
+      if (await routeFile.exists() && !await metadataFile.exists()) {
+        await routeFile.delete();
+      }
+      rethrow;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Future<void> markTrailAvailableOffline(ExploreTrail trail) async {
+    final routeFile = await findDownloadedTrail(trail);
+    if (routeFile == null) {
+      throw const FileSystemException('No se encontró el GPX descargado.');
+    }
+
+    final metadataFile = File(
+      routeFile.path.replaceFirst(
+        RegExp(r'\.gpx$', caseSensitive: false),
+        '.json',
+      ),
+    );
+    Map<String, dynamic> metadata = {};
+    if (await metadataFile.exists()) {
+      metadata =
+          jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>;
+    }
+    metadata
+      ..['availableOffline'] = true
+      ..['mapDownloaded'] = true
+      ..['downloadedSourceKey'] = trail.gpxKey
+      ..['senderoId'] = trail.id;
+    await metadataFile.writeAsString(jsonEncode(metadata));
+  }
+
   Future<void> saveFavorite(ExploreTrail trail) async {
     final senderoId = trail.id;
     final sourceKey = trail.gpxKey;
@@ -57,7 +173,10 @@ class SenderosLocalesService {
 
     final routes = await loadRoutes();
     for (final route in routes) {
-      if (route.favoriteSourceKey != sourceKey) continue;
+      if (route.favoriteSourceKey != sourceKey &&
+          route.downloadedSourceKey != sourceKey) {
+        continue;
+      }
       final metadata = Map<String, dynamic>.from(route.metadata ?? {})
         ..['isFavorite'] = true
         ..['favoriteSenderoId'] = senderoId;
@@ -112,7 +231,9 @@ class SenderosLocalesService {
     final routes = await loadRoutes();
     for (final route in routes) {
       final matchesSourceKey =
-          trail.gpxKey != null && route.favoriteSourceKey == trail.gpxKey;
+          trail.gpxKey != null &&
+          (route.favoriteSourceKey == trail.gpxKey ||
+              route.downloadedSourceKey == trail.gpxKey);
       final matchesSenderoId =
           trail.id != null && route.favoriteSenderoId == trail.id;
       if (!matchesSourceKey && !matchesSenderoId) {

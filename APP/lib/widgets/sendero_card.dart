@@ -19,13 +19,15 @@ class SenderoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       margin: EdgeInsets.zero,
-      elevation: 2,
-      shadowColor: Colors.black26,
+      elevation: 1,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.12),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: colorScheme.outlineVariant),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -37,88 +39,144 @@ class SenderoCard extends StatelessWidget {
             ),
           );
         },
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                trail.name,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                trail.description,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Publicado por: ${trail.author}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                height: 120,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xffeaf5df),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: trail.photoUrl == null
-                    ? Image.asset('assets/arbol.jpg', fit: BoxFit.contain)
-                    : Image.network(
-                        trail.photoUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, error, stackTrace) => Image.asset(
-                          'assets/arbol.jpg',
-                          fit: BoxFit.contain,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 172,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  trail.photoUrl == null
+                      ? Image.asset('assets/arbol.jpg', fit: BoxFit.cover)
+                      : Image.network(
+                          trail.photoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, error, stackTrace) => Image.asset(
+                            'assets/arbol.jpg',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          trail.difficulty,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                         ),
                       ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Text(
-                    trail.difficulty,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-                  const Spacer(),
-                  Text('${trail.distanceKm.toStringAsFixed(1)} km'),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    tooltip: isFavorite
-                        ? 'Quitar de favoritos'
-                        : 'Guardar en favoritos',
-                    onPressed: onFavorite == null || isSavingFavorite
-                        ? null
-                        : onFavorite,
-                    icon: isSavingFavorite
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : null,
-                          ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: IconButton(
+                      tooltip: isFavorite
+                          ? 'Quitar de favoritos'
+                          : 'Guardar en favoritos',
+                      onPressed: onFavorite == null || isSavingFavorite
+                          ? null
+                          : onFavorite,
+                      style: IconButton.styleFrom(
+                        backgroundColor: colorScheme.surface,
+                        foregroundColor: isFavorite
+                            ? colorScheme.error
+                            : colorScheme.onSurface,
+                        minimumSize: const Size(44, 44),
+                      ),
+                      icon: isSavingFavorite
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(
+                              isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                            ),
+                    ),
                   ),
-                  const Icon(Icons.chevron_right, size: 20),
                 ],
               ),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trail.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  if (trail.description.isNotEmpty) ...[
+                    Text(
+                      trail.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  Row(
+                    children: [
+                      if (trail.authorPhotoUrl != null) ...[
+                        CircleAvatar(
+                          radius: 11,
+                          backgroundImage: NetworkImage(trail.authorPhotoUrl!),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Expanded(
+                        child: Text(
+                          trail.author,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        Icons.route_outlined,
+                        size: 17,
+                        color: colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${trail.distanceKm.toStringAsFixed(1)} km',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -10,8 +10,12 @@ import 'package:xml/xml.dart';
 
 import '../models/clima_sendero.dart';
 import '../models/explore_trail.dart';
+import '../services/offline_tile_service.dart';
 import '../services/servicio_clima_sendero.dart';
+import '../services/senderos_locales.dart';
 import '../widgets/clima_sendero_card.dart';
+import '../widgets/route_polyline_map.dart';
+import 'guardados.dart';
 import 'seguir_sendero.dart';
 
 class DetalleSenderoScreen extends StatefulWidget {
@@ -30,7 +34,13 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   bool _isLoadingWeather = false;
   ClimaSendero? _weather;
   final _weatherService = ServicioClimaSendero();
+  final _offlineTileService = OfflineTileService();
+  final _savedRoutesService = SenderosLocalesService();
   Timer? _weatherRefreshTimer;
+  TileLayer? _offlineTileLayer;
+  bool _isDownloadingOffline = false;
+  bool _isOfflineReady = false;
+  double _downloadProgress = 0;
 
   @override
   void initState() {
@@ -57,15 +67,29 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     }
 
     try {
-      final client = HttpClient();
-      final request = await client.getUrl(Uri.parse(url));
-      final response = await request.close();
-      if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('HTTP ${response.statusCode}', uri: Uri.parse(url));
-      }
-      final document = XmlDocument.parse(
-        await response.transform(const Utf8Decoder()).join(),
+      final localGpx = await _savedRoutesService.findDownloadedTrail(
+        widget.trail,
       );
+      String gpxContent;
+      if (localGpx != null) {
+        gpxContent = await localGpx.readAsString();
+      } else {
+        final client = HttpClient();
+        try {
+          final request = await client.getUrl(Uri.parse(url));
+          final response = await request.close();
+          if (response.statusCode != HttpStatus.ok) {
+            throw HttpException(
+              'HTTP ${response.statusCode}',
+              uri: Uri.parse(url),
+            );
+          }
+          gpxContent = await response.transform(const Utf8Decoder()).join();
+        } finally {
+          client.close(force: true);
+        }
+      }
+      final document = XmlDocument.parse(gpxContent);
       final points = document
           .findAllElements('trkpt')
           .map((element) {
@@ -79,12 +103,12 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
           })
           .whereType<LatLng>()
           .toList();
-      client.close();
       if (!mounted) return;
       setState(() {
         _routePoints = points;
         _isLoadingRoute = false;
       });
+      await _loadOfflineMap(localGpx != null);
       if (points.isNotEmpty) {
         _loadTrailWeather(_centerOf(points));
       }
@@ -94,6 +118,86 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         _isLoadingRoute = false;
         _routeError = error.toString();
       });
+    }
+  }
+
+  String get _offlineRegionId =>
+      'trail_${widget.trail.id ?? widget.trail.gpxKey}';
+
+  Future<void> _loadOfflineMap(bool hasLocalGpx) async {
+    final hasTiles = await _offlineTileService.hasDownloadedTiles(
+      regionId: _offlineRegionId,
+    );
+    if (!hasTiles || !mounted) return;
+    final layer = await _offlineTileService.offlineTileLayer(
+      regionId: _offlineRegionId,
+    );
+    if (!mounted) return;
+    setState(() {
+      _offlineTileLayer = layer;
+      _isOfflineReady = hasLocalGpx;
+    });
+  }
+
+  LatLngBounds _boundsForRoute(List<LatLng> points) {
+    final latitudes = points.map((point) => point.latitude);
+    final longitudes = points.map((point) => point.longitude);
+    const padding = 0.005;
+    return LatLngBounds(
+      LatLng(
+        latitudes.reduce((first, second) => first < second ? first : second) -
+            padding,
+        longitudes.reduce((first, second) => first < second ? first : second) -
+            padding,
+      ),
+      LatLng(
+        latitudes.reduce((first, second) => first > second ? first : second) +
+            padding,
+        longitudes.reduce((first, second) => first > second ? first : second) +
+            padding,
+      ),
+    );
+  }
+
+  Future<void> _downloadOfflineResources() async {
+    if (_isDownloadingOffline || _routePoints.length < 2) return;
+    setState(() {
+      _isDownloadingOffline = true;
+      _downloadProgress = 0;
+    });
+
+    try {
+      await _savedRoutesService.downloadTrailForOffline(widget.trail);
+      await _offlineTileService.downloadRegion(
+        bounds: _boundsForRoute(_routePoints),
+        regionId: _offlineRegionId,
+        minZoom: 12,
+        maxZoom: 16,
+        onProgress: (completed, total) {
+          if (mounted) {
+            setState(() => _downloadProgress = completed / total);
+          }
+        },
+      );
+      await _savedRoutesService.markTrailAvailableOffline(widget.trail);
+      final layer = await _offlineTileService.offlineTileLayer(
+        regionId: _offlineRegionId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _offlineTileLayer = layer;
+        _isOfflineReady = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('GPX y mapa guardados sin conexión')),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo completar la descarga: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloadingOffline = false);
     }
   }
 
@@ -204,19 +308,112 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
 
   Widget _buildTrailHero() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        height: 220,
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        height: 250,
         width: double.infinity,
-        color: const Color(0xffeaf5df),
-        child: widget.trail.photoUrl == null
-            ? Image.asset('assets/arbol.jpg', fit: BoxFit.contain)
-            : Image.network(
-                widget.trail.photoUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, error, stackTrace) =>
-                    Image.asset('assets/arbol.jpg', fit: BoxFit.contain),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            widget.trail.photoUrl == null
+                ? Image.asset('assets/arbol.jpg', fit: BoxFit.cover)
+                : Image.network(
+                    widget.trail.photoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, error, stackTrace) =>
+                        Image.asset('assets/arbol.jpg', fit: BoxFit.cover),
+                  ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.68),
+                  ],
+                  stops: const [0.28, 1],
+                ),
               ),
+            ),
+            Positioned(
+              top: 12,
+              left: 12,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    widget.trail.difficulty,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.trail.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      shadows: const [
+                        Shadow(color: Colors.black54, blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        backgroundImage: widget.trail.authorPhotoUrl != null
+                            ? NetworkImage(widget.trail.authorPhotoUrl!)
+                            : const AssetImage('assets/usuario.png')
+                                  as ImageProvider,
+                        onBackgroundImageError: (_, _) {},
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Publicado por: ${widget.trail.author}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                shadows: const [
+                                  Shadow(color: Colors.black54, blurRadius: 6),
+                                ],
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -224,15 +421,21 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   Widget _buildFollowTrailButton() {
     return SafeArea(
       top: false,
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: _openTrailTracking,
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _openTrailTracking,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            icon: const Icon(Icons.directions_walk_outlined),
+            label: const Text('Seguir sendero'),
           ),
-          icon: const Icon(Icons.directions_walk_outlined),
-          label: const Text('Seguir sendero'),
         ),
       ),
     );
@@ -262,46 +465,25 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     );
   }
 
+  void _openDownloadedTrails() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DownloadedTrailsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Información del sendero')),
+      bottomNavigationBar: _buildFollowTrailButton(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildTrailHero(),
-            const SizedBox(height: 20),
-            Text(
-              widget.trail.name,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: colors.surfaceContainerHighest,
-                  backgroundImage: widget.trail.authorPhotoUrl != null
-                      ? NetworkImage(widget.trail.authorPhotoUrl!)
-                      : const AssetImage('assets/usuario.png') as ImageProvider,
-                  onBackgroundImageError: (_, __) {},
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Publicado por: ${widget.trail.author}',
-                    style: TextStyle(color: colors.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _TrailInfo(
               difficulty: widget.trail.difficulty,
               distance: '${widget.trail.distanceKm.toStringAsFixed(1)} km',
@@ -309,23 +491,81 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             ),
             const SizedBox(height: 24),
             Text(
+              'Descripción',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.trail.description.isEmpty
+                  ? 'Este sendero no tiene una descripción.'
+                  : widget.trail.description,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 24),
+            Text(
               'Trayecto',
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            _RouteMap(
+            RoutePolylineMap(
               points: _routePoints,
+              tileLayer: _offlineTileLayer,
               isLoading: _isLoadingRoute,
               hasError: _routeError != null,
+            ),
+            const SizedBox(height: 12),
+            if (_isDownloadingOffline) ...[
+              LinearProgressIndicator(value: _downloadProgress),
+              const SizedBox(height: 6),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    _isDownloadingOffline ||
+                        _isOfflineReady ||
+                        _isLoadingRoute ||
+                        _routePoints.length < 2 ||
+                        widget.trail.gpxUrl == null
+                    ? null
+                    : _downloadOfflineResources,
+                icon: Icon(
+                  _isOfflineReady
+                      ? Icons.offline_pin
+                      : Icons.download_for_offline_outlined,
+                ),
+                label: Text(
+                  _isDownloadingOffline
+                      ? 'Descargando ${(_downloadProgress * 100).round()}%'
+                      : _isOfflineReady
+                      ? 'Disponible sin conexión'
+                      : widget.trail.gpxUrl == null
+                      ? 'GPX no disponible'
+                      : _routePoints.length < 2 && !_isLoadingRoute
+                      ? 'Ruta no disponible'
+                      : 'Descargar GPX y mapa',
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: _openDownloadedTrails,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const Text('Ver descargados'),
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               'Clima del sendero',
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             ClimaSenderoCard(
@@ -337,95 +577,8 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
                   ? () {}
                   : () => _loadTrailWeather(_centerOf(_routePoints)),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Descripción',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.trail.description.isEmpty
-                  ? 'Este sendero no tiene una descripción.'
-                  : widget.trail.description,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
             const SizedBox(height: 28),
             _buildDeleteTrailButton(),
-            const SizedBox(height: 12),
-            _buildFollowTrailButton(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.latitude,
-    );
-    final longitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.longitude,
-    );
-    return LatLng(latitude / points.length, longitude / points.length);
-  }
-}
-
-class _RouteMap extends StatelessWidget {
-  const _RouteMap({
-    required this.points,
-    required this.isLoading,
-    required this.hasError,
-  });
-
-  final List<LatLng> points;
-  final bool isLoading;
-  final bool hasError;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return const SizedBox(
-        height: 180,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (points.length < 2 || hasError) {
-      return Container(
-        height: 180,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Text('El trayecto no está disponible'),
-      );
-    }
-
-    final center = _centerOf(points);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: SizedBox(
-        height: 180,
-        child: FlutterMap(
-          options: MapOptions(initialCenter: center, initialZoom: 14),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'proyecto.senderos',
-            ),
-            PolylineLayer(
-              polylines: [
-                Polyline(
-                  points: points,
-                  color: const Color(0xff4f8f3a),
-                  strokeWidth: 5,
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -458,30 +611,41 @@ class _TrailInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _InfoItem(
-            icon: Icons.terrain,
-            label: 'Dificultad',
-            value: difficulty,
+    final colors = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _InfoItem(
+              icon: Icons.terrain,
+              label: 'Dificultad',
+              value: difficulty,
+            ),
           ),
-        ),
-        Expanded(
-          child: _InfoItem(
-            icon: Icons.straighten,
-            label: 'Distancia',
-            value: distance,
+          Container(width: 1, height: 40, color: colors.outlineVariant),
+          Expanded(
+            child: _InfoItem(
+              icon: Icons.straighten,
+              label: 'Distancia',
+              value: distance,
+            ),
           ),
-        ),
-        Expanded(
-          child: _InfoItem(
-            icon: Icons.height,
-            label: 'Desnivel',
-            value: elevation,
+          Container(width: 1, height: 40, color: colors.outlineVariant),
+          Expanded(
+            child: _InfoItem(
+              icon: Icons.height,
+              label: 'Desnivel',
+              value: elevation,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -501,12 +665,14 @@ class _InfoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, size: 22),
-        const SizedBox(height: 6),
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 4),
         Text(
           label,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 2),
         Text(
@@ -514,7 +680,9 @@ class _InfoItem extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+          style: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );

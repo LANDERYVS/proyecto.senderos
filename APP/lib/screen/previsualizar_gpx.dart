@@ -2,19 +2,25 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../services/gpx_import.dart';
+import '../services/offline_tile_service.dart';
+import '../widgets/route_polyline_map.dart';
+import 'seguir_sendero_descargado.dart';
 
 class PrevisualizarGpxScreen extends StatefulWidget {
   const PrevisualizarGpxScreen({
     super.key,
     required this.file,
     required this.route,
+    this.allowImport = true,
+    this.offlineRegionId,
   });
 
   final File file;
   final GpxRouteData route;
+  final bool allowImport;
+  final String? offlineRegionId;
 
   @override
   State<PrevisualizarGpxScreen> createState() => _PrevisualizarGpxScreenState();
@@ -22,6 +28,23 @@ class PrevisualizarGpxScreen extends StatefulWidget {
 
 class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
   bool _isImporting = false;
+  TileLayer? _offlineTileLayer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOfflineMap();
+  }
+
+  Future<void> _loadOfflineMap() async {
+    final regionId = widget.offlineRegionId;
+    if (regionId == null) return;
+    final tileService = OfflineTileService();
+    final layer = await tileService.offlineTileLayerIfAvailable(
+      regionId: regionId,
+    );
+    if (mounted && layer != null) setState(() => _offlineTileLayer = layer);
+  }
 
   Future<void> _importRoute() async {
     setState(() => _isImporting = true);
@@ -44,6 +67,22 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
     }
   }
 
+  void _followRoute() {
+    final offlineRegionId = widget.offlineRegionId;
+    if (offlineRegionId == null) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeguirSenderoDescargadoPage(
+          routePoints: widget.route.points,
+          routeName: widget.route.name,
+          offlineRegionId: offlineRegionId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final points = widget.route.points;
@@ -63,74 +102,52 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
             const SizedBox(height: 6),
             Text('${points.length} puntos de ruta'),
             const SizedBox(height: 16),
-            Expanded(child: _GpxMap(points: points)),
-            const SizedBox(height: 16),
-            SafeArea(
-              top: false,
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _isImporting ? null : _importRoute,
-                  icon: _isImporting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.download_outlined),
-                  label: Text(
-                    _isImporting ? 'Importando...' : 'Importar sendero',
+            Expanded(
+              child: RoutePolylineMap(
+                points: points,
+                height: null,
+                tileLayer: _offlineTileLayer,
+              ),
+            ),
+            if (widget.allowImport) ...[
+              const SizedBox(height: 16),
+              SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _isImporting ? null : _importRoute,
+                    icon: _isImporting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download_outlined),
+                    label: Text(
+                      _isImporting ? 'Importando...' : 'Importar sendero',
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
+            if (!widget.allowImport && widget.offlineRegionId != null) ...[
+              const SizedBox(height: 16),
+              SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _followRoute,
+                    icon: const Icon(Icons.directions_walk_outlined),
+                    label: const Text('Seguir sendero'),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
-  }
-}
-
-class _GpxMap extends StatelessWidget {
-  const _GpxMap({required this.points});
-
-  final List<LatLng> points;
-
-  @override
-  Widget build(BuildContext context) {
-    final center = _centerOf(points);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: FlutterMap(
-        options: MapOptions(initialCenter: center, initialZoom: 14),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'proyecto.senderos',
-          ),
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: points,
-                color: const Color(0xff4f8f3a),
-                strokeWidth: 5,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.latitude,
-    );
-    final longitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.longitude,
-    );
-    return LatLng(latitude / points.length, longitude / points.length);
   }
 }

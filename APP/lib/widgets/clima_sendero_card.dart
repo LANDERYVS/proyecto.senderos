@@ -23,7 +23,7 @@ class ClimaSenderoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isLoading && weather == null) {
       return const SizedBox(
-        height: 100,
+        height: 80,
         child: Center(child: CircularProgressIndicator()),
       );
     }
@@ -43,26 +43,27 @@ class ClimaSenderoCard extends StatelessWidget {
 
     final currentWeather = weather!;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(_weatherIcon(currentWeather.code), size: 36),
-              const SizedBox(width: 12),
+              Icon(_weatherIcon(currentWeather.code), size: 30),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       '${currentWeather.temperature.round()} °C',
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     Text(_weatherDescription(currentWeather.code)),
                   ],
@@ -80,10 +81,10 @@ class ClimaSenderoCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 18,
-            runSpacing: 8,
+            spacing: 12,
+            runSpacing: 6,
             children: [
               _WeatherMetric(
                 icon: Icons.thermostat,
@@ -105,16 +106,16 @@ class ClimaSenderoCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Divider(color: Theme.of(context).colorScheme.outlineVariant),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             'Por días',
             style: Theme.of(
               context,
             ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -127,13 +128,6 @@ class ClimaSenderoCard extends StatelessWidget {
                   ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Ubicación aproximada del GPX: '
-            '${location!.latitude.toStringAsFixed(4)}, '
-            '${location!.longitude.toStringAsFixed(4)}',
-            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -166,15 +160,15 @@ class _WeatherMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(icon),
-          const SizedBox(width: 12),
+          Icon(icon, size: 20),
+          const SizedBox(width: 8),
           Expanded(child: Text(message)),
           if (onRetry != null)
             IconButton(
@@ -199,9 +193,9 @@ class _WeatherMetric extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 5),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
+        Icon(icon, size: 16),
+        const SizedBox(width: 4),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
       ],
     );
   }
@@ -222,7 +216,7 @@ class _DailyForecastItem extends StatelessWidget {
     final dayLabel = isToday ? 'Hoy' : _weekdays[date.weekday - 1];
 
     return SizedBox(
-      width: 58,
+      width: 50,
       child: Column(
         children: [
           Text(
@@ -232,13 +226,13 @@ class _DailyForecastItem extends StatelessWidget {
               fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Icon(
             _weatherIcon(forecast.code),
-            size: 24,
+            size: 22,
             color: isToday ? colors.primary : colors.onSurfaceVariant,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             '${forecast.maximumTemperature.round()}°',
             style: Theme.of(

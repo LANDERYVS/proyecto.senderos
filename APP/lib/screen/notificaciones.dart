@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../widgets/content_state_view.dart';
+
 class NotificacionesScreen extends StatefulWidget {
   const NotificacionesScreen({super.key});
 
@@ -245,11 +247,11 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const ContentStateView(isLoading: true)
           : _notifications.isEmpty &&
                 _sentRequests.isEmpty &&
                 _receivedRequests.isEmpty
-          ? const Center(child: Text('No tienes notificaciones.'))
+          ? const ContentStateView(message: 'No tienes notificaciones.')
           : RefreshIndicator(
               onRefresh: _loadNotifications,
               child: ListView.separated(

@@ -27,6 +27,14 @@ class RouteStorageService {
 
   final AlmacenamientoR2 _almacenamientoR2;
 
+  void _requirePhoto(SavedRoute route) {
+    if (route.photos.isEmpty) {
+      throw const RoutePublishException(
+        'Debes agregar al menos una foto para poder subir el sendero.',
+      );
+    }
+  }
+
   Future<bool> saveRoute({
     required List<LatLng> points,
     required String routeName,
@@ -102,6 +110,7 @@ $pointsXml
   }
 
   Future<void> uploadToR2Only(SavedRoute route) async {
+    _requirePhoto(route);
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       throw const RoutePublishException(
@@ -188,6 +197,7 @@ $pointsXml
   }
 
   Future<void> publishRoute(SavedRoute route) async {
+    _requirePhoto(route);
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       throw const RoutePublishException(

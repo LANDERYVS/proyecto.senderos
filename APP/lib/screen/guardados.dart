@@ -8,6 +8,7 @@ import '../services/gpx_import.dart';
 import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
+import '../widgets/content_state_view.dart';
 import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
 import 'previsualizar_gpx.dart';
@@ -18,11 +19,13 @@ class SavedContent extends StatefulWidget {
     this.searchTerm = '',
     this.onSearchChanged,
     this.showFilters = true,
+    this.downloadsOnly = false,
   });
 
   final String searchTerm;
   final ValueChanged<String>? onSearchChanged;
   final bool showFilters;
+  final bool downloadsOnly;
 
   @override
   State<SavedContent> createState() => _SavedContentState();
@@ -48,21 +51,25 @@ class _SavedContentState extends State<SavedContent> {
   Future<void> _loadRoutes() async {
     final routes = await _savedRoutesService.loadRoutes();
     var favoriteTrails = <ExploreTrail>[];
-    try {
-      final favoriteIds = await _favoritesService.loadFavoriteIds();
-      if (favoriteIds.isNotEmpty) {
-        favoriteTrails = (await _trailService.obtenerSenderos())
-            .where(
-              (trail) => trail.id != null && favoriteIds.contains(trail.id),
-            )
-            .toList();
-      }
-    } on Exception catch (error) {
-      debugPrint('Error al cargar senderos favoritos: $error');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudieron sincronizar favoritos')),
-        );
+    if (!widget.downloadsOnly) {
+      try {
+        final favoriteIds = await _favoritesService.loadFavoriteIds();
+        if (favoriteIds.isNotEmpty) {
+          favoriteTrails = (await _trailService.obtenerSenderos())
+              .where(
+                (trail) => trail.id != null && favoriteIds.contains(trail.id),
+              )
+              .toList();
+        }
+      } on Exception catch (error) {
+        debugPrint('Error al cargar senderos favoritos: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se pudieron sincronizar favoritos'),
+            ),
+          );
+        }
       }
     }
 
@@ -138,6 +145,39 @@ class _SavedContentState extends State<SavedContent> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudo compartir el trayecto')),
+      );
+    }
+  }
+
+  Future<void> _openSavedRoute(SavedRoute route) async {
+    try {
+      final data = await GpxImportService().read(route.file);
+      if (!mounted) return;
+      final senderoId = route.metadata?['senderoId'];
+      final sourceKey = route.downloadedSourceKey;
+      final offlineRegionId = sourceKey == null
+          ? null
+          : 'trail_${senderoId ?? sourceKey}';
+      await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PrevisualizarGpxScreen(
+            file: route.file,
+            route: data,
+            allowImport: false,
+            offlineRegionId: offlineRegionId,
+          ),
+        ),
+      );
+    } on GpxImportException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir el sendero: $error')),
       );
     }
   }
@@ -229,6 +269,8 @@ class _SavedContentState extends State<SavedContent> {
   }
 
   Widget _buildRouteTabs() {
+    if (widget.downloadsOnly) return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
@@ -270,19 +312,27 @@ class _SavedContentState extends State<SavedContent> {
 
   Widget _buildRouteList() {
     final localRoutes = _filteredRoutes;
-    final remoteFavorites = _filteredFavoriteTrails;
+    final remoteFavorites = widget.downloadsOnly
+        ? const <ExploreTrail>[]
+        : _filteredFavoriteTrails;
     if (localRoutes.isEmpty && remoteFavorites.isEmpty) {
-      return const Center(child: Text('No hay trayectos guardados'));
+      return ContentStateView(
+        message: widget.downloadsOnly
+            ? 'Todavía no hay senderos descargados'
+            : 'No hay trayectos guardados',
+      );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
       itemCount: localRoutes.length + remoteFavorites.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         if (index < localRoutes.length) {
           final route = localRoutes[index];
           return _SavedRouteCard(
             route: route,
+            onOpen: () => _openSavedRoute(route),
             onShare: () => _shareRoute(route),
             onPublish: () => _publishRoute(route),
             onDelete: () => _deleteRoute(route),
@@ -325,7 +375,9 @@ class _SavedContentState extends State<SavedContent> {
 
   List<SavedRoute> get _filteredRoutes {
     final query = widget.searchTerm.toLowerCase();
-    final routesForTab = _selectedTab == 0
+    final routesForTab = widget.downloadsOnly
+        ? _routes.where((route) => route.isAvailableOffline).toList()
+        : _selectedTab == 0
         ? _routes.where((route) => route.isCreatedByUser).toList()
         : _routes
               .where(
@@ -380,17 +432,31 @@ class _SavedContentState extends State<SavedContent> {
   }
 }
 
+class DownloadedTrailsScreen extends StatelessWidget {
+  const DownloadedTrailsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Descargados')),
+      body: const SavedContent(downloadsOnly: true, showFilters: false),
+    );
+  }
+}
+
 enum _SavedRouteAction { publish, delete, share }
 
 class _SavedRouteCard extends StatelessWidget {
   const _SavedRouteCard({
     required this.route,
+    required this.onOpen,
     required this.onShare,
     required this.onPublish,
     required this.onDelete,
   });
 
   final SavedRoute route;
+  final VoidCallback onOpen;
   final VoidCallback onShare;
   final VoidCallback onPublish;
   final VoidCallback onDelete;
@@ -403,6 +469,7 @@ class _SavedRouteCard extends StatelessWidget {
 
     return Card(
       child: ListTile(
+        onTap: onOpen,
         leading: firstPhoto != null && firstPhoto.existsSync()
             ? Image.file(firstPhoto, width: 52, height: 52, fit: BoxFit.cover)
             : route.photoUrl != null
@@ -469,7 +536,6 @@ class _SavedRouteCard extends StatelessWidget {
             ),
           ],
         ),
-        onTap: onShare,
       ),
     );
   }

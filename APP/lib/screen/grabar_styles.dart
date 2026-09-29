@@ -5,11 +5,11 @@ class GrabarStyles {
   static const Color primaryPink = Color(0xffec1768);
   static const Color panelBackground = Color(0xfffbfaf7);
 
-  static const EdgeInsets panelPadding = EdgeInsets.fromLTRB(16, 14, 16, 16);
+  static const EdgeInsets panelPadding = EdgeInsets.fromLTRB(16, 12, 16, 12);
   static const EdgeInsets screenPadding = EdgeInsets.all(16);
 
   static const BorderRadius buttonRadius = BorderRadius.all(
-    Radius.circular(24),
+    Radius.circular(12),
   );
 
   static final ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(
@@ -22,17 +22,26 @@ class GrabarStyles {
   static final ButtonStyle stopButtonStyle = ElevatedButton.styleFrom(
     backgroundColor: Colors.red.shade700,
     foregroundColor: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: buttonRadius),
+  );
+
+  static final ButtonStyle secondaryButtonStyle = ElevatedButton.styleFrom(
+    backgroundColor: const Color(0xffe9efe4),
+    foregroundColor: primaryGreen,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: buttonRadius),
   );
 
   static TextStyle metricLabelStyle(BuildContext context) => TextStyle(
     color: Colors.grey.shade600,
-    fontSize: 9,
-    fontWeight: FontWeight.w500,
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
   );
 
   static const TextStyle metricValueStyle = TextStyle(
     color: Color(0xff171916),
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: FontWeight.w700,
   );
 

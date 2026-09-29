@@ -3,11 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fifty_achievement_engine/fifty_achievement_engine.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/achievement_service.dart';
 import '../services/almacenamiento_r2.dart';
 import '../services/servicio_autenticacion.dart';
 import '../models/explore_trail.dart';
@@ -33,35 +31,15 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
-  bool _isAchievementLoading = true;
   bool _isUploadingPhoto = false;
   String? _error;
-  final AchievementService _achievementService = AchievementService.instance;
   final ImagePicker _imagePicker = ImagePicker();
   final AlmacenamientoR2 _almacenamientoR2 = AlmacenamientoR2();
 
   @override
   void initState() {
     super.initState();
-    _achievementService.controller.addListener(_onAchievementsChanged);
-    _loadAchievementProgress();
     _loadProfile();
-  }
-
-  @override
-  void dispose() {
-    _achievementService.controller.removeListener(_onAchievementsChanged);
-    super.dispose();
-  }
-
-  void _onAchievementsChanged() {
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _loadAchievementProgress() async {
-    await _achievementService.initialize();
-    if (!mounted) return;
-    setState(() => _isAchievementLoading = false);
   }
 
   Future<void> _loadProfile() async {
@@ -371,21 +349,6 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildProfileDetails(),
           ],
           const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Logros',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ),
-          for (final achievement in _achievementService.controller.achievements)
-            _ProfileAchievementCard(
-              achievement: achievement,
-              isUnlocked:
-                  !_isAchievementLoading &&
-                  _achievementService.controller.isUnlocked(achievement.id),
-              isLoading: _isAchievementLoading,
-            ),
           const SizedBox(height: 8),
           ListTile(
             leading: const Icon(Icons.arrow_back),
@@ -403,55 +366,6 @@ class _ProfilePageState extends State<ProfilePage> {
             _navigateToHome(index);
           }
         },
-      ),
-    );
-  }
-}
-
-class _ProfileAchievementCard extends StatelessWidget {
-  const _ProfileAchievementCard({
-    required this.achievement,
-    required this.isUnlocked,
-    required this.isLoading,
-  });
-
-  final Achievement<void> achievement;
-  final bool isUnlocked;
-  final bool isLoading;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final iconColor = isUnlocked ? colors.primary : colors.onSurfaceVariant;
-    final description = achievement.description ?? 'Sin descripción';
-    final subtitle = isLoading
-        ? description
-        : isUnlocked
-        ? '$description\nDesbloqueado · ${achievement.points} puntos'
-        : '$description\nBloqueado';
-
-    return Card(
-      color: isUnlocked
-          ? colors.primaryContainer
-          : colors.surfaceContainerHighest,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: iconColor.withValues(alpha: 0.12),
-          child: Icon(
-            isUnlocked && achievement.icon != null
-                ? achievement.icon!
-                : Icons.lock_outline,
-            color: iconColor,
-          ),
-        ),
-        title: Text(achievement.name),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: isUnlocked ? colors.onPrimaryContainer : null,
-          ),
-        ),
-        isThreeLine: !isLoading,
       ),
     );
   }

@@ -18,9 +18,15 @@ class SavedRoute {
 
   bool get isFavorite => metadata?['isFavorite'] as bool? ?? false;
 
+  bool get isAvailableOffline =>
+      metadata?['availableOffline'] as bool? ?? false;
+
   bool get isCreatedByUser => metadata?['createdByUser'] as bool? ?? true;
 
   String? get favoriteSourceKey => metadata?['favoriteSourceKey'] as String?;
+
+  String? get downloadedSourceKey =>
+      metadata?['downloadedSourceKey'] as String?;
 
   int? get favoriteSenderoId =>
       (metadata?['favoriteSenderoId'] as num?)?.toInt();

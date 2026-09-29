@@ -11,11 +11,17 @@ class OfflineTileService {
   static const _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const _userAgent = 'proyecto.senderos/1.0 contacto@ejemplo.com';
 
-  Future<Directory> _tilesDirectory() async {
+  Future<Directory> _tilesDirectory({String? regionId}) async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
-    final directory = Directory(
+    final rootDirectory = Directory(
       '${documentsDirectory.path}${Platform.pathSeparator}offline_tiles_tandil',
     );
+    final safeRegionId = regionId?.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final directory = safeRegionId == null
+        ? rootDirectory
+        : Directory(
+            '${rootDirectory.path}${Platform.pathSeparator}$safeRegionId',
+          );
     await directory.create(recursive: true);
     return directory;
   }
@@ -24,6 +30,7 @@ class OfflineTileService {
   /// Devuelve cuantas teselas nuevas se guardaron.
   Future<int> downloadRegion({
     required LatLngBounds bounds,
+    String? regionId,
     int minZoom = 12,
     int maxZoom = 16,
     TileDownloadProgress? onProgress,
@@ -32,7 +39,7 @@ class OfflineTileService {
       throw ArgumentError('El rango de zoom debe estar entre 0 y 19');
     }
 
-    final directory = await _tilesDirectory();
+    final directory = await _tilesDirectory(regionId: regionId);
     final tiles = <_TileCoordinate>[];
     for (var zoom = minZoom; zoom <= maxZoom; zoom++) {
       final northWest = _tileCoordinate(bounds.north, bounds.west, zoom);
@@ -87,19 +94,24 @@ class OfflineTileService {
   }
 
   /// Crea una capa que solo lee las teselas guardadas en el dispositivo.
-  Future<TileLayer> offlineTileLayer() async {
-    final directory = await _tilesDirectory();
+  Future<TileLayer> offlineTileLayer({String? regionId}) async {
+    final directory = await _tilesDirectory(regionId: regionId);
     return TileLayer(
       urlTemplate:
           '${directory.path}${Platform.pathSeparator}{z}${Platform.pathSeparator}{x}${Platform.pathSeparator}{y}.png',
       tileProvider: FileTileProvider(),
-      userAgentPackageName: 'com.example.proyecto',
+      userAgentPackageName: 'proyecto.senderos',
     );
   }
 
+  Future<TileLayer?> offlineTileLayerIfAvailable({String? regionId}) async {
+    if (!await hasDownloadedTiles(regionId: regionId)) return null;
+    return offlineTileLayer(regionId: regionId);
+  }
+
   /// Indica si ya existe al menos una tesela descargada en el dispositivo.
-  Future<bool> hasDownloadedTiles() async {
-    final directory = await _tilesDirectory();
+  Future<bool> hasDownloadedTiles({String? regionId}) async {
+    final directory = await _tilesDirectory(regionId: regionId);
     if (!await directory.exists()) return false;
 
     await for (final entity in directory.list(recursive: true)) {

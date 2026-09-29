@@ -230,7 +230,11 @@ class _GrabarPageState extends State<GrabarPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.place, color: Colors.deepPurple, size: 34),
+                    Icon(
+                      Icons.place,
+                      color: GrabarStyles.primaryGreen,
+                      size: 34,
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 6,
@@ -289,7 +293,7 @@ class _GrabarPageState extends State<GrabarPage> {
           tooltip: isSharing
               ? 'Dejar de compartir ubicación'
               : 'Compartir ubicación',
-          backgroundColor: isSharing ? Colors.green : Colors.white,
+          backgroundColor: isSharing ? GrabarStyles.primaryGreen : Colors.white,
           foregroundColor: isSharing ? Colors.white : Colors.black87,
           onPressed: isSharing ? _stopSharing : _chooseFriendForSharing,
           child: Icon(
@@ -333,6 +337,7 @@ class _GrabarPageState extends State<GrabarPage> {
               onPressed: _togglePause,
               label: _controller.isPaused ? 'Reanudar' : 'Pausar',
               icon: _controller.isPaused ? Icons.play_arrow : Icons.pause,
+              style: GrabarStyles.secondaryButtonStyle,
             ),
           ),
           const SizedBox(width: 8),
@@ -394,6 +399,7 @@ class _GrabarPageState extends State<GrabarPage> {
               duration: _controller.formattedDuration,
               distanceKm: _controller.distanceKm,
               elevationGainMeters: _controller.elevationGainMeters,
+              isPaused: _controller.isPaused,
               status: _controller.isRecording
                   ? _controller.recordingStatus
                   : null,

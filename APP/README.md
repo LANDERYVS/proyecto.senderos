@@ -38,7 +38,6 @@ La app no es solo una pantalla de mapas: integra varias capas funcionales que in
 - Shared Preferences: `^2.5.3`
 - XML: `^7.0.1`
 - UUID: `^4.5.1`
-- Fifty Achievement Engine: `^0.2.2`
 
 ## Instalación y configuración
 
@@ -116,7 +115,6 @@ APP/
 ├── analysis_options.yaml        # Reglas de linting
 ├── pubspec.yaml                 # Dependencias del proyecto
 ├── README.md                    # Documentación del proyecto
-├── supabase_logros.sql          # SQL para lograr funcionalidad de logros en Supabase
 ├── BACKGROUND_LOCATION_SETUP.md # Guía de permisos y ubicación en segundo plano
 ├── .gitignore
 └── ...
@@ -127,13 +125,10 @@ APP/
 ### Archivos raíz
 
 #### `pubspec.yaml`
-Define el proyecto Flutter y todas las dependencias. Aquí se declaran paquetes principales como `flutter_map`, `supabase_flutter`, `geolocator`, `file_picker`, `permission_handler`, `image_picker`, `shared_preferences`, `xml`, `uuid`, `app_links` y `fifty_achievement_engine`.
+Define el proyecto Flutter y todas las dependencias. Aquí se declaran paquetes principales como `flutter_map`, `supabase_flutter`, `geolocator`, `file_picker`, `permission_handler`, `image_picker`, `shared_preferences`, `xml`, `uuid` y `app_links`.
 
 #### `analysis_options.yaml`
 Configura Lints globales para imponer estilo, buenas prácticas y evitar errores comunes. Es la capa de calidad estática del proyecto.
-
-#### `supabase_logros.sql`
-Script SQL con la lógica de datos asociada a logros. Sirve para crear tablas, funciones o reglas utilizadas por `achievement_service.dart` o por la parte de perfil de la aplicación.
 
 #### `BACKGROUND_LOCATION_SETUP.md`
 Documento de soporte para establecer permisos de ubicación en segundo plano y resolver problemas específicos de Android. Tiene valor operativo durante la integración con tracking GPS.
@@ -201,7 +196,7 @@ Pantalla de comunidad. Permite listar usuarios, buscar amigos, gestionar contact
 Vista geográfica de la ubicación de un amigo. Suele depender de servicios de ubicación compartida para renderizar el punto del usuario en un mapa.
 
 #### `perfil.dart`
-Pantalla de perfil del usuario. Muestra información personal, logros, estadísticas de actividad, rutas realizadas o casos similares. Se integra con lógica de usuario y servicio de logros.
+Pantalla de perfil del usuario. Muestra información personal y datos de la cuenta.
 
 #### `configuracion.dart`
 Configuración de la app. Aquí se gestionan ajustes visuales, preferencias del usuario y navegación interna de opciones.
@@ -244,9 +239,6 @@ Encapsula la lógica de rutas locales, cache y estado persistente en dispositivo
 
 #### `servicio_clima_sendero.dart`
 Servicio para consultar previsión meteorológica según la ubicación o el sendero. Sirve para mejorar la UX de planificación y navegación al mostrar condiciones del entorno.
-
-#### `achievement_service.dart`
-Motor de logros. Calcula progresos y desbloqueos a partir de eventos del usuario, rutas realizadas, registros y otras métricas relevantes.
 
 #### `offline_tile_service.dart`
 Módulo para gestionar tiles cartográficos offline. Es importante en entornos con poca conexión o para navegación sin cobertura de red.
@@ -327,9 +319,6 @@ La app arranca desde `main.dart`, inicializa Supabase y carga el flujo de autent
 ### 7. Comunidad y social
 `amigos.dart` y `compartir_ubicacion.dart` permiten ver usuarios, gestionar amistades y compartir ubicación geográfica.
 
-### 8. Logros
-`achievement_service.dart` evalúa eventos del usuario y actualiza datos asociados a progreso o recompensas.
-
 ## Reglas de diseño del proyecto
 
 ### Separación de responsabilidades
@@ -364,7 +353,6 @@ La carpeta `test/` incluye pruebas para validar el comportamiento crítico del s
 
 ### Archivos actuales
 
-- `achievement_service_test.dart`
 - `friend_route_service_test.dart`
 - `route_distance_calculator_test.dart`
 - `widget_test.dart`
@@ -372,7 +360,6 @@ La carpeta `test/` incluye pruebas para validar el comportamiento crítico del s
 Estas pruebas cubren áreas como:
 
 - cálculo de distancias
-- servicios de logros
 - rutas de amistad/amigos
 - validación visual básica de widgets
 
@@ -408,7 +395,7 @@ Este proyecto tiene una estructura sólida para una app móvil de senderismo con
 - mapas y localización real-time
 - carga y exportación de rutas GPX
 - almacenamiento local y remoto
-- lógica de logros y comunidad
+- lógica de comunidad
 
 Es un proyecto orientado a una experiencia de usuario completa centrada en rutas de senderismo, pero con una fachadqa técnica suficientemente modular para crecer en varias direcciones: comunidad, geolocalización, planificación, social features y análisis de recorridos.
 

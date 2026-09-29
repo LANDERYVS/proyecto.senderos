@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'package:achievement_view/achievement_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../services/offline_tile_service.dart';
-import '../services/achievement_service.dart';
 import '../services/guardado_local.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
@@ -244,7 +242,12 @@ class GrabarController extends ChangeNotifier {
       return;
     }
 
-    final details = await showSaveRouteDialog(context);
+    final details = await showSaveRouteDialog(
+      context,
+      duration: formattedDuration,
+      distanceKm: distanceKm,
+      elevationGainMeters: elevationGainMeters,
+    );
     if (!context.mounted || details == null) return;
 
     try {
@@ -259,18 +262,6 @@ class GrabarController extends ChangeNotifier {
         elevationLossMeters: elevationLossMeters,
       );
       if (saved && context.mounted) {
-        final unlocked = await AchievementService.instance.recordFirstTrail();
-        if (!context.mounted) return;
-        if (unlocked) {
-          AchievementView(
-            title: '¡Logro desbloqueado!',
-            subTitle: AchievementService.instance.firstTrailAchievement.name,
-            icon: const Icon(Icons.emoji_events, color: Colors.white),
-            color: Theme.of(context).colorScheme.primary,
-            alignment: Alignment.topCenter,
-            duration: const Duration(seconds: 4),
-          ).show(context);
-        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Trayecto "${details.name}" guardado')),
         );
@@ -369,7 +360,15 @@ class GrabarController extends ChangeNotifier {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => ConfirmExitRecordingDialog(
-        onCancel: () => Navigator.pop(dialogContext, false),
+        title: '¿Salir sin guardar?',
+        message:
+            'La grabación sigue en curso. Si sales, perderás el recorrido.',
+        summary:
+            '$formattedDuration · ${distanceKm.toStringAsFixed(1)} km · '
+            '+${elevationGainMeters.toStringAsFixed(0)} m',
+        continueLabel: 'Seguir grabando',
+        exitLabel: 'Salir y descartar',
+        onContinue: () => Navigator.pop(dialogContext, false),
         onExit: () => Navigator.pop(dialogContext, true),
       ),
     );
