@@ -285,7 +285,9 @@ class _EspectadorContentState extends State<EspectadorContent> {
     final remainingCount = group.observers.length - visibleObservers.length;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12),
+      margin: EdgeInsets.zero,
+      elevation: 1,
+      shadowColor: colorScheme.shadow.withValues(alpha: 0.12),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
@@ -313,7 +315,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
                       group.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -324,7 +326,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
             ),
             if (_loadingTrailIds.contains(group.trailId))
               const SizedBox(
-                height: 112,
+                height: 172,
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (group.isLive)
@@ -332,7 +334,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
                 points: routePoints,
                 observers: group.observers,
                 colorScheme: colorScheme,
-                height: 132,
+                height: 172,
                 interactive: false,
               )
             else if (routePoints.length > 1)
@@ -340,13 +342,13 @@ class _EspectadorContentState extends State<EspectadorContent> {
                 points: routePoints,
                 observers: group.observers,
                 colorScheme: colorScheme,
-                height: 132,
+                height: 172,
                 interactive: false,
               )
             else if (group.photoUrl != null)
               Image.network(
                 group.photoUrl!,
-                height: 132,
+                height: 172,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) =>
                     _unavailableRoutePreview(colorScheme),
@@ -354,7 +356,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
             else
               _unavailableRoutePreview(colorScheme),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Row(
                 children: [
                   SizedBox(
@@ -422,7 +424,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
   }
 
   Widget _unavailableRoutePreview(ColorScheme colorScheme) => Container(
-    height: 112,
+    height: 172,
     color: colorScheme.surfaceContainerHighest,
     alignment: Alignment.center,
     child: const Text('Trayecto no disponible'),
@@ -499,19 +501,66 @@ class _ObservedTrailMap extends StatelessWidget {
                 if (observer.location case final location?)
                   Marker(
                     point: location,
-                    width: 40,
-                    height: 40,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: colorScheme.primary),
-                      ),
-                      child: DefaultUserAvatar(
-                        radius: 17,
-                        imageUrl: observer.photoUrl,
-                      ),
+                    width: 280,
+                    height: 48,
+                    alignment: Alignment.center,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 121),
+                        SizedBox(
+                          width: 38,
+                          height: 38,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: colorScheme.primary),
+                            ),
+                            child: DefaultUserAvatar(
+                              radius: 17,
+                              imageUrl: observer.photoUrl,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: colorScheme.surface,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: colorScheme.outlineVariant,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: colorScheme.shadow.withValues(
+                                      alpha: 0.16,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 5,
+                                ),
+                                child: Text(
+                                  observer.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.labelMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
             ],
