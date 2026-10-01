@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screen/grabar_styles.dart';
+import 'grabar_action_button.dart';
 import 'grabar_metric_indicator.dart';
 
 class GrabarMetricsPanel extends StatelessWidget {
@@ -10,16 +11,26 @@ class GrabarMetricsPanel extends StatelessWidget {
     required this.distanceKm,
     required this.elevationGainMeters,
     this.isPaused = false,
+    this.isRecording = false,
     this.status,
-    this.footer,
+    this.statusLabel = 'GRABANDO',
+    this.onStart,
+    this.onTogglePause,
+    this.onStop,
+    this.stopLabel = 'Detener',
   });
 
   final String duration;
   final double distanceKm;
   final double elevationGainMeters;
   final bool isPaused;
+  final bool isRecording;
   final String? status;
-  final Widget? footer;
+  final String statusLabel;
+  final VoidCallback? onStart;
+  final VoidCallback? onTogglePause;
+  final VoidCallback? onStop;
+  final String stopLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +65,7 @@ class GrabarMetricsPanel extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  isPaused ? 'PAUSADO' : 'GRABANDO',
+                  isPaused ? 'PAUSADO' : statusLabel,
                   style: TextStyle(
                     color: isPaused
                         ? Colors.orange.shade800
@@ -93,7 +104,44 @@ class GrabarMetricsPanel extends StatelessWidget {
               ),
             ],
           ),
-          if (footer != null) ...[const SizedBox(height: 12), footer!],
+          if (isRecording && (onTogglePause != null || onStop != null)) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (onTogglePause != null)
+                  Expanded(
+                    child: GrabarActionButton(
+                      isRecording: true,
+                      onPressed: onTogglePause!,
+                      label: isPaused ? 'Reanudar' : 'Pausar',
+                      icon: isPaused ? Icons.play_arrow : Icons.pause,
+                      style: GrabarStyles.secondaryButtonStyle,
+                    ),
+                  ),
+                if (onTogglePause != null && onStop != null)
+                  const SizedBox(width: 8),
+                if (onStop != null)
+                  Expanded(
+                    child: GrabarActionButton(
+                      isRecording: true,
+                      onPressed: onStop!,
+                      label: stopLabel,
+                      icon: Icons.stop,
+                      style: GrabarStyles.stopButtonStyle,
+                    ),
+                  ),
+              ],
+            ),
+          ] else if (!isRecording && onStart != null) ...[
+            const SizedBox(height: 12),
+            GrabarActionButton(
+              isRecording: false,
+              onPressed: onStart!,
+              label: 'Iniciar trayecto',
+              icon: Icons.play_arrow,
+              style: GrabarStyles.primaryButtonStyle,
+            ),
+          ],
         ],
       ),
     );

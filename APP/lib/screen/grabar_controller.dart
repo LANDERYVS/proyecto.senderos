@@ -55,7 +55,6 @@ class GrabarController extends ChangeNotifier {
     positionSubscription?.cancel();
     locationRefreshTimer?.cancel();
     recordingTimer?.cancel();
-    localizacionService.dispose();
     super.dispose();
   }
 

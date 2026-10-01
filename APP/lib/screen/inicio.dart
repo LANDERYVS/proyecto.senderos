@@ -5,6 +5,7 @@ import '../models/explore_trail.dart';
 import 'amigos.dart';
 import 'guardados.dart';
 import 'explorar.dart';
+import 'espectador.dart';
 import 'grabar.dart';
 import 'notificaciones.dart';
 import '../widgets/barra_navegacion.dart';
@@ -85,6 +86,8 @@ class _HomePageState extends State<HomePage> {
           onSearchChanged: (value) =>
               setState(() => _friendsSearchTerm = value),
         );
+      case 4:
+        return const EspectadorContent();
       default:
         return ExploreContent(
           searchTerm: _exploreSearchTerm,
@@ -122,13 +125,6 @@ class _HomePageState extends State<HomePage> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const GrabarPage()),
-      );
-      return;
-    }
-    if (index == 4) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const ProfilePage()),
       );
       return;
     }

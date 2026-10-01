@@ -184,7 +184,13 @@ Define estilos, colores y presentaciones visuales utilizadas por los widgets y p
 Pantalla de detalle ampliado para un sendero. Presenta ruta, metadata del recorrido, ubicación, clima y opciones de interacción. En la práctica se usa para profundizar en la descripción del recorrido y preparar la navegación.
 
 #### `seguir_sendero.dart`
-Pantalla de seguimiento de ruta durante la navegación. Alinea la ubicación real del usuario con la ruta del sendero para orientar al usuario según un recorrido predefinido.
+Entrada al seguimiento de una ruta disponible. Comparte la pantalla y el controlador de seguimiento con el flujo offline.
+
+#### `seguir_sendero_descargado.dart`
+Entrada al seguimiento de una ruta descargada, con su región de mapa offline.
+
+#### `seguimiento_sendero_screen.dart` y `seguimiento_sendero_controller.dart`
+Pantalla reutilizable y controlador de seguimiento GPS: actualizan la ubicación, el tiempo y el progreso sobre la ruta.
 
 #### `previsualizar_gpx.dart`
 Pantalla de previsualización de un archivo GPX cargado desde almacenamiento externo o desde un enlace de apertura. Muestra puntos de trazado sobre un mapa y deja listo el contenido para analizarlo dentro de la app.
@@ -192,8 +198,8 @@ Pantalla de previsualización de un archivo GPX cargado desde almacenamiento ext
 #### `amigos.dart`
 Pantalla de comunidad. Permite listar usuarios, buscar amigos, gestionar contactos y quizá consultar ubicaciones compartidas o relaciones sociales entre usuarios.
 
-#### `ubicacion_amigo.dart`
-Vista geográfica de la ubicación de un amigo. Suele depender de servicios de ubicación compartida para renderizar el punto del usuario en un mapa.
+#### `espectador.dart`
+Vista de los senderos y ubicaciones compartidos con el usuario para supervisión en tiempo real.
 
 #### `perfil.dart`
 Pantalla de perfil del usuario. Muestra información personal y datos de la cuenta.
@@ -202,7 +208,7 @@ Pantalla de perfil del usuario. Muestra información personal y datos de la cuen
 Configuración de la app. Aquí se gestionan ajustes visuales, preferencias del usuario y navegación interna de opciones.
 
 #### `localizacion.dart`
-Módulo de localización. Es la capa encargada de medir y resolver la posición actual del usuario y apoyar a la lógica de GPS del proyecto.
+Servicio de permisos y acceso a la posición actual y al stream GPS. Los controladores consumidores son propietarios de sus suscripciones.
 
 #### `notificaciones.dart`
 Vista para notificaciones internas, probablemente usada para avisos, alertas de rutas o mensajes sociales.
@@ -247,7 +253,7 @@ Módulo para gestionar tiles cartográficos offline. Es importante en entornos c
 Carpeta de utilidades reutilizables.
 
 #### `route_calculator.dart`
-Calcula distancias, puntos más cercanos y métricas de recorrido. Tiene utilidad en tracking GPS, validación de rutas, cálculo de proximidad y apoyo a la navegación.
+Calcula distancias, centros de rutas y puntos más cercanos. Se usa en tracking GPS, validación y presentación de rutas.
 
 ### `lib/widgets/`
 Componentes UI reutilizables y atómicos.
@@ -270,6 +276,15 @@ Botón reutilizable para iniciar, pausar, reanudar o detener la grabación de un
 #### `grabar_metric_indicator.dart`
 Mostrador de métricas durante la grabación: tiempo, distancia, elevación acumulada, velocidad, etc.
 
+#### `grabar_metrics_panel.dart`
+Panel que organiza las métricas de grabación.
+
+#### `confirm_exit_recording_dialog.dart`
+Confirmación para salir mientras se graba.
+
+#### `compartir_ubicacion_button.dart`
+Control para iniciar o detener el envío de ubicación a un amigo.
+
 #### `config_card.dart`
 Tarjeta reutilizable para opciones de configuración dentro de la pantalla de ajustes.
 
@@ -281,6 +296,15 @@ Diálogo para guardar una ruta en proceso, completar la metadata y decidir si se
 
 #### `search_field.dart`
 Campo reutilizable para búsqueda por texto dentro de la app.
+
+#### `content_state_view.dart`
+Estados reutilizables de carga, error y contenido vacío.
+
+#### `edit_saved_route_dialog.dart`
+Diálogo para editar los datos de una ruta guardada.
+
+#### `route_polyline_map.dart` y `seguimiento_sendero_map.dart`
+Mapas reutilizables para previsualizar un trazado y mostrar el seguimiento GPS.
 
 #### `default_user_avatar.dart`
 Asset o widget de fallback para usuarios sin avatar personalizado.

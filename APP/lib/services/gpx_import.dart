@@ -34,7 +34,49 @@ class GpxImportService {
 
   Future<GpxRouteData> read(File file) async {
     try {
-      final document = XmlDocument.parse(await file.readAsString());
+      return _readContent(
+        await file.readAsString(),
+        fallbackName: file.uri.pathSegments.last.replaceFirst(
+          RegExp(r'\.gpx$', caseSensitive: false),
+          '',
+        ),
+      );
+    } on GpxImportException {
+      rethrow;
+    } on Exception catch (error) {
+      throw GpxImportException('No se pudo leer el archivo GPX: $error');
+    }
+  }
+
+  Future<GpxRouteData> readUrl(String url) async {
+    final uri = Uri.parse(url);
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(uri);
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.ok) {
+        throw GpxImportException(
+          'No se pudo descargar el sendero (HTTP ${response.statusCode}).',
+        );
+      }
+      return _readContent(
+        await response.transform(const Utf8Decoder()).join(),
+        fallbackName: uri.pathSegments.isEmpty
+            ? 'Sendero'
+            : uri.pathSegments.last,
+      );
+    } on GpxImportException {
+      rethrow;
+    } on Exception catch (error) {
+      throw GpxImportException('No se pudo cargar el sendero: $error');
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  GpxRouteData _readContent(String content, {required String fallbackName}) {
+    try {
+      final document = XmlDocument.parse(content);
       final points = [
         ...document.findAllElements('trkpt'),
         ...document.findAllElements('rtept'),
@@ -49,13 +91,7 @@ class GpxImportService {
       final name = document
           .findAllElements('name')
           .map((element) => element.innerText.trim())
-          .firstWhere(
-            (value) => value.isNotEmpty,
-            orElse: () => file.uri.pathSegments.last.replaceFirst(
-              RegExp(r'\.gpx$', caseSensitive: false),
-              '',
-            ),
-          );
+          .firstWhere((value) => value.isNotEmpty, orElse: () => fallbackName);
       return GpxRouteData(name: name, points: points);
     } on GpxImportException {
       rethrow;

@@ -67,33 +67,41 @@ class ServicioAutenticacion {
   static Future<String?> createAccount(
     String email,
     String username,
+    String phone,
     String password,
     String confirmPassword,
   ) async {
-    if (email.isEmpty || !email.contains('@')) {
+    final normalizedEmail = email.trim();
+    final normalizedUsername = username.trim();
+    final normalizedPhone = phone.trim();
+
+    if (normalizedEmail.isEmpty || !normalizedEmail.contains('@')) {
       return 'Escribe un correo válido';
     }
-    if (username.isEmpty) return 'Escribe un nombre de usuario';
+    if (normalizedUsername.isEmpty) return 'Escribe un nombre de usuario';
+    if (normalizedPhone.isEmpty) return 'Escribe un número de teléfono';
     if (password.length < 6) {
       return 'La contraseña debe tener al menos 6 caracteres';
     }
+    if (confirmPassword.isEmpty) return 'Confirma tu contraseña';
     if (password != confirmPassword) {
       return 'Las contraseñas no coinciden';
     }
 
     try {
       final response = await _supabase.auth.signUp(
-        email: email.trim(),
+        email: normalizedEmail,
         password: password,
-        data: {'name': username.trim(), 'username': username.trim()},
+        data: {'name': normalizedUsername, 'username': normalizedUsername},
       );
       final user = response.user;
       if (user == null) return 'No se pudo crear la cuenta';
 
       await _supabase.from('usuarios').insert({
         'id': user.id,
-        'name': username.trim(),
-        'email': email.trim(),
+        'name': normalizedUsername,
+        'email': normalizedEmail,
+        'telefono': normalizedPhone,
         'admin': false,
         'premium': false,
       });

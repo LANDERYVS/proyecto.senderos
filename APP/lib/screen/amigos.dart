@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
 import '../widgets/default_user_avatar.dart';
-import 'ubicacion_amigo.dart';
 
 class AmigosContent extends StatefulWidget {
   const AmigosContent({super.key, this.searchTerm = '', this.onSearchChanged});
@@ -300,15 +299,6 @@ class _AmigosContentState extends State<AmigosContent> {
           for (final friend in _addedFriends)
             _AddedFriendTile(
               friend: friend,
-              onViewLocation: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UbicacionAmigoPage(
-                    friendId: friend.id,
-                    friendName: friend.name,
-                  ),
-                ),
-              ),
               onRemoveFriend: () => _removeFriend(friend),
             ),
         const SizedBox(height: 16),
@@ -423,14 +413,9 @@ class _FriendTile extends StatelessWidget {
 }
 
 class _AddedFriendTile extends StatelessWidget {
-  const _AddedFriendTile({
-    required this.friend,
-    required this.onViewLocation,
-    required this.onRemoveFriend,
-  });
+  const _AddedFriendTile({required this.friend, required this.onRemoveFriend});
 
   final _Friend friend;
-  final VoidCallback onViewLocation;
   final VoidCallback onRemoveFriend;
 
   @override
@@ -442,20 +427,10 @@ class _AddedFriendTile extends StatelessWidget {
         leading: DefaultUserAvatar(radius: 20, imageUrl: friend.photoUrl),
         title: Text(friend.name),
         subtitle: friend.username.isEmpty ? null : Text(friend.username),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: onViewLocation,
-              tooltip: 'Ver ubicación',
-              icon: const Icon(Icons.location_on_outlined),
-            ),
-            IconButton(
-              onPressed: onRemoveFriend,
-              tooltip: 'Eliminar amigo',
-              icon: const Icon(Icons.person_remove_alt_1_outlined),
-            ),
-          ],
+        trailing: IconButton(
+          onPressed: onRemoveFriend,
+          tooltip: 'Eliminar amigo',
+          icon: const Icon(Icons.person_remove_alt_1_outlined),
         ),
       ),
     );

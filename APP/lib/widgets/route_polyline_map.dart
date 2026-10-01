@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../utils/route_calculator.dart';
+
 class RoutePolylineMap extends StatelessWidget {
   const RoutePolylineMap({
     super.key,
@@ -47,7 +49,7 @@ class RoutePolylineMap extends StatelessWidget {
         height: height,
         child: FlutterMap(
           options: MapOptions(
-            initialCenter: _centerOf(points),
+            initialCenter: RouteCalculator.centerOfPoints(points)!,
             initialZoom: 14,
           ),
           children: [
@@ -68,21 +70,6 @@ class RoutePolylineMap extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-
-  LatLng _centerOf(List<LatLng> routePoints) {
-    final latitude = routePoints.fold<double>(
-      0,
-      (sum, point) => sum + point.latitude,
-    );
-    final longitude = routePoints.fold<double>(
-      0,
-      (sum, point) => sum + point.longitude,
-    );
-    return LatLng(
-      latitude / routePoints.length,
-      longitude / routePoints.length,
     );
   }
 }

@@ -4,22 +4,22 @@ import 'package:latlong2/latlong.dart';
 
 import '../services/compartir_ubicacion.dart';
 import '../widgets/barra_navegacion.dart';
+import '../widgets/compartir_ubicacion_button.dart';
 import '../widgets/grabar_metrics_panel.dart';
+import '../utils/route_calculator.dart';
 import 'grabar_controller.dart';
 import 'grabar_styles.dart';
 import 'inicio.dart';
-import 'perfil.dart';
-import '../widgets/grabar_action_button.dart';
 
 class GrabarPage extends StatefulWidget {
   const GrabarPage({
     super.key,
     this.initialRoutePoints = const [],
-    this.routeName,
+    this.senderoId,
   });
 
   final List<LatLng> initialRoutePoints;
-  final String? routeName;
+  final int? senderoId;
 
   @override
   State<GrabarPage> createState() => _GrabarPageState();
@@ -27,8 +27,7 @@ class GrabarPage extends StatefulWidget {
 
 class _GrabarPageState extends State<GrabarPage> {
   final GrabarController _controller = GrabarController();
-  final CompartirUbicacionService _locationSharing =
-      CompartirUbicacionService();
+  final CompartirUbicacionService _sharingService = CompartirUbicacionService();
 
   @override
   void initState() {
@@ -43,7 +42,9 @@ class _GrabarPageState extends State<GrabarPage> {
     if (widget.initialRoutePoints.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || widget.initialRoutePoints.isEmpty) return;
-        final center = _centerOf(widget.initialRoutePoints);
+        final center = RouteCalculator.centerOfPoints(
+          widget.initialRoutePoints,
+        )!;
         _controller.mapController.move(center, 14);
       });
     }
@@ -55,22 +56,10 @@ class _GrabarPageState extends State<GrabarPage> {
 
   @override
   void dispose() {
-    _locationSharing.dispose();
+    _sharingService.dispose();
     _controller.removeListener(_onControllerChanged);
     _controller.dispose();
     super.dispose();
-  }
-
-  LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.latitude,
-    );
-    final longitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.longitude,
-    );
-    return LatLng(latitude / points.length, longitude / points.length);
   }
 
   Future<void> _loadOfflineMap() async {
@@ -85,9 +74,19 @@ class _GrabarPageState extends State<GrabarPage> {
     setState(() {});
 
     if (!_controller.isRecording) {
+      await _stopSharingIfActive();
       if (!mounted || !context.mounted) return;
       await _controller.finishAndSaveRoute(context);
       if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _stopSharingIfActive() async {
+    if (_sharingService.sharingFriend == null) return;
+    try {
+      await _sharingService.stopSharing();
+    } on Exception catch (error) {
+      debugPrint('No se pudo detener la compartición de ubicación: $error');
     }
   }
 
@@ -101,103 +100,13 @@ class _GrabarPageState extends State<GrabarPage> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _chooseFriendForSharing() async {
-    try {
-      final friends = await _locationSharing.loadFriends();
-      if (friends.isEmpty) {
-        _showMessage('Primero agrega un amigo desde Comunidad.');
-        return;
-      }
-
-      if (!mounted) return;
-      final selectedFriend = await showModalBottomSheet<ShareFriend>(
-        context: context,
-        showDragHandle: true,
-        builder: (context) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.only(bottom: 16),
-            children: [
-              const ListTile(
-                title: Text(
-                  'Compartir mi ubicación',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text('Elige un amigo para verla en su mapa.'),
-              ),
-              for (final friend in friends)
-                ListTile(
-                  leading: const CircleAvatar(
-                    child: Icon(Icons.person_outline),
-                  ),
-                  title: Text(friend.name),
-                  subtitle: friend.email.isEmpty ? null : Text(friend.email),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.pop(context, friend),
-                ),
-            ],
-          ),
-        ),
-      );
-
-      if (selectedFriend == null) return;
-      await _startSharingWith(selectedFriend);
-    } on Exception {
-      _showMessage('No hay conexión a internet.');
-    }
-  }
-
-  Future<void> _startSharingWith(ShareFriend friend) async {
-    try {
-      await _locationSharing.startSharing(friend, _publishCurrentLocation);
-      if (mounted) {
-        setState(() {});
-        _showMessage('Ubicación compartida con ${friend.name}.');
-      }
-    } on Exception {
-      _showMessage('No hay conexión a internet.');
-    }
-  }
-
-  Future<void> _publishCurrentLocation() async {
-    if (_controller.markers.isEmpty) {
-      throw StateError('Todavía no hay una ubicación GPS disponible.');
-    }
-    await _locationSharing.publishLocation(_controller.markers.first);
-  }
-
-  Future<void> _stopSharing() async {
-    try {
-      await _locationSharing.stopSharing();
-      if (mounted) {
-        setState(() {});
-        _showMessage('Dejaste de compartir tu ubicación.');
-      }
-    } on Exception {
-      _showMessage('No hay conexión a internet.');
-    }
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
   Future<void> _selectDestination(int index) async {
     if (index == 2) return;
 
     final shouldLeave = await _controller.confirmExitIfRecording(context);
     if (!shouldLeave || !mounted) return;
-
-    if (index == 4) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ProfilePage()),
-      );
-      return;
-    }
+    await _stopSharingIfActive();
+    if (!mounted) return;
 
     Navigator.pushReplacement(
       context,
@@ -283,22 +192,21 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Widget _buildShareButton() {
-    final isSharing = _locationSharing.sharingFriend != null;
+    if (widget.senderoId == null && !_controller.isRecording) {
+      return const SizedBox.shrink();
+    }
+
     return Positioned(
       top: 16,
       left: 16,
       child: SafeArea(
-        child: FloatingActionButton.small(
+        child: CompartirUbicacionButton(
+          sharingService: _sharingService,
           heroTag: 'share-location',
-          tooltip: isSharing
-              ? 'Dejar de compartir ubicación'
-              : 'Compartir ubicación',
-          backgroundColor: isSharing ? GrabarStyles.primaryGreen : Colors.white,
-          foregroundColor: isSharing ? Colors.white : Colors.black87,
-          onPressed: isSharing ? _stopSharing : _chooseFriendForSharing,
-          child: Icon(
-            isSharing ? Icons.location_on : Icons.location_on_outlined,
-          ),
+          senderoId: widget.senderoId,
+          getCurrentLocation: () async => _controller.markers.isEmpty
+              ? null
+              : _controller.markers.first.point,
         ),
       ),
     );
@@ -327,56 +235,26 @@ class _GrabarPageState extends State<GrabarPage> {
     );
   }
 
-  Widget _buildRecordingActions() {
-    if (_controller.isRecording) {
-      return Row(
-        children: [
-          Expanded(
-            child: GrabarActionButton(
-              isRecording: true,
-              onPressed: _togglePause,
-              label: _controller.isPaused ? 'Reanudar' : 'Pausar',
-              icon: _controller.isPaused ? Icons.play_arrow : Icons.pause,
-              style: GrabarStyles.secondaryButtonStyle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: GrabarActionButton(
-              isRecording: true,
-              onPressed: _toggleRecording,
-              label: 'Detener',
-              icon: Icons.stop,
-              style: GrabarStyles.stopButtonStyle,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return GrabarActionButton(
-      isRecording: false,
-      onPressed: _toggleRecording,
-      label: 'Iniciar trayecto',
-      icon: Icons.play_arrow,
-      style: GrabarStyles.primaryButtonStyle,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final initialCenter = widget.initialRoutePoints.isNotEmpty
-        ? _centerOf(widget.initialRoutePoints)
+        ? RouteCalculator.centerOfPoints(widget.initialRoutePoints)!
         : _controller.initialPosition;
 
     return PopScope(
       canPop: !_controller.isRecording,
       onPopInvokedWithResult: (didPop, result) async {
-        if (didPop || !_controller.isRecording) return;
+        if (didPop) {
+          await _stopSharingIfActive();
+          return;
+        }
+        if (!_controller.isRecording) return;
 
         final navigator = Navigator.of(context);
         final shouldLeave = await _controller.confirmExitIfRecording(context);
         if (!mounted || !shouldLeave) return;
+        await _stopSharingIfActive();
+        if (!mounted) return;
 
         if (navigator.canPop()) {
           navigator.pop();
@@ -399,11 +277,14 @@ class _GrabarPageState extends State<GrabarPage> {
               duration: _controller.formattedDuration,
               distanceKm: _controller.distanceKm,
               elevationGainMeters: _controller.elevationGainMeters,
+              isRecording: _controller.isRecording,
               isPaused: _controller.isPaused,
               status: _controller.isRecording
                   ? _controller.recordingStatus
                   : null,
-              footer: _buildRecordingActions(),
+              onStart: _controller.isRecording ? null : _toggleRecording,
+              onTogglePause: _controller.isRecording ? _togglePause : null,
+              onStop: _controller.isRecording ? _toggleRecording : null,
             ),
           ],
         ),

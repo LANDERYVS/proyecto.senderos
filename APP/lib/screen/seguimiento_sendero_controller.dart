@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../utils/route_calculator.dart';
 import 'localizacion.dart';
 
 class SeguimientoSenderoController extends ChangeNotifier {
@@ -26,6 +27,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
 
   LatLng? userLocation;
   bool isLoadingLocation = true;
+  bool isPaused = false;
   Duration elapsedTime = Duration.zero;
   double distanceKm = 0;
   double elevationGainMeters = 0;
@@ -38,30 +40,14 @@ class SeguimientoSenderoController extends ChangeNotifier {
   }
 
   LatLng get initialCenter {
-    if (routePoints.isEmpty) {
-      return userLocation ?? const LatLng(-34.6037, -58.3816);
-    }
-    final latitude = routePoints.fold<double>(
-      0,
-      (sum, point) => sum + point.latitude,
-    );
-    final longitude = routePoints.fold<double>(
-      0,
-      (sum, point) => sum + point.longitude,
-    );
-    return LatLng(
-      latitude / routePoints.length,
-      longitude / routePoints.length,
-    );
+    return RouteCalculator.centerOfPoints(routePoints) ??
+        userLocation ??
+        const LatLng(-34.6037, -58.3816);
   }
 
   Future<void> start() async {
     _startTime = DateTime.now();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_isDisposed || _startTime == null) return;
-      elapsedTime = DateTime.now().difference(_startTime!);
-      _notify();
-    });
+    _startTimer();
 
     try {
       if (!await _localizacionService.requestPermissionAndStartTracking()) {
@@ -93,10 +79,31 @@ class SeguimientoSenderoController extends ChangeNotifier {
         );
   }
 
+  void _startTimer() {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_isDisposed || _startTime == null) return;
+      elapsedTime = DateTime.now().difference(_startTime!);
+      _notify();
+    });
+  }
+
+  void togglePause() {
+    if (isPaused) {
+      isPaused = false;
+      _startTime = DateTime.now().subtract(elapsedTime);
+      _startTimer();
+    } else {
+      isPaused = true;
+      _timer?.cancel();
+      elapsedTime = DateTime.now().difference(_startTime!);
+    }
+    _notify();
+  }
+
   void _updateUserLocation(Position position) {
     final point = LatLng(position.latitude, position.longitude);
     userLocation = point;
-    _updateProgress(point, position.altitude);
+    if (!isPaused) _updateProgress(point, position.altitude);
     try {
       mapController.move(point, 16);
     } on StateError {
@@ -159,7 +166,6 @@ class SeguimientoSenderoController extends ChangeNotifier {
     _isDisposed = true;
     _timer?.cancel();
     _positionSubscription?.cancel();
-    _localizacionService.dispose();
     super.dispose();
   }
 }

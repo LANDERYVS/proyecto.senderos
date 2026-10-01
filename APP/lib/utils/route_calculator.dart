@@ -21,6 +21,20 @@ class RouteCalculator {
         : distanceMeters;
   }
 
+  static LatLng? centerOfPoints(List<LatLng> points) {
+    if (points.isEmpty) return null;
+
+    final latitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.latitude,
+    );
+    final longitude = points.fold<double>(
+      0,
+      (sum, point) => sum + point.longitude,
+    );
+    return LatLng(latitude / points.length, longitude / points.length);
+  }
+
   /// Encuentra el punto más cercano en la ruta a un punto dado
   /// Retorna null si no hay punto dentro de la distancia máxima (40 metros)
   LatLng? findNearestRoutePoint(LatLng targetPoint, List<LatLng> route) {

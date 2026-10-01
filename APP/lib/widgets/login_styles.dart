@@ -81,10 +81,12 @@ class LoginStyles {
     required TextEditingController controller,
     required String labelText,
     bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
+      keyboardType: keyboardType,
       style: const TextStyle(color: Color(0xFF1F2E1D)),
       decoration: InputDecoration(
         filled: true,

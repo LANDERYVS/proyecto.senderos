@@ -9,11 +9,13 @@ class SeguirSenderoPage extends StatelessWidget {
     required this.routePoints,
     this.routeName,
     this.offlineRegionId,
+    this.senderoId,
   });
 
   final List<LatLng> routePoints;
   final String? routeName;
   final String? offlineRegionId;
+  final int? senderoId;
 
   @override
   Widget build(BuildContext context) => SeguimientoSenderoScreen(
@@ -23,5 +25,6 @@ class SeguirSenderoPage extends StatelessWidget {
         'El seguimiento del sendero se detendrá y se perderá el progreso actual.',
     unavailableMapMessage: 'Mapa offline no disponible',
     offlineRegionId: offlineRegionId,
+    senderoId: senderoId,
   );
 }

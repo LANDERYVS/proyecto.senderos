@@ -49,18 +49,39 @@ class _FilterBarState extends State<FilterBar> {
   void _chooseFilter(String filter, List<String> options) {
     showModalBottomSheet<void>(
       context: context,
+      showDragHandle: true,
       backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 8),
+            ListTile(
+              title: Text(
+                options == _difficultyOptions
+                    ? 'Dificultad del sendero'
+                    : 'Distancia del sendero',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
             // Recorre cada opción y crea un ListTile
             for (final option in options)
               ListTile(
+                selected: option == filter,
                 title: Text(option),
                 // Muestra un checkmark si es la opción seleccionada
-                trailing: option == filter ? const Icon(Icons.check) : null,
+                trailing: option == filter
+                    ? Icon(
+                        Icons.check,
+                        color: Theme.of(context).colorScheme.primary,
+                      )
+                    : null,
+                selectedColor: Theme.of(context).colorScheme.primary,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
                 onTap: () {
                   setState(() {
                     // Actualiza el valor del filtro correspondiente
@@ -86,15 +107,19 @@ class _FilterBarState extends State<FilterBar> {
   @override
   Widget build(BuildContext context) {
     final filtersVisible = widget.showFilters || _filtersExpanded;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      color: Colors.white,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+      ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
-          26,
-          widget.showSearchField || filtersVisible ? 18 : 0,
-          26,
-          filtersVisible ? 24 : 0,
+          16,
+          widget.showSearchField || filtersVisible ? 12 : 0,
+          16,
+          filtersVisible ? 12 : 0,
         ),
         child: Column(
           children: [
@@ -104,7 +129,7 @@ class _FilterBarState extends State<FilterBar> {
                 onTap: () => setState(() => _filtersExpanded = true),
                 hintText: 'Encontrar senderos',
               ),
-              if (filtersVisible) const SizedBox(height: 26),
+              if (filtersVisible) const SizedBox(height: 12),
             ],
             if (filtersVisible)
               SingleChildScrollView(
@@ -113,12 +138,14 @@ class _FilterBarState extends State<FilterBar> {
                   children: [
                     _FilterButton(
                       label: _difficulty,
+                      isSelected: _difficulty != _difficultyOptions.first,
                       onPressed: () =>
                           _chooseFilter(_difficulty, _difficultyOptions),
                     ),
                     const SizedBox(width: 10),
                     _FilterButton(
                       label: _length,
+                      isSelected: _length != _lengthOptions.first,
                       onPressed: () => _chooseFilter(_length, _lengthOptions),
                     ),
                   ],
@@ -132,21 +159,34 @@ class _FilterBarState extends State<FilterBar> {
 }
 
 class _FilterButton extends StatelessWidget {
-  const _FilterButton({required this.label, required this.onPressed});
+  const _FilterButton({
+    required this.label,
+    required this.isSelected,
+    required this.onPressed,
+  });
 
   final String label;
+  final bool isSelected;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: const Icon(Icons.keyboard_arrow_down, size: 22),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 56),
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        foregroundColor: isSelected
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurface,
+        backgroundColor: Colors.white,
+        side: BorderSide(
+          color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
+        ),
+        minimumSize: const Size(0, 46),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

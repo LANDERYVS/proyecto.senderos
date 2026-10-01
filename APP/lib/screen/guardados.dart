@@ -9,6 +9,7 @@ import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
 import '../widgets/content_state_view.dart';
+import '../widgets/edit_saved_route_dialog.dart';
 import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
 import 'previsualizar_gpx.dart';
@@ -153,7 +154,7 @@ class _SavedContentState extends State<SavedContent> {
     try {
       final data = await GpxImportService().read(route.file);
       if (!mounted) return;
-      final senderoId = route.metadata?['senderoId'];
+      final senderoId = (route.metadata?['senderoId'] as num?)?.toInt();
       final sourceKey = route.downloadedSourceKey;
       final offlineRegionId = sourceKey == null
           ? null
@@ -166,6 +167,7 @@ class _SavedContentState extends State<SavedContent> {
             route: data,
             allowImport: false,
             offlineRegionId: offlineRegionId,
+            senderoId: senderoId,
           ),
         ),
       );
@@ -330,6 +332,25 @@ class _SavedContentState extends State<SavedContent> {
       itemBuilder: (context, index) {
         if (index < localRoutes.length) {
           final route = localRoutes[index];
+          if (widget.downloadsOnly) {
+            return SenderoCard(
+              trail: ExploreTrail.fromDownloadedMetadata(route.metadata ?? {}),
+              isFavorite: false,
+              isSavingFavorite: false,
+              onFavorite: null,
+              topAction: _downloadedRouteMenu(route),
+            );
+          }
+          if (_selectedTab == 0) {
+            return SenderoCard(
+              trail: _createdRouteTrail(route),
+              isFavorite: false,
+              isSavingFavorite: false,
+              onFavorite: null,
+              onTap: () => _openSavedRoute(route),
+              topAction: _createdRouteMenu(route),
+            );
+          }
           return _SavedRouteCard(
             route: route,
             onOpen: () => _openSavedRoute(route),
@@ -347,6 +368,148 @@ class _SavedContentState extends State<SavedContent> {
           onFavorite: () => _removeFavorite(trail),
         );
       },
+    );
+  }
+
+  ExploreTrail _createdRouteTrail(SavedRoute route) => ExploreTrail(
+    name: route.name,
+    description: route.description,
+    difficulty: route.difficulty,
+    distanceKm: route.distanceKm ?? 0,
+    elevation: _routeElevation(route),
+    author: 'Mi sendero',
+    photoUrl: route.photoUrl,
+    localPhotoPath: route.photos.isEmpty
+        ? null
+        : '${route.file.parent.path}${Platform.pathSeparator}${route.photos.first}',
+  );
+
+  String _routeElevation(SavedRoute route) {
+    final gain = (route.metadata?['elevationGainMeters'] as num?)?.toDouble();
+    return gain == null ? 'Desnivel no disponible' : '${gain.round()} m';
+  }
+
+  Widget _createdRouteMenu(SavedRoute route) {
+    return PopupMenuButton<_CreatedRouteAction>(
+      tooltip: 'Más opciones',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) {
+        switch (action) {
+          case _CreatedRouteAction.edit:
+            _editRoute(route);
+          case _CreatedRouteAction.publish:
+            _publishRoute(route);
+          case _CreatedRouteAction.delete:
+            _deleteRoute(route);
+          case _CreatedRouteAction.share:
+            _shareRoute(route);
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: _CreatedRouteAction.edit,
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined),
+              SizedBox(width: 8),
+              Text('Editar'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _CreatedRouteAction.publish,
+          child: Row(
+            children: [
+              Icon(Icons.cloud_upload_outlined),
+              SizedBox(width: 8),
+              Text('Publicar'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _CreatedRouteAction.delete,
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Borrar', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _CreatedRouteAction.share,
+          child: Row(
+            children: [
+              Icon(Icons.share_outlined),
+              SizedBox(width: 8),
+              Text('Compartir'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editRoute(SavedRoute route) async {
+    final editedDetails = await showEditSavedRouteDialog(context, route: route);
+    if (editedDetails == null) return;
+    try {
+      await _savedRoutesService.updateRouteDetails(
+        route: route,
+        name: editedDetails.name,
+        description: editedDetails.description,
+        difficulty: editedDetails.difficulty,
+        photo: editedDetails.photo,
+      );
+      await _loadRoutes();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sendero "${editedDetails.name}" actualizado')),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo editar el sendero: $error')),
+      );
+    }
+  }
+
+  Widget _downloadedRouteMenu(SavedRoute route) {
+    return PopupMenuButton<_SavedRouteAction>(
+      tooltip: 'Más opciones',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (action) {
+        switch (action) {
+          case _SavedRouteAction.delete:
+            _deleteRoute(route);
+          case _SavedRouteAction.share:
+            _shareRoute(route);
+          case _SavedRouteAction.publish:
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: _SavedRouteAction.delete,
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Borrar', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: _SavedRouteAction.share,
+          child: Row(
+            children: [
+              Icon(Icons.share_outlined),
+              SizedBox(width: 8),
+              Text('Compartir'),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -445,6 +608,8 @@ class DownloadedTrailsScreen extends StatelessWidget {
 }
 
 enum _SavedRouteAction { publish, delete, share }
+
+enum _CreatedRouteAction { edit, publish, delete, share }
 
 class _SavedRouteCard extends StatelessWidget {
   const _SavedRouteCard({

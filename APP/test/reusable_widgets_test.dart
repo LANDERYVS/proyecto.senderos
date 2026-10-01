@@ -48,14 +48,16 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: GrabarMetricsPanel(
             duration: '00:01:00',
             distanceKm: 1.2,
             elevationGainMeters: 12,
+            isRecording: true,
             status: 'Grabando: 1.20 km',
-            footer: SizedBox(height: 48),
+            onTogglePause: () {},
+            onStop: () {},
           ),
         ),
       ),
@@ -65,15 +67,17 @@ void main() {
     expect(find.text('TIEMPO'), findsOneWidget);
 
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: GrabarMetricsPanel(
             duration: '00:01:00',
             distanceKm: 1.2,
             elevationGainMeters: 12,
+            isRecording: true,
             isPaused: true,
             status: 'Grabación pausada',
-            footer: SizedBox(height: 48),
+            onTogglePause: () {},
+            onStop: () {},
           ),
         ),
       ),
@@ -81,6 +85,8 @@ void main() {
 
     expect(find.text('PAUSADO'), findsOneWidget);
     expect(find.text('GRABANDO'), findsNothing);
+    expect(find.text('Reanudar'), findsOneWidget);
+    expect(find.text('Detener'), findsOneWidget);
   });
 
   testWidgets('ConfirmExitRecordingDialog prioriza seguir grabando', (

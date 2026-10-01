@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../models/explore_trail.dart';
@@ -10,12 +12,16 @@ class SenderoCard extends StatelessWidget {
     required this.isFavorite,
     required this.isSavingFavorite,
     required this.onFavorite,
+    this.topAction,
+    this.onTap,
   });
 
   final ExploreTrail trail;
   final bool isFavorite;
   final bool isSavingFavorite;
   final VoidCallback? onFavorite;
+  final Widget? topAction;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -31,14 +37,16 @@ class SenderoCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => DetalleSenderoScreen(trail: trail),
-            ),
-          );
-        },
+        onTap:
+            onTap ??
+            () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => DetalleSenderoScreen(trail: trail),
+                ),
+              );
+            },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -48,7 +56,16 @@ class SenderoCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  trail.photoUrl == null
+                  trail.localPhotoPath != null
+                      ? Image.file(
+                          File(trail.localPhotoPath!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, error, stackTrace) => Image.asset(
+                            'assets/arbol.jpg',
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : trail.photoUrl == null
                       ? Image.asset('assets/arbol.jpg', fit: BoxFit.cover)
                       : Image.network(
                           trail.photoUrl!,
@@ -85,32 +102,36 @@ class SenderoCard extends StatelessWidget {
                   Positioned(
                     top: 4,
                     right: 4,
-                    child: IconButton(
-                      tooltip: isFavorite
-                          ? 'Quitar de favoritos'
-                          : 'Guardar en favoritos',
-                      onPressed: onFavorite == null || isSavingFavorite
-                          ? null
-                          : onFavorite,
-                      style: IconButton.styleFrom(
-                        backgroundColor: colorScheme.surface,
-                        foregroundColor: isFavorite
-                            ? colorScheme.error
-                            : colorScheme.onSurface,
-                        minimumSize: const Size(44, 44),
-                      ),
-                      icon: isSavingFavorite
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                            ),
-                    ),
+                    child:
+                        topAction ??
+                        IconButton(
+                          tooltip: isFavorite
+                              ? 'Quitar de favoritos'
+                              : 'Guardar en favoritos',
+                          onPressed: onFavorite == null || isSavingFavorite
+                              ? null
+                              : onFavorite,
+                          style: IconButton.styleFrom(
+                            backgroundColor: colorScheme.surface,
+                            foregroundColor: isFavorite
+                                ? colorScheme.error
+                                : colorScheme.onSurface,
+                            minimumSize: const Size(44, 44),
+                          ),
+                          icon: isSavingFavorite
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Icon(
+                                  isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                ),
+                        ),
                   ),
                 ],
               ),

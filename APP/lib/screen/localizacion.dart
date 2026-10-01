@@ -1,11 +1,8 @@
-import 'dart:async';
 import 'dart:ui' show Color;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class LocalizacionService {
-  StreamSubscription<Position>? _positionSubscription;
-
   /// Solicita permisos de ubicación y comienza a rastrear
   Future<bool> requestPermissionAndStartTracking() async {
     var locationPermission = await Geolocator.checkPermission();
@@ -40,8 +37,6 @@ class LocalizacionService {
 
   /// Inicia el stream de posiciones con o sin notificación
   Stream<Position> getPositionStream({required bool showNotification}) {
-    _positionSubscription?.cancel();
-
     return Geolocator.getPositionStream(
       locationSettings: AndroidSettings(
         accuracy: LocationAccuracy.high,
@@ -65,15 +60,5 @@ class LocalizacionService {
             : null,
       ),
     );
-  }
-
-  /// Detiene el stream de posiciones
-  void stopTracking() {
-    _positionSubscription?.cancel();
-  }
-
-  /// Limpia recursos
-  void dispose() {
-    _positionSubscription?.cancel();
   }
 }

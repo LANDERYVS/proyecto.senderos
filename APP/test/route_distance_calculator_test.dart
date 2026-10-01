@@ -17,7 +17,21 @@ void main() {
       final base = const LatLng(-37.3217, -59.1332);
       final movedPoint = LatLng(base.latitude + 0.00005, base.longitude);
 
-      expect(calculator.calculateIncrementMeters(base, movedPoint) > 3.0, isTrue);
+      expect(
+        calculator.calculateIncrementMeters(base, movedPoint) > 3.0,
+        isTrue,
+      );
+    });
+
+    test('calcula el centro promedio de los puntos', () {
+      expect(
+        RouteCalculator.centerOfPoints(const [LatLng(0, 2), LatLng(2, 4)]),
+        const LatLng(1, 3),
+      );
+    });
+
+    test('devuelve null si la lista de puntos está vacía', () {
+      expect(RouteCalculator.centerOfPoints(const []), isNull);
     });
   });
 }

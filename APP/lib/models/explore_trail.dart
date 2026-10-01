@@ -15,6 +15,7 @@ class ExploreTrail {
     required this.author,
     this.authorPhotoUrl,
     this.photoUrl,
+    this.localPhotoPath,
     this.gpxKey,
   });
 
@@ -44,6 +45,24 @@ class ExploreTrail {
     );
   }
 
+  factory ExploreTrail.fromDownloadedMetadata(Map<String, dynamic> metadata) {
+    final name = metadata['name']?.toString().trim();
+    final author = metadata['author']?.toString().trim();
+    return ExploreTrail(
+      id: (metadata['senderoId'] as num?)?.toInt(),
+      userId: metadata['userId']?.toString(),
+      name: name == null || name.isEmpty ? 'Sendero sin nombre' : name,
+      description: metadata['description']?.toString() ?? '',
+      difficulty: metadata['difficulty']?.toString() ?? 'Sin dificultad',
+      distanceKm: (metadata['distanceKm'] as num?)?.toDouble() ?? 0,
+      elevation: metadata['elevation']?.toString() ?? 'Desnivel no disponible',
+      author: author == null || author.isEmpty ? 'Sendero descargado' : author,
+      authorPhotoUrl: publicR2Url(metadata['authorPhotoUrl']?.toString()),
+      photoUrl: publicR2Url(metadata['photoUrl']?.toString()),
+      gpxKey: metadata['downloadedSourceKey']?.toString(),
+    );
+  }
+
   static String? publicR2Url(String? value) {
     if (value == null || value.isEmpty) return null;
     if (value.startsWith('http://') || value.startsWith('https://')) {
@@ -64,6 +83,7 @@ class ExploreTrail {
   final String author;
   final String? authorPhotoUrl;
   final String? photoUrl;
+  final String? localPhotoPath;
   final String? gpxKey;
 
   String? get gpxUrl => publicR2Url(gpxKey);

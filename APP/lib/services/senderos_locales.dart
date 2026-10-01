@@ -42,6 +42,53 @@ class SenderosLocalesService {
     return routes;
   }
 
+  Future<void> updateRouteDetails({
+    required SavedRoute route,
+    required String name,
+    required String description,
+    required String difficulty,
+    XFile? photo,
+  }) async {
+    final metadataFile = File(
+      route.file.path.replaceFirst(
+        RegExp(r'\.gpx$', caseSensitive: false),
+        '.json',
+      ),
+    );
+    final metadata = Map<String, dynamic>.from(route.metadata ?? {})
+      ..['name'] = name
+      ..['description'] = description
+      ..['difficulty'] = difficulty;
+    if (photo != null) {
+      final photoPaths = (metadata['photos'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList();
+      final extension = photo.path.contains('.')
+          ? photo.path.substring(photo.path.lastIndexOf('.')).toLowerCase()
+          : '.jpg';
+      final routeName = route.file.uri.pathSegments.last.replaceFirst(
+        RegExp(r'\.gpx$', caseSensitive: false),
+        '',
+      );
+      final photoDirectory = Directory(
+        '${route.file.parent.path}${Platform.pathSeparator}$routeName',
+      );
+      await photoDirectory.create(recursive: true);
+      final photoName = 'foto_${_uuid.v4()}$extension';
+      await File(
+        photo.path,
+      ).copy('${photoDirectory.path}${Platform.pathSeparator}$photoName');
+      final savedPhotoPath = '$routeName${Platform.pathSeparator}$photoName';
+      if (photoPaths.isEmpty) {
+        photoPaths.add(savedPhotoPath);
+      } else {
+        photoPaths[0] = savedPhotoPath;
+      }
+      metadata['photos'] = photoPaths;
+    }
+    await metadataFile.writeAsString(jsonEncode(metadata));
+  }
+
   Future<File?> findDownloadedTrail(ExploreTrail trail) async {
     final sourceKey = trail.gpxKey;
     if (sourceKey == null || sourceKey.isEmpty) return null;
@@ -75,7 +122,13 @@ class SenderosLocalesService {
         ..['downloadedSourceKey'] = sourceKey
         ..['gpxDownloaded'] = true
         ..['senderoId'] = trail.id
-        ..['name'] = trail.name;
+        ..['name'] = trail.name
+        ..['description'] = trail.description
+        ..['difficulty'] = trail.difficulty
+        ..['distanceKm'] = trail.distanceKm
+        ..['photoUrl'] = trail.photoUrl
+        ..['author'] = trail.author
+        ..['authorPhotoUrl'] = trail.authorPhotoUrl;
       await File(
         route.file.path.replaceFirst(
           RegExp(r'\.gpx$', caseSensitive: false),
@@ -113,6 +166,8 @@ class SenderosLocalesService {
           'downloadedSourceKey': sourceKey,
           'senderoId': trail.id,
           'photoUrl': trail.photoUrl,
+          'author': trail.author,
+          'authorPhotoUrl': trail.authorPhotoUrl,
           'createdAt': DateTime.now().toIso8601String(),
         }),
       );

@@ -362,7 +362,7 @@ class _ProfilePageState extends State<ProfilePage> {
         onDestinationSelected: (index) {
           if (index == 2) {
             _openRecordingScreen();
-          } else if (index != 4) {
+          } else {
             _navigateToHome(index);
           }
         },

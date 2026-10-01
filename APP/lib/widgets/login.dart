@@ -56,6 +56,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final usernameController = TextEditingController();
+  final phoneController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
@@ -66,6 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     emailController.dispose();
     usernameController.dispose();
+    phoneController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.dispose();
@@ -106,12 +108,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _createAccount() async {
     final email = emailController.text.trim();
     final username = usernameController.text.trim();
+    final phone = phoneController.text.trim();
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
 
     final error = await ServicioAutenticacion.createAccount(
       email,
       username,
+      phone,
       password,
       confirmPassword,
     );
@@ -124,6 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() {
         isCreatingAccount = false;
         usernameController.clear();
+        phoneController.clear();
         passwordController.clear();
         confirmPasswordController.clear();
       });
@@ -177,24 +182,35 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (isCreatingAccount)
                       LoginStyles.buildInputField(
                         controller: usernameController,
-                        labelText: 'Nombre de usuario',
+                        labelText: 'Nombre de usuario *',
+                      ),
+                    if (isCreatingAccount) const SizedBox(height: 16),
+                    if (isCreatingAccount)
+                      LoginStyles.buildInputField(
+                        controller: phoneController,
+                        labelText: 'Número de teléfono *',
+                        keyboardType: TextInputType.phone,
                       ),
                     if (isCreatingAccount) const SizedBox(height: 16),
                     LoginStyles.buildInputField(
                       controller: emailController,
-                      labelText: 'Correo o nombre de usuario',
+                      labelText: isCreatingAccount
+                          ? 'Correo electrónico *'
+                          : 'Correo o nombre de usuario',
                     ),
                     const SizedBox(height: 16),
                     LoginStyles.buildInputField(
                       controller: passwordController,
-                      labelText: 'Contraseña',
+                      labelText: isCreatingAccount
+                          ? 'Contraseña *'
+                          : 'Contraseña',
                       obscureText: true,
                     ),
                     if (isCreatingAccount) ...[
                       const SizedBox(height: 16),
                       LoginStyles.buildInputField(
                         controller: confirmPasswordController,
-                        labelText: 'Confirmar contraseña',
+                        labelText: 'Confirmar contraseña *',
                         obscureText: true,
                       ),
                     ],
@@ -219,6 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         setState(() {
                           isCreatingAccount = !isCreatingAccount;
                           usernameController.clear();
+                          phoneController.clear();
                           passwordController.clear();
                           confirmPasswordController.clear();
                           _selectedAvatar = null;

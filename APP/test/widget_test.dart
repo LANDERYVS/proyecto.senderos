@@ -4,9 +4,34 @@ import 'package:proyecto/main.dart';
 import 'package:proyecto/models/explore_trail.dart';
 import 'package:proyecto/screen/detalle_sendero.dart';
 import 'package:proyecto/widgets/default_user_avatar.dart';
+import 'package:proyecto/widgets/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('reconstruye la identidad de un sendero descargado', () {
+    final trail = ExploreTrail.fromDownloadedMetadata({
+      'senderoId': 42,
+      'downloadedSourceKey': 'senderos/ruta.gpx',
+      'name': 'Ruta local',
+      'description': 'Una descripción',
+      'difficulty': 'Moderado',
+      'distanceKm': 6.5,
+      'photoUrl': 'senderos/ruta.jpg',
+      'author': 'Senderista',
+      'authorPhotoUrl': 'avatars/senderista.jpg',
+    });
+
+    expect(trail.id, 42);
+    expect(trail.gpxKey, 'senderos/ruta.gpx');
+    expect(trail.name, 'Ruta local');
+    expect(trail.description, 'Una descripción');
+    expect(trail.difficulty, 'Moderado');
+    expect(trail.distanceKm, 6.5);
+    expect(trail.photoUrl, contains('/senderos/ruta.jpg'));
+    expect(trail.author, 'Senderista');
+    expect(trail.authorPhotoUrl, contains('/avatars/senderista.jpg'));
+  });
+
   testWidgets('muestra el login al abrir la app', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(const MyApp());
@@ -22,6 +47,31 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(TextField, 'Contraseña'), findsOneWidget);
+  });
+
+  testWidgets('muestra teléfono solo al crear una cuenta', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: LoginScreen(home: SizedBox.shrink())),
+    );
+
+    expect(find.text('Número de teléfono'), findsNothing);
+    final createAccountButton = find.text('No tengo una cuenta, crear una');
+    await tester.ensureVisible(createAccountButton);
+    await tester.tap(createAccountButton);
+    await tester.pumpAndSettle();
+
+    final phoneField = find.widgetWithText(TextField, 'Número de teléfono *');
+    expect(phoneField, findsOneWidget);
+    expect(
+      tester.widget<TextField>(phoneField).keyboardType,
+      TextInputType.phone,
+    );
+    expect(find.text('Nombre de usuario *'), findsOneWidget);
+    expect(find.text('Correo electrónico *'), findsOneWidget);
+    expect(find.text('Contraseña *'), findsOneWidget);
+    expect(find.text('Confirmar contraseña *'), findsOneWidget);
+    expect(find.text('Foto de perfil'), findsOneWidget);
+    expect(find.text('Foto de perfil *'), findsNothing);
   });
 
   testWidgets('abre la pantalla principal con una sesión guardada', (

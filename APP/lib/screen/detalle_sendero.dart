@@ -13,6 +13,7 @@ import '../models/explore_trail.dart';
 import '../services/offline_tile_service.dart';
 import '../services/servicio_clima_sendero.dart';
 import '../services/senderos_locales.dart';
+import '../utils/route_calculator.dart';
 import '../widgets/clima_sendero_card.dart';
 import '../widgets/route_polyline_map.dart';
 import 'guardados.dart';
@@ -48,7 +49,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     _loadRoute();
     _weatherRefreshTimer = Timer.periodic(const Duration(minutes: 30), (_) {
       if (mounted && _routePoints.isNotEmpty && !_isLoadingWeather) {
-        _loadTrailWeather(_centerOf(_routePoints));
+        _loadTrailWeather(RouteCalculator.centerOfPoints(_routePoints)!);
       }
     });
   }
@@ -110,7 +111,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       });
       await _loadOfflineMap(localGpx != null);
       if (points.isNotEmpty) {
-        _loadTrailWeather(_centerOf(points));
+        _loadTrailWeather(RouteCalculator.centerOfPoints(points)!);
       }
     } on Exception catch (error) {
       if (!mounted) return;
@@ -228,6 +229,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         builder: (_) => SeguirSenderoPage(
           routePoints: _routePoints,
           routeName: widget.trail.name,
+          senderoId: widget.trail.id,
         ),
       ),
     );
@@ -572,10 +574,12 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               isLoading: _isLoadingRoute || _isLoadingWeather,
               hasRoute: _routePoints.isNotEmpty,
               weather: _weather,
-              location: _routePoints.isEmpty ? null : _centerOf(_routePoints),
+              location: RouteCalculator.centerOfPoints(_routePoints),
               onRefresh: _routePoints.isEmpty
                   ? () {}
-                  : () => _loadTrailWeather(_centerOf(_routePoints)),
+                  : () => _loadTrailWeather(
+                      RouteCalculator.centerOfPoints(_routePoints)!,
+                    ),
             ),
             const SizedBox(height: 28),
             _buildDeleteTrailButton(),
@@ -583,18 +587,6 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         ),
       ),
     );
-  }
-
-  LatLng _centerOf(List<LatLng> points) {
-    final latitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.latitude,
-    );
-    final longitude = points.fold<double>(
-      0,
-      (sum, point) => sum + point.longitude,
-    );
-    return LatLng(latitude / points.length, longitude / points.length);
   }
 }
 

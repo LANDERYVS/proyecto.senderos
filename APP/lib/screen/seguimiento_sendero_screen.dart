@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../services/compartir_ubicacion.dart';
 import '../services/offline_tile_service.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
+import '../widgets/compartir_ubicacion_button.dart';
 import '../widgets/grabar_metrics_panel.dart';
 import '../widgets/seguimiento_sendero_map.dart';
 import 'seguimiento_sendero_controller.dart';
@@ -16,6 +18,7 @@ class SeguimientoSenderoScreen extends StatefulWidget {
     required this.exitMessage,
     required this.unavailableMapMessage,
     this.offlineRegionId,
+    this.senderoId,
   });
 
   final List<LatLng> routePoints;
@@ -23,6 +26,7 @@ class SeguimientoSenderoScreen extends StatefulWidget {
   final String exitMessage;
   final String unavailableMapMessage;
   final String? offlineRegionId;
+  final int? senderoId;
 
   @override
   State<SeguimientoSenderoScreen> createState() =>
@@ -32,6 +36,7 @@ class SeguimientoSenderoScreen extends StatefulWidget {
 class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
   final MapController _mapController = MapController();
   final OfflineTileService _tileService = OfflineTileService();
+  final CompartirUbicacionService _sharingService = CompartirUbicacionService();
   late final SeguimientoSenderoController _trackingController;
 
   TileLayer? _offlineTileLayer;
@@ -78,12 +83,24 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
       exitLabel: 'Detener seguimiento',
     );
     if (!mounted || !shouldExit) return;
+    await _stopSharingIfActive();
+    if (!mounted) return;
     setState(() => _allowPop = true);
     Navigator.of(context).pop();
   }
 
+  Future<void> _stopSharingIfActive() async {
+    if (_sharingService.sharingFriend == null) return;
+    try {
+      await _sharingService.stopSharing();
+    } on Exception catch (error) {
+      debugPrint('No se pudo detener la compartición de ubicación: $error');
+    }
+  }
+
   @override
   void dispose() {
+    _sharingService.dispose();
     _trackingController
       ..removeListener(_refresh)
       ..dispose();
@@ -104,26 +121,49 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
         body: Column(
           children: [
             Expanded(
-              child: SeguimientoSenderoMap(
-                mapController: _mapController,
-                routePoints: routePoints,
-                initialCenter: controller.initialCenter,
-                userLocation: controller.userLocation,
-                isLoadingLocation: controller.isLoadingLocation,
-                isLoadingMap: _isLoadingMap,
-                offlineOnly: widget.offlineRegionId != null,
-                unavailableMessage: widget.unavailableMapMessage,
-                onCenterOnUserLocation: controller.userLocation == null
-                    ? null
-                    : controller.centerOnUserLocation,
-                tileLayer: _offlineTileLayer,
-                initialZoom: routePoints.isEmpty ? 13 : 15,
+              child: Stack(
+                children: [
+                  SeguimientoSenderoMap(
+                    mapController: _mapController,
+                    routePoints: routePoints,
+                    initialCenter: controller.initialCenter,
+                    userLocation: controller.userLocation,
+                    isLoadingLocation: controller.isLoadingLocation,
+                    isLoadingMap: _isLoadingMap,
+                    offlineOnly: widget.offlineRegionId != null,
+                    unavailableMessage: widget.unavailableMapMessage,
+                    onCenterOnUserLocation: controller.userLocation == null
+                        ? null
+                        : controller.centerOnUserLocation,
+                    tileLayer: _offlineTileLayer,
+                    initialZoom: routePoints.isEmpty ? 13 : 15,
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: SafeArea(
+                      child: CompartirUbicacionButton(
+                        sharingService: _sharingService,
+                        heroTag: 'share-follow-location',
+                        senderoId: widget.senderoId,
+                        getCurrentLocation: () async => controller.userLocation,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             GrabarMetricsPanel(
               duration: controller.formattedDuration,
               distanceKm: controller.distanceKm,
               elevationGainMeters: controller.elevationGainMeters,
+              isRecording: true,
+              isPaused: controller.isPaused,
+              status: 'Seguimiento activo',
+              statusLabel: 'SIGUIENDO',
+              onTogglePause: controller.togglePause,
+              onStop: _confirmExit,
+              stopLabel: 'Finalizar',
             ),
           ],
         ),

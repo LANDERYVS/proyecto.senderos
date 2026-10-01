@@ -32,7 +32,7 @@ class ConfiguracionScreen extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const GrabarPage()),
             );
-          } else if (index != 4) {
+          } else {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),

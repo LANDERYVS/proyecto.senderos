@@ -15,12 +15,14 @@ class PrevisualizarGpxScreen extends StatefulWidget {
     required this.route,
     this.allowImport = true,
     this.offlineRegionId,
+    this.senderoId,
   });
 
   final File file;
   final GpxRouteData route;
   final bool allowImport;
   final String? offlineRegionId;
+  final int? senderoId;
 
   @override
   State<PrevisualizarGpxScreen> createState() => _PrevisualizarGpxScreenState();
@@ -78,6 +80,7 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
           routePoints: widget.route.points,
           routeName: widget.route.name,
           offlineRegionId: offlineRegionId,
+          senderoId: widget.senderoId,
         ),
       ),
     );
