@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../models/explore_trail.dart';
 import '../models/saved_route.dart';
+import '../models/trail_waypoint.dart';
 import '../services/guardado_local.dart';
 import '../services/gpx_import.dart';
 import '../services/logros_service.dart';
@@ -170,6 +171,7 @@ class _SavedContentState extends State<SavedContent> {
             allowImport: false,
             offlineRegionId: offlineRegionId,
             senderoId: senderoId,
+            waypoints: TrailWaypoint.fromMetadata(route.metadata?['waypoints']),
           ),
         ),
       );

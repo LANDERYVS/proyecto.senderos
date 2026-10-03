@@ -80,6 +80,8 @@ flutter:
     - assets/Logo.png
     - assets/usuario.png
     - assets/arbol.jpg
+    - assets/waypoints/waypoint_mirador.png
+    - assets/waypoints/waypoint_bebedero.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

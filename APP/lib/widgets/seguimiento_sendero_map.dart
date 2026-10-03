@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../models/trail_waypoint.dart';
+import 'waypoint_markers_layer.dart';
+
 class SeguimientoSenderoMap extends StatelessWidget {
   const SeguimientoSenderoMap({
     super.key,
@@ -16,6 +19,7 @@ class SeguimientoSenderoMap extends StatelessWidget {
     required this.onCenterOnUserLocation,
     this.tileLayer,
     this.initialZoom = 15,
+    this.waypoints = const [],
   });
 
   final MapController mapController;
@@ -29,6 +33,7 @@ class SeguimientoSenderoMap extends StatelessWidget {
   final VoidCallback? onCenterOnUserLocation;
   final TileLayer? tileLayer;
   final double initialZoom;
+  final List<TrailWaypoint> waypoints;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +72,7 @@ class SeguimientoSenderoMap extends StatelessWidget {
                   ),
                 ],
               ),
+            WaypointMarkersLayer(waypoints: waypoints),
             if (userLocation != null)
               MarkerLayer(
                 markers: [

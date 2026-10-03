@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../models/trail_waypoint.dart';
 import '../utils/route_calculator.dart';
+import 'waypoint_markers_layer.dart';
 
 class RoutePolylineMap extends StatelessWidget {
   const RoutePolylineMap({
@@ -13,6 +15,7 @@ class RoutePolylineMap extends StatelessWidget {
     this.isLoading = false,
     this.hasError = false,
     this.unavailableMessage = 'El trayecto no está disponible',
+    this.waypoints = const [],
   });
 
   final List<LatLng> points;
@@ -21,6 +24,7 @@ class RoutePolylineMap extends StatelessWidget {
   final bool isLoading;
   final bool hasError;
   final String unavailableMessage;
+  final List<TrailWaypoint> waypoints;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +71,7 @@ class RoutePolylineMap extends StatelessWidget {
                 ),
               ],
             ),
+            WaypointMarkersLayer(waypoints: waypoints),
           ],
         ),
       ),

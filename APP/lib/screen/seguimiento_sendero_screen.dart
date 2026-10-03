@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../models/trail_waypoint.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/offline_tile_service.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
@@ -19,6 +20,7 @@ class SeguimientoSenderoScreen extends StatefulWidget {
     required this.unavailableMapMessage,
     this.offlineRegionId,
     this.senderoId,
+    this.waypoints = const [],
   });
 
   final List<LatLng> routePoints;
@@ -27,6 +29,7 @@ class SeguimientoSenderoScreen extends StatefulWidget {
   final String unavailableMapMessage;
   final String? offlineRegionId;
   final int? senderoId;
+  final List<TrailWaypoint> waypoints;
 
   @override
   State<SeguimientoSenderoScreen> createState() =>
@@ -137,6 +140,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
                         : controller.centerOnUserLocation,
                     tileLayer: _offlineTileLayer,
                     initialZoom: routePoints.isEmpty ? 13 : 15,
+                    waypoints: widget.waypoints,
                   ),
                   Positioned(
                     top: 16,

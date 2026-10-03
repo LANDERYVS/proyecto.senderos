@@ -8,6 +8,7 @@ import '../services/compartir_ubicacion.dart';
 import '../widgets/barra_navegacion.dart';
 import '../widgets/compartir_ubicacion_button.dart';
 import '../widgets/grabar_metrics_panel.dart';
+import '../widgets/waypoint_markers_layer.dart';
 import '../utils/route_calculator.dart';
 import 'grabar_controller.dart';
 import 'grabar_styles.dart';
@@ -151,13 +152,19 @@ class _GrabarPageState extends State<GrabarPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _controller.interestPoints[index].type?.icon ??
-                            Icons.place,
-                        color:
+                      WaypointIcon(
+                        type:
+                            _controller
+                                .interestPoints[index]
+                                .type
+                                ?.databaseType ??
+                            _controller.interestPoints[index].name,
+                        fallbackIcon:
+                            _controller.interestPoints[index].type?.icon,
+                        fallbackColor:
                             _controller.interestPoints[index].type?.color ??
                             GrabarStyles.primaryGreen,
-                        size: 34,
+                        size: 12,
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -489,7 +496,12 @@ class _MarkerTypeButton extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
                 alignment: Alignment.center,
-                child: Icon(type.icon, color: type.color, size: 24),
+                child: WaypointIcon(
+                  type: type.databaseType,
+                  fallbackIcon: type.icon,
+                  fallbackColor: type.color,
+                  size: 30,
+                ),
               ),
               const SizedBox(height: 4),
               Text(

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
+import '../models/trail_waypoint.dart';
 import '../services/gpx_import.dart';
 import '../services/offline_tile_service.dart';
 import '../widgets/route_polyline_map.dart';
@@ -16,6 +17,7 @@ class PrevisualizarGpxScreen extends StatefulWidget {
     this.allowImport = true,
     this.offlineRegionId,
     this.senderoId,
+    this.waypoints = const [],
   });
 
   final File file;
@@ -23,6 +25,7 @@ class PrevisualizarGpxScreen extends StatefulWidget {
   final bool allowImport;
   final String? offlineRegionId;
   final int? senderoId;
+  final List<TrailWaypoint> waypoints;
 
   @override
   State<PrevisualizarGpxScreen> createState() => _PrevisualizarGpxScreenState();
@@ -81,6 +84,7 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
           routeName: widget.route.name,
           offlineRegionId: offlineRegionId,
           senderoId: widget.senderoId,
+          waypoints: widget.waypoints,
         ),
       ),
     );
@@ -108,6 +112,7 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
             Expanded(
               child: RoutePolylineMap(
                 points: points,
+                waypoints: widget.waypoints,
                 height: null,
                 tileLayer: _offlineTileLayer,
               ),

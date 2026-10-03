@@ -7,9 +7,19 @@ import 'package:uuid/uuid.dart';
 
 import '../models/explore_trail.dart';
 import '../models/saved_route.dart';
+import 'waypoint_service.dart';
 
 class SenderosLocalesService {
   static const _uuid = Uuid();
+  final WaypointService _waypointService = WaypointService();
+
+  Future<List<Map<String, dynamic>>> _waypointsForTrail(
+    int? senderoId,
+  ) async {
+    if (senderoId == null) return [];
+    final waypoints = await _waypointService.fetchForTrail(senderoId);
+    return waypoints.map((waypoint) => waypoint.toMap()).toList();
+  }
 
   Future<List<SavedRoute>> loadRoutes() async {
     final directory = await getApplicationDocumentsDirectory();
@@ -111,6 +121,7 @@ class SenderosLocalesService {
         'Este sendero no tiene un archivo GPX disponible.',
       );
     }
+    final waypoints = await _waypointsForTrail(trail.id);
 
     final routes = await loadRoutes();
     for (final route in routes) {
@@ -129,7 +140,8 @@ class SenderosLocalesService {
         ..['distanceKm'] = trail.distanceKm
         ..['photoUrl'] = trail.photoUrl
         ..['author'] = trail.author
-        ..['authorPhotoUrl'] = trail.authorPhotoUrl;
+        ..['authorPhotoUrl'] = trail.authorPhotoUrl
+        ..['waypoints'] = waypoints;
       await File(
         route.file.path.replaceFirst(
           RegExp(r'\.gpx$', caseSensitive: false),
@@ -170,6 +182,7 @@ class SenderosLocalesService {
           'photoUrl': trail.photoUrl,
           'author': trail.author,
           'authorPhotoUrl': trail.authorPhotoUrl,
+          'waypoints': waypoints,
           'createdAt': DateTime.now().toIso8601String(),
         }),
       );
@@ -227,6 +240,7 @@ class SenderosLocalesService {
         'Este sendero no tiene un archivo GPX disponible.',
       );
     }
+    final waypoints = await _waypointsForTrail(senderoId);
 
     final routes = await loadRoutes();
     for (final route in routes) {
@@ -236,7 +250,8 @@ class SenderosLocalesService {
       }
       final metadata = Map<String, dynamic>.from(route.metadata ?? {})
         ..['isFavorite'] = true
-        ..['favoriteSenderoId'] = senderoId;
+        ..['favoriteSenderoId'] = senderoId
+        ..['waypoints'] = waypoints;
       final metadataFile = File(route.file.path.replaceFirst('.gpx', '.json'));
       await metadataFile.writeAsString(jsonEncode(metadata));
       return;
@@ -267,6 +282,7 @@ class SenderosLocalesService {
           'isFavorite': true,
           'favoriteSourceKey': sourceKey,
           'favoriteSenderoId': senderoId,
+          'waypoints': waypoints,
           'photoUrl': trail.photoUrl,
           'createdAt': DateTime.now().toIso8601String(),
         }),

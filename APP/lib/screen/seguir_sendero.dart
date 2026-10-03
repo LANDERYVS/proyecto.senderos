@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../models/trail_waypoint.dart';
 import 'seguimiento_sendero_screen.dart';
 
 class SeguirSenderoPage extends StatelessWidget {
@@ -10,12 +11,14 @@ class SeguirSenderoPage extends StatelessWidget {
     this.routeName,
     this.offlineRegionId,
     this.senderoId,
+    this.waypoints = const [],
   });
 
   final List<LatLng> routePoints;
   final String? routeName;
   final String? offlineRegionId;
   final int? senderoId;
+  final List<TrailWaypoint> waypoints;
 
   @override
   Widget build(BuildContext context) => SeguimientoSenderoScreen(
@@ -26,5 +29,6 @@ class SeguirSenderoPage extends StatelessWidget {
     unavailableMapMessage: 'Mapa offline no disponible',
     offlineRegionId: offlineRegionId,
     senderoId: senderoId,
+    waypoints: waypoints,
   );
 }

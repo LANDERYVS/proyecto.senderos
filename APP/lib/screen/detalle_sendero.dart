@@ -10,9 +10,11 @@ import 'package:xml/xml.dart';
 
 import '../models/clima_sendero.dart';
 import '../models/explore_trail.dart';
+import '../models/trail_waypoint.dart';
 import '../services/offline_tile_service.dart';
 import '../services/servicio_clima_sendero.dart';
 import '../services/senderos_locales.dart';
+import '../services/waypoint_service.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/clima_sendero_card.dart';
 import '../widgets/route_polyline_map.dart';
@@ -29,6 +31,7 @@ class DetalleSenderoScreen extends StatefulWidget {
 
 class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   List<LatLng> _routePoints = const [];
+  List<TrailWaypoint> _waypoints = const [];
   bool _isLoadingRoute = true;
   String? _routeError;
   bool _isLoadingWeather = false;
@@ -103,11 +106,46 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
           })
           .whereType<LatLng>()
           .toList();
+      var waypoints = const <TrailWaypoint>[];
+      if (localGpx != null) {
+        final metadataFile = File(
+          localGpx.path.replaceFirst(
+            RegExp(r'\.gpx$', caseSensitive: false),
+            '.json',
+          ),
+        );
+        if (await metadataFile.exists()) {
+          final metadata =
+              jsonDecode(await metadataFile.readAsString())
+                  as Map<String, dynamic>;
+          waypoints = TrailWaypoint.fromMetadata(metadata['waypoints']);
+        }
+      }
       if (!mounted) return;
       setState(() {
         _routePoints = points;
+        _waypoints = waypoints;
         _isLoadingRoute = false;
       });
+      final senderoId = widget.trail.id;
+      if (senderoId != null) {
+        try {
+          final remoteWaypoints = await WaypointService().fetchForTrail(
+            senderoId,
+          );
+          if (!mounted) return;
+          setState(() => _waypoints = remoteWaypoints);
+        } on Exception catch (error) {
+          debugPrint('No se pudieron cargar los puntos de interés: $error');
+          if (waypoints.isEmpty && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se pudieron cargar los puntos de interés.'),
+              ),
+            );
+          }
+        }
+      }
       await _loadOfflineMap(localGpx != null);
       if (points.isNotEmpty) {
         _loadTrailWeather(RouteCalculator.centerOfPoints(points)!);
@@ -229,6 +267,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
           routePoints: _routePoints,
           routeName: widget.trail.name,
           senderoId: widget.trail.id,
+          waypoints: _waypoints,
         ),
       ),
     );
@@ -507,6 +546,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
             const SizedBox(height: 8),
             RoutePolylineMap(
               points: _routePoints,
+              waypoints: _waypoints,
               tileLayer: _offlineTileLayer,
               isLoading: _isLoadingRoute,
               hasError: _routeError != null,
