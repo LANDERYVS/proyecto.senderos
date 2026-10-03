@@ -15,6 +15,7 @@ import 'inicio.dart';
 import 'logros_screen.dart';
 import '../widgets/barra_navegacion.dart';
 import '../widgets/default_user_avatar.dart';
+import '../widgets/login_styles.dart';
 
 class _ProfilePhotoSaveException implements Exception {
   const _ProfilePhotoSaveException(this.message);
@@ -33,7 +34,9 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
   bool _isUploadingPhoto = false;
-  String? _error;
+  int _publishedTrails = 0;
+  double _distanceKm = 0;
+  int _unlockedAchievements = 0;
   final ImagePicker _imagePicker = ImagePicker();
   final AlmacenamientoR2 _almacenamientoR2 = AlmacenamientoR2();
 
@@ -41,6 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _loadProfile();
+    _loadActivityStats();
   }
 
   Future<void> _loadProfile() async {
@@ -50,8 +54,8 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = 'No hay una sesión iniciada';
       });
+      debugPrint('No se pudo cargar el perfil: no hay una sesión iniciada.');
       return;
     }
 
@@ -79,14 +83,45 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() {
         _profile = profile ?? fallbackProfile;
         _isLoading = false;
-        _error = null;
       });
-    } on PostgrestException {
+    } on PostgrestException catch (error) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _error = 'No se pudo cargar el perfil.';
       });
+      debugPrint('No se pudo cargar el perfil: $error');
+    }
+  }
+
+  Future<void> _loadActivityStats() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final trailRows = await Supabase.instance.client
+          .from('senderos')
+          .select('id, distancia')
+          .eq('user_id', user.id);
+      final achievementRows = await Supabase.instance.client
+          .from('user_logros')
+          .select('logro_id')
+          .eq('user_id', user.id);
+
+      var distance = 0.0;
+      for (final row in trailRows) {
+        distance += (row['distancia'] as num?)?.toDouble() ?? 0;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _publishedTrails = trailRows.length;
+        _distanceKm = distance;
+        _unlockedAchievements = achievementRows.length;
+      });
+    } on PostgrestException catch (error) {
+      debugPrint('No se pudieron cargar las estadísticas del perfil: $error');
+    } catch (error) {
+      debugPrint('No se pudieron cargar las estadísticas del perfil: $error');
     }
   }
 
@@ -246,96 +281,268 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildProfileHeader() {
     return Column(
       children: [
-        Center(
-          child: Stack(
-            alignment: Alignment.bottomRight,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [LoginStyles.deepGreen, LoginStyles.forestGreen],
+            ),
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: LoginStyles.deepGreen.withAlpha(35),
+                blurRadius: 18,
+                offset: const Offset(0, 9),
+              ),
+            ],
+          ),
+          child: Column(
             children: [
-              _photoUrl == null
-                  ? DefaultUserAvatar(radius: 48)
-                  : CircleAvatar(
-                      radius: 48,
-                      backgroundImage: NetworkImage(_photoUrl!),
+              Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: LoginStyles.accentGold,
+                      shape: BoxShape.circle,
                     ),
-              if (_isUploadingPhoto)
-                const Padding(
-                  padding: EdgeInsets.all(4),
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Colors.white,
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    child: _photoUrl == null
+                        ? const DefaultUserAvatar(radius: 48)
+                        : CircleAvatar(
+                            radius: 48,
+                            backgroundImage: NetworkImage(_photoUrl!),
+                          ),
+                  ),
+                  Material(
+                    color: LoginStyles.accentGold,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      onTap: _isUploadingPhoto ? null : _changeProfilePhoto,
+                      customBorder: const CircleBorder(),
+                      child: SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Center(
+                          child: _isUploadingPhoto
+                              ? const SizedBox.square(
+                                  dimension: 17,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: LoginStyles.deepGreen,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 18,
+                                  color: LoginStyles.deepGreen,
+                                ),
+                        ),
+                      ),
                     ),
                   ),
-                )
-              else
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: InkWell(
-                    onTap: _changeProfilePhoto,
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _name,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (_profile?['premium'] == true) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: LoginStyles.accentGold.withAlpha(30),
                     borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF2E7D32),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        size: 18,
-                        color: Colors.white,
-                      ),
+                    border: Border.all(
+                      color: LoginStyles.accentGold.withAlpha(150),
                     ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.workspace_premium_rounded,
+                        size: 16,
+                        color: LoginStyles.accentGold,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'THOPO PREMIUM',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ] else ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Senderista THOPO',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withAlpha(210),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        Text(
-          _name,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall,
+        const SizedBox(height: 18),
+      ],
+    );
+  }
+
+  Widget _buildActivityStats() {
+    return Row(
+      children: [
+        _ProfileStatCard(
+          icon: Icons.route_outlined,
+          value: '$_publishedTrails',
+          label: 'Senderos',
         ),
-        const SizedBox(height: 8),
-        Text(
-          '@$_name',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
+        const SizedBox(width: 10),
+        _ProfileStatCard(
+          icon: Icons.terrain_outlined,
+          value: _distanceKm.toStringAsFixed(1),
+          label: 'Kilómetros',
         ),
-        const SizedBox(height: 24),
+        const SizedBox(width: 10),
+        _ProfileStatCard(
+          icon: Icons.emoji_events_outlined,
+          value: '$_unlockedAchievements',
+          label: 'Logros',
+        ),
       ],
     );
   }
 
   Widget _buildProfileDetails() {
+    final colors = Theme.of(context).colorScheme;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ListTile(
-          leading: const Icon(Icons.email_outlined),
-          title: const Text('Correo electrónico'),
-          subtitle: Text(_email),
-        ),
-        ListTile(
-          leading: const Icon(Icons.emoji_events_outlined),
-          title: const Text('Mis logros'),
-          subtitle: const Text('Progreso y logros desbloqueados'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: _openAchievements,
-        ),
-        if (_profile?['premium'] == true)
-          const ListTile(
-            leading: Icon(Icons.workspace_premium_outlined),
-            title: Text('Cuenta premium'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 24, 4, 10),
+          child: Text(
+            'Mi cuenta',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
-        if (_error != null)
-          ListTile(
-            leading: const Icon(Icons.error_outline),
-            title: const Text('No se pudo cargar el perfil'),
-            subtitle: Text(_error!),
+        ),
+        Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: LoginStyles.softCream,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: colors.outlineVariant.withAlpha(120)),
           ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 5,
+            ),
+            leading: CircleAvatar(
+              backgroundColor: LoginStyles.primaryGreen.withAlpha(20),
+              child: const Icon(
+                Icons.email_outlined,
+                color: LoginStyles.primaryGreen,
+              ),
+            ),
+            title: const Text(
+              'Correo electrónico',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(_email),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: LoginStyles.softCream,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: colors.outlineVariant.withAlpha(120)),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 5,
+            ),
+            leading: CircleAvatar(
+              backgroundColor: LoginStyles.accentGold.withAlpha(45),
+              child: const Icon(
+                Icons.emoji_events_outlined,
+                color: LoginStyles.deepGreen,
+              ),
+            ),
+            title: const Text(
+              'Mis logros',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              '$_unlockedAchievements logros desbloqueados · Ver progreso',
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            onTap: _openAchievements,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: LoginStyles.primaryGreen,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 5,
+            ),
+            leading: const CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.settings_outlined,
+                color: LoginStyles.primaryGreen,
+              ),
+            ),
+            title: const Text(
+              'Configuración',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            subtitle: Text(
+              'Preferencias y opciones de la cuenta',
+              style: TextStyle(color: Colors.white.withAlpha(220)),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 16,
+              color: Colors.white,
+            ),
+            onTap: _openSettings,
+          ),
+        ),
       ],
     );
   }
@@ -344,23 +551,14 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: const Text('Perfil'),
-        actions: [
-          IconButton(
-            tooltip: 'Configuración',
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: _openSettings,
-          ),
-        ],
-      ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else ...[
             _buildProfileHeader(),
+            _buildActivityStats(),
             _buildProfileDetails(),
           ],
         ],
@@ -374,6 +572,56 @@ class _ProfilePageState extends State<ProfilePage> {
             _navigateToHome(index);
           }
         },
+      ),
+    );
+  }
+}
+
+class _ProfileStatCard extends StatelessWidget {
+  const _ProfileStatCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
+        decoration: BoxDecoration(
+          color: LoginStyles.softCream,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant.withAlpha(120),
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: LoginStyles.primaryGreen, size: 21),
+            const SizedBox(height: 7),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: LoginStyles.deepGreen,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ),
       ),
     );
   }
