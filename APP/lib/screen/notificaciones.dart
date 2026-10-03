@@ -26,28 +26,33 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   }
 
   Future<void> _loadNotifications() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     final user = _client.auth.currentUser;
     if (user == null) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
+      debugPrint('No se cargaron notificaciones: no hay una sesión iniciada.');
       return;
     }
 
     try {
       final rows = await _client
-          .from('notificaciones')
+          .from('notificaciones_alertas')
           .select('id, type, message, status, created_at')
-          .eq('user_id', user.id)
           .order('created_at', ascending: false);
       final sentRequests = await _client
-          .from('solicitudes')
+          .from('notificaciones_solicitudes')
           .select('id, users_id, target_id, created_at')
           .eq('users_id', user.id)
           .order('created_at', ascending: false);
       final receivedRequests = await _client
-          .from('solicitudes')
+          .from('notificaciones_solicitudes')
           .select('id, users_id, target_id, created_at')
           .eq('target_id', user.id)
           .order('created_at', ascending: false);
@@ -73,46 +78,22 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         };
         _isLoading = false;
       });
-    } on PostgrestException catch (_) {
-      return;
-    } catch (_) {
-      return;
-    }
-  }
-
-  Future<void> _markAsRead(Map<String, dynamic> notification) async {
-    if (notification['status'] == true) return;
-
-    try {
-      await _client
-          .from('notificaciones')
-          .update({'status': true})
-          .eq('id', notification['id']);
-      if (!mounted) return;
-      setState(() => notification['status'] = true);
-    } on PostgrestException catch (_) {
-      return;
-    }
-  }
-
-  Future<void> _markAllAsRead() async {
-    final user = _client.auth.currentUser;
-    if (user == null) return;
-
-    try {
-      await _client
-          .from('notificaciones')
-          .update({'status': true})
-          .eq('user_id', user.id)
-          .eq('status', false);
+    } on PostgrestException catch (error) {
+      debugPrint(
+        'No se pudieron cargar las notificaciones '
+        '(${error.code ?? 'Supabase'}): ${error.message}; '
+        'detalle: ${error.details}; sugerencia: ${error.hint}',
+      );
       if (!mounted) return;
       setState(() {
-        for (final notification in _notifications) {
-          notification['status'] = true;
-        }
+        _isLoading = false;
       });
-    } on PostgrestException catch (_) {
-      return;
+    } catch (error) {
+      debugPrint('No se pudieron cargar las notificaciones: $error');
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -148,7 +129,6 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         });
       }
       await _deleteRequestRows(request);
-      await _removeRequestNotification(request);
       if (!mounted) return;
       await _loadNotifications();
       _showMessage('Solicitud aceptada');
@@ -165,9 +145,6 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   Future<void> _deleteRequest(Map<String, dynamic> request) async {
     try {
       await _deleteRequestRows(request);
-      if (_isReceivedRequest(request)) {
-        await _removeRequestNotification(request);
-      }
       if (!mounted) return;
       await _loadNotifications();
       _showMessage('Solicitud eliminada');
@@ -181,7 +158,6 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   Future<void> _rejectRequest(Map<String, dynamic> request) async {
     try {
       await _deleteRequestRows(request);
-      await _removeRequestNotification(request);
 
       if (!mounted) return;
       await _loadNotifications();
@@ -195,48 +171,12 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
 
   Future<void> _deleteRequestRows(Map<String, dynamic> request) async {
     final deleted = await _client
-        .from('solicitudes')
+        .from('notificaciones_solicitudes')
         .delete()
         .eq('id', request['id'])
         .select('id');
 
     if (deleted.isEmpty) {
-      return;
-    }
-  }
-
-  bool _isReceivedRequest(Map<String, dynamic> request) {
-    final user = _client.auth.currentUser;
-    return user != null && request['target_id'].toString() == user.id;
-  }
-
-  Future<void> _removeRequestNotification(Map<String, dynamic> request) async {
-    final user = _client.auth.currentUser;
-    if (user == null) return;
-
-    final sender = _profiles[request['users_id'].toString()];
-    final senderName =
-        sender?['name']?.toString() ??
-        sender?['email']?.toString() ??
-        'Usuario';
-    await _client
-        .from('notificaciones')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('message', '$senderName te ha enviado una solicitud de amistad.');
-  }
-
-  Future<void> _deleteNotification(Map<String, dynamic> notification) async {
-    try {
-      await _client
-          .from('notificaciones')
-          .delete()
-          .eq('id', notification['id']);
-      if (!mounted) return;
-      setState(() => _notifications.remove(notification));
-    } on PostgrestException catch (_) {
-      return;
-    } catch (_) {
       return;
     }
   }
@@ -259,21 +199,9 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final unreadCount = _notifications
-        .where((notification) => notification['status'] != true)
-        .length;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notificaciones'),
-        actions: [
-          if (unreadCount > 0)
-            TextButton(
-              onPressed: _markAllAsRead,
-              child: const Text('Marcar todas'),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Notificaciones')),
       body: _isLoading
           ? const ContentStateView(isLoading: true)
           : _notifications.isEmpty &&
@@ -410,12 +338,6 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                       subtitle: Text(
                         '${notification['type'] ?? 'general'} · '
                         '${_dateLabel(notification['created_at'])}',
-                      ),
-                      onTap: () => _markAsRead(notification),
-                      trailing: IconButton(
-                        tooltip: 'Eliminar',
-                        onPressed: () => _deleteNotification(notification),
-                        icon: const Icon(Icons.delete_outline),
                       ),
                     ),
                   );

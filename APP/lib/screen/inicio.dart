@@ -78,18 +78,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'notificaciones',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: user.id,
-          ),
-          callback: (_) => _loadNotificationCount(),
-        )
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'solicitudes',
+          table: 'notificaciones_solicitudes',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'target_id',
@@ -105,23 +94,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (user == null) return;
 
     try {
-      final notifications = await _client
-          .from('notificaciones')
-          .select('id, type')
-          .eq('user_id', user.id);
       final receivedRequests = await _client
-          .from('solicitudes')
+          .from('notificaciones_solicitudes')
           .select('id')
           .eq('target_id', user.id);
       if (!mounted) return;
 
-      final otherNotificationCount = notifications
-          .where((notification) => notification['type'] != 'friend_request')
-          .length;
-      setState(
-        () => _notificationCount =
-            otherNotificationCount + receivedRequests.length,
-      );
+      setState(() => _notificationCount = receivedRequests.length);
     } on PostgrestException catch (error) {
       debugPrint('No se pudo cargar el conteo de notificaciones: $error');
     } catch (error) {

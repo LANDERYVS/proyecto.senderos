@@ -28,6 +28,12 @@ class _AmigosContentState extends State<AmigosContent> {
   }
 
   Future<void> _loadUsers() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
     final client = Supabase.instance.client;
     final currentUser = client.auth.currentUser;
 
@@ -36,18 +42,24 @@ class _AmigosContentState extends State<AmigosContent> {
       setState(() {
         _isLoading = false;
       });
+      debugPrint('No se cargaron personas: no hay sesión iniciada en Supabase.');
       return;
     }
 
+    var loadingStep = 'notificaciones_solicitudes';
     try {
-      final requests = await client
-          .from('solicitudes')
+      final sentRequests = await client
+          .from('notificaciones_solicitudes')
           .select('target_id')
           .eq('users_id', currentUser.id);
+
+      loadingStep = 'amistades';
       final friendships = await client
           .from('amistades')
           .select('users_id, target_id')
           .or('users_id.eq.${currentUser.id},target_id.eq.${currentUser.id}');
+
+      loadingStep = 'usuarios';
       final profiles = await client
           .from('usuarios')
           .select('id, name, email, user_photo')
@@ -59,31 +71,45 @@ class _AmigosContentState extends State<AmigosContent> {
         for (final profile in profiles)
           profile['id'].toString(): _Friend.fromMap(profile),
       };
+
       final addedFriendIds = friendships.map<String>((friendship) {
         final usersId = friendship['users_id'].toString();
         final targetId = friendship['target_id'].toString();
         return usersId == currentUser.id ? targetId : usersId;
       }).toSet();
+
+      final sentRequestIds = sentRequests
+          .map<String>((request) => request['target_id'].toString())
+          .toSet();
+
+      final visibleFriends = profilesById.values
+          .where((friend) => !addedFriendIds.contains(friend.id))
+          .toList();
+
       final addedFriends = addedFriendIds
           .map((friendId) => profilesById[friendId])
           .whereType<_Friend>()
           .toList();
+
       setState(() {
-        _friends = profilesById.values
-            .where((friend) => !addedFriendIds.contains(friend.id))
-            .toList();
+        _friends = visibleFriends;
         _addedFriends = addedFriends;
-        _sentRequestIds = requests
-            .map<String>((request) => request['target_id'].toString())
-            .toSet();
+        _sentRequestIds = sentRequestIds;
+        _requestingIds = <String>{};
         _isLoading = false;
       });
-    } on PostgrestException catch (_) {
+    } on PostgrestException catch (error) {
+      debugPrint(
+        'No se pudieron cargar personas desde $loadingStep '
+        '(${error.code ?? 'Supabase'}): ${error.message}; '
+        'detalle: ${error.details}; sugerencia: ${error.hint}',
+      );
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (error) {
+      debugPrint('No se pudieron cargar personas desde $loadingStep: $error');
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -100,7 +126,7 @@ class _AmigosContentState extends State<AmigosContent> {
 
     try {
       final existingRequest = await client
-          .from('solicitudes')
+          .from('notificaciones_solicitudes')
           .select('id')
           .eq('users_id', currentUser.id)
           .eq('target_id', friend.id)
@@ -108,7 +134,7 @@ class _AmigosContentState extends State<AmigosContent> {
           .maybeSingle();
 
       if (existingRequest == null) {
-        await client.from('solicitudes').insert({
+        await client.from('notificaciones_solicitudes').insert({
           'users_id': currentUser.id,
           'target_id': friend.id,
         });
@@ -121,10 +147,21 @@ class _AmigosContentState extends State<AmigosContent> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Solicitud enviada a ${friend.name}')),
       );
-    } on PostgrestException catch (_) {
-      return;
-    } catch (_) {
-      return;
+    } on PostgrestException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'No se pudo enviar la solicitud (${error.code ?? 'Supabase'}): '
+            '${error.message}',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo enviar la solicitud: $error')),
+      );
     } finally {
       if (mounted) {
         setState(() {
