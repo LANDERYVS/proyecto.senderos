@@ -160,11 +160,8 @@ Future<void> showLogroNotifications(
     if (!context.mounted) return;
     final achievement = achievements[index];
     AchievementView(
-      title: 'Logro desbloqueado',
-      subTitle: achievement.name,
-      content: achievement.description.isEmpty
-          ? null
-          : Text(achievement.description),
+      title: achievement.name,
+      subTitle: 'Logro desbloqueado',
       icon: const Icon(Icons.emoji_events_rounded, color: Colors.white),
       color: const Color(0xff4f683c),
       duration: const Duration(seconds: 3),

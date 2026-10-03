@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
+import '../services/logros_service.dart';
 import 'amigos.dart';
 import 'guardados.dart';
 import 'explorar.dart';
@@ -36,6 +37,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   String? _userPhotoUrl;
   RealtimeChannel? _notificationChannel;
   Timer? _notificationRefreshTimer;
+  Timer? _achievementRefreshTimer;
+  bool _checkingAchievements = false;
 
   @override
   void initState() {
@@ -44,10 +47,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _selectedIndex = widget.initialIndex.clamp(0, 4);
     _loadCurrentUserPhoto();
     _loadNotificationCount();
+    _checkAchievements();
     _subscribeToNotifications();
     _notificationRefreshTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _loadNotificationCount(),
+    );
+    _achievementRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkAchievements(),
     );
   }
 
@@ -55,6 +63,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _notificationRefreshTimer?.cancel();
+    _achievementRefreshTimer?.cancel();
     final channel = _notificationChannel;
     if (channel != null) {
       _client.removeChannel(channel);
@@ -66,6 +75,27 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _loadNotificationCount();
+      _checkAchievements();
+    }
+  }
+
+  Future<void> _checkAchievements() async {
+    if (!mounted || _checkingAchievements || _client.auth.currentUser == null) {
+      return;
+    }
+
+    _checkingAchievements = true;
+    LogrosSession? session;
+    try {
+      session = await LogrosService(client: _client).loadAndSync();
+      if (mounted && session.newlyUnlocked.isNotEmpty) {
+        await showLogroNotifications(context, session.newlyUnlocked);
+      }
+    } catch (error) {
+      debugPrint('No se pudieron comprobar los logros: $error');
+    } finally {
+      session?.controller.dispose();
+      _checkingAchievements = false;
     }
   }
 

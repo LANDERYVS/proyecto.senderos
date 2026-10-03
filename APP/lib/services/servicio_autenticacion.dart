@@ -38,6 +38,11 @@ class ServicioAutenticacion {
           ? null
           : 'No se pudo iniciar la sesión';
     } on AuthException catch (error) {
+      final message = error.message.toLowerCase();
+      if (message.contains('invalid login credentials') ||
+          error.code == 'invalid_credentials') {
+        return 'Email o contraseña incorrectos';
+      }
       return error.message;
     } on PostgrestException catch (error) {
       return 'Error al consultar el usuario: ${error.message}';
