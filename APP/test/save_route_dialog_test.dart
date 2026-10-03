@@ -38,6 +38,8 @@ void main() {
     expect(find.text('00:12:34'), findsOneWidget);
     expect(find.text('2.4 km'), findsOneWidget);
     expect(find.text('85 m'), findsOneWidget);
+    expect(find.text('Deporte *'), findsOneWidget);
+    expect(find.text('Senderismo'), findsOneWidget);
     expect(find.text('Fotos *'), findsOneWidget);
     expect(find.text('Guardar trayecto'), findsOneWidget);
   });

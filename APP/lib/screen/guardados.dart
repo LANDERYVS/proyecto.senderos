@@ -5,6 +5,7 @@ import '../models/explore_trail.dart';
 import '../models/saved_route.dart';
 import '../services/guardado_local.dart';
 import '../services/gpx_import.dart';
+import '../services/logros_service.dart';
 import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
@@ -42,6 +43,7 @@ class _SavedContentState extends State<SavedContent> {
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
   int _selectedTab = 0;
+  int _selectedSection = 0;
 
   @override
   void initState() {
@@ -243,6 +245,27 @@ class _SavedContentState extends State<SavedContent> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sendero "${route.name}" publicado')),
       );
+      try {
+        final session = await LogrosService().loadAndSync();
+        try {
+          if (mounted) {
+            await showLogroNotifications(context, session.newlyUnlocked);
+          }
+        } finally {
+          session.controller.dispose();
+        }
+      } on Object catch (error) {
+        debugPrint('No se pudieron sincronizar los logros: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Sendero publicado; no se pudieron actualizar los logros.',
+              ),
+            ),
+          );
+        }
+      }
     } on RoutePublishException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -287,7 +310,10 @@ class _SavedContentState extends State<SavedContent> {
   Widget _tabButton({required String label, required int index}) {
     final isSelected = _selectedTab == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
+      onTap: () => setState(() {
+        _selectedTab = index;
+        _selectedSection = 0;
+      }),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
@@ -312,17 +338,60 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  Widget _buildCategoryTabs() {
+    if (widget.downloadsOnly) return const SizedBox.shrink();
+
+    final labels = _selectedTab == 0
+        ? const ['Creados', 'Subidos']
+        : const ['Descargados', 'Favoritos'];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+      child: Row(
+        children: [
+          for (var index = 0; index < labels.length; index++)
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedSection = index),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: _selectedSection == index
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outlineVariant,
+                        width: _selectedSection == index ? 2 : 1,
+                      ),
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    labels[index],
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: _selectedSection == index
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: _selectedSection == index
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRouteList() {
     final localRoutes = _filteredRoutes;
     final remoteFavorites = widget.downloadsOnly
         ? const <ExploreTrail>[]
         : _filteredFavoriteTrails;
     if (localRoutes.isEmpty && remoteFavorites.isEmpty) {
-      return ContentStateView(
-        message: widget.downloadsOnly
-            ? 'Todavía no hay senderos descargados'
-            : 'No hay trayectos guardados',
-      );
+      return ContentStateView(message: _emptyRouteMessage);
     }
 
     return ListView.separated(
@@ -332,7 +401,8 @@ class _SavedContentState extends State<SavedContent> {
       itemBuilder: (context, index) {
         if (index < localRoutes.length) {
           final route = localRoutes[index];
-          if (widget.downloadsOnly) {
+          if (widget.downloadsOnly ||
+              (_selectedTab == 1 && _selectedSection == 0)) {
             return SenderoCard(
               trail: ExploreTrail.fromDownloadedMetadata(route.metadata ?? {}),
               isFavorite: false,
@@ -375,6 +445,7 @@ class _SavedContentState extends State<SavedContent> {
     name: route.name,
     description: route.description,
     difficulty: route.difficulty,
+    sport: route.metadata?['sport']?.toString() ?? 'Sin especificar',
     distanceKm: route.distanceKm ?? 0,
     elevation: _routeElevation(route),
     author: 'Mi sendero',
@@ -528,6 +599,7 @@ class _SavedContentState extends State<SavedContent> {
               onLengthChanged: (value) => setState(() => _lengthFilter = value),
             ),
             _buildRouteTabs(),
+            _buildCategoryTabs(),
             Expanded(child: _buildRouteList()),
           ],
         ),
@@ -541,7 +613,19 @@ class _SavedContentState extends State<SavedContent> {
     final routesForTab = widget.downloadsOnly
         ? _routes.where((route) => route.isAvailableOffline).toList()
         : _selectedTab == 0
-        ? _routes.where((route) => route.isCreatedByUser).toList()
+        ? _selectedSection == 0
+              ? _routes
+                    .where(
+                      (route) => route.isCreatedByUser && !route.uploadedToR2,
+                    )
+                    .toList()
+              : _routes
+                    .where(
+                      (route) => route.isCreatedByUser && route.uploadedToR2,
+                    )
+                    .toList()
+        : _selectedSection == 0
+        ? _routes.where((route) => route.isAvailableOffline).toList()
         : _routes
               .where(
                 (route) =>
@@ -575,7 +659,7 @@ class _SavedContentState extends State<SavedContent> {
   }
 
   List<ExploreTrail> get _filteredFavoriteTrails {
-    if (_selectedTab != 1) return const [];
+    if (_selectedTab != 1 || _selectedSection != 1) return const [];
     final query = widget.searchTerm.toLowerCase();
     return _favoriteTrails.where((trail) {
       final matchesSearch =
@@ -592,6 +676,18 @@ class _SavedContentState extends State<SavedContent> {
       };
       return matchesSearch && matchesDifficulty && matchesLength;
     }).toList();
+  }
+
+  String get _emptyRouteMessage {
+    if (widget.downloadsOnly) return 'Todavía no hay senderos descargados';
+    if (_selectedTab == 0) {
+      return _selectedSection == 0
+          ? 'Todavía no hay senderos creados'
+          : 'Todavía no hay senderos subidos';
+    }
+    return _selectedSection == 0
+        ? 'Todavía no hay senderos descargados'
+        : 'Todavía no hay senderos favoritos';
   }
 }
 

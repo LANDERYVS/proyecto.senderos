@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/compartir_ubicacion.dart';
 import '../services/gpx_import.dart';
@@ -436,6 +437,7 @@ class _ObservedTrailMap extends StatelessWidget {
     required this.points,
     required this.observers,
     required this.colorScheme,
+    this.mapKey,
     this.height = 132,
     this.interactive = false,
   });
@@ -443,6 +445,7 @@ class _ObservedTrailMap extends StatelessWidget {
   final List<LatLng> points;
   final List<ShareFriend> observers;
   final ColorScheme colorScheme;
+  final Key? mapKey;
   final double? height;
   final bool interactive;
 
@@ -468,6 +471,7 @@ class _ObservedTrailMap extends StatelessWidget {
 
     final map = ClipRect(
       child: FlutterMap(
+        key: mapKey,
         options: MapOptions(
           initialCenter: visiblePoints.first,
           initialZoom: 13,
@@ -592,6 +596,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
   Timer? _refreshTimer;
   bool _isRefreshing = false;
   bool _isLoadingRoute = false;
+  int _mapRevision = 0;
 
   @override
   void initState() {
@@ -632,21 +637,29 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
     }
   }
 
-  Future<void> _refreshLocations() async {
-    if (_isRefreshing || _group.observers.isEmpty) return;
-    _isRefreshing = true;
+  Future<void> _refreshLocations({bool refreshMap = false}) async {
+    if (_isRefreshing) return;
+    if (refreshMap) {
+      setState(() => _isRefreshing = true);
+    } else {
+      _isRefreshing = true;
+    }
     try {
-      final locations = await _locationService.loadLocations(
-        _group.observers.map((observer) => observer.id),
-      );
-      if (!mounted) return;
-      setState(() {
-        _group = _group.withObservers(
-          _group.observers
-              .map((observer) => observer.withLocation(locations[observer.id]))
-              .toList(),
+      if (_group.observers.isNotEmpty) {
+        final locations = await _locationService.loadLocations(
+          _group.observers.map((observer) => observer.id),
         );
-      });
+        if (!mounted) return;
+        setState(() {
+          _group = _group.withObservers(
+            _group.observers
+                .map(
+                  (observer) => observer.withLocation(locations[observer.id]),
+                )
+                .toList(),
+          );
+        });
+      }
     } on Exception catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -656,6 +669,31 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
       );
     } finally {
       _isRefreshing = false;
+      if (mounted && refreshMap) {
+        setState(() {
+          _mapRevision++;
+        });
+      }
+    }
+  }
+
+  Future<void> _callObserver(ShareFriend observer) async {
+    final phone = observer.phone?.replaceAll(RegExp(r'[^0-9+]'), '') ?? '';
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${observer.name} no tiene teléfono registrado.'),
+        ),
+      );
+      return;
+    }
+    final launched = await launchUrl(Uri(scheme: 'tel', path: phone));
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo abrir la aplicación de llamadas.'),
+        ),
+      );
     }
   }
 
@@ -668,8 +706,16 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
         actions: [
           IconButton(
             tooltip: 'Actualizar ubicaciones',
-            onPressed: _refreshLocations,
-            icon: const Icon(Icons.refresh),
+            onPressed: _isRefreshing
+                ? null
+                : () => _refreshLocations(refreshMap: true),
+            icon: _isRefreshing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh),
           ),
         ],
       ),
@@ -680,6 +726,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
               points: _routePoints,
               observers: _group.observers,
               colorScheme: colorScheme,
+              mapKey: ValueKey(_mapRevision),
               height: null,
               interactive: true,
             ),
@@ -708,6 +755,56 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
                   style: Theme.of(
                     context,
                   ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                height: 68,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _group.observers.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final observer = _group.observers[index];
+                    return Material(
+                      color: colorScheme.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      elevation: 3,
+                      child: SizedBox(
+                        width: 216,
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 10),
+                            DefaultUserAvatar(
+                              radius: 20,
+                              imageUrl: observer.photoUrl,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                observer.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelLarge,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Llamar a ${observer.name}',
+                              onPressed: () => _callObserver(observer),
+                              icon: const Icon(Icons.call_outlined),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

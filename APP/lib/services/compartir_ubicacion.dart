@@ -11,6 +11,7 @@ class ShareFriend {
     required this.name,
     required this.email,
     required this.friendshipId,
+    this.phone,
     this.photoUrl,
     this.location,
   });
@@ -22,11 +23,13 @@ class ShareFriend {
   }) {
     final name = profile['name']?.toString().trim();
     final email = profile['email']?.toString().trim() ?? '';
+    final phone = profile['telefono']?.toString().trim();
     return ShareFriend(
       id: profile['id'].toString(),
       name: name?.isNotEmpty == true ? name! : email,
       email: email,
       friendshipId: friendshipId,
+      phone: phone?.isNotEmpty == true ? phone : null,
       photoUrl: ExploreTrail.publicR2Url(profile['user_photo']?.toString()),
       location: location,
     );
@@ -36,6 +39,7 @@ class ShareFriend {
   final String name;
   final String email;
   final int friendshipId;
+  final String? phone;
   final String? photoUrl;
   final LatLng? location;
 
@@ -44,6 +48,7 @@ class ShareFriend {
     name: name,
     email: email,
     friendshipId: friendshipId,
+    phone: phone,
     photoUrl: photoUrl,
     location: value,
   );
@@ -111,7 +116,7 @@ class CompartirUbicacionService {
 
     final profiles = await _client
         .from('usuarios')
-        .select('id, name, email, user_photo')
+        .select('id, name, email, telefono, user_photo')
         .inFilter('id', friendIds);
     return profiles.map<ShareFriend>((profile) {
       return ShareFriend.fromMap(
@@ -165,7 +170,7 @@ class CompartirUbicacionService {
     final trailIds = trailIdsByFriendship.values.toSet().toList();
     final profiles = await _client
         .from('usuarios')
-        .select('id, name, email, user_photo')
+        .select('id, name, email, telefono, user_photo')
         .inFilter('id', friendIds);
     final trails = trailIds.isEmpty
         ? <Map<String, dynamic>>[]

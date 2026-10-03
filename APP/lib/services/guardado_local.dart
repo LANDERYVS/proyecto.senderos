@@ -39,11 +39,13 @@ class RouteStorageService {
     required List<LatLng> points,
     required String routeName,
     required String description,
+    required String sport,
     required String difficulty,
     required List<XFile> photos,
     required double distanceKm,
     required double elevationGainMeters,
     required double elevationLossMeters,
+    List<Map<String, dynamic>> waypoints = const [],
   }) async {
     if (points.isEmpty) return false;
 
@@ -95,11 +97,13 @@ $pointsXml
       jsonEncode({
         'name': routeName,
         'description': description,
+        'sport': sport,
         'difficulty': difficulty,
         'photos': savedPhotoPaths,
         'distanceKm': distanceKm,
         'elevationGainMeters': elevationGainMeters,
         'elevationLossMeters': elevationLossMeters,
+        'waypoints': waypoints,
         'createdByUser': true,
         'isFavorite': false,
         'createdAt': DateTime.now().toIso8601String(),
@@ -233,6 +237,9 @@ $pointsXml
                     as Map<String, dynamic>,
               )
             : <String, dynamic>{};
+        metadata
+          ..clear()
+          ..addAll(updatedMetadata);
         remoteGpxPath = updatedMetadata['gpx_key'] as String? ?? '';
         remotePhotoPaths =
             (updatedMetadata['r2_photo_paths'] as List<dynamic>?)
@@ -249,23 +256,51 @@ $pointsXml
       );
     }
 
+    final supabase = Supabase.instance.client;
+    final senderoData = {
+      'user_id': user.id,
+      'sendero_nick': route.name,
+      'descripcion': route.description,
+      'deporte': route.metadata?['sport'] as String? ?? 'Senderismo',
+      'dificultad': route.difficulty,
+      'distancia': route.metadata?['distanceKm'],
+      'gpx_key': remoteGpxPath,
+      'foto_sendero': remotePhotoPaths.isEmpty ? null : remotePhotoPaths.first,
+      'fecha_creacion': DateTime.now().toIso8601String(),
+    };
+
     try {
-      await Supabase.instance.client.from('senderos').insert({
-        'user_id': user.id,
-        'sendero_nick': route.name,
-        'descripcion': route.description,
-        'dificultad': route.difficulty,
-        'distancia': route.metadata?['distanceKm'],
-        'gpx_key': remoteGpxPath,
-        'foto_sendero': remotePhotoPaths.isEmpty
-            ? null
-            : remotePhotoPaths.first,
-        'fecha_creacion': DateTime.now().toIso8601String(),
-      });
+      var senderoId = (metadata['sendero_id'] as num?)?.toInt();
+      if (senderoId == null) {
+        final sendero = await supabase
+            .from('senderos')
+            .insert(senderoData)
+            .select('id')
+            .single();
+        senderoId = (sendero['id'] as num).toInt();
+        metadata['sendero_id'] = senderoId;
+        await metadataFile.writeAsString(jsonEncode(metadata));
+      }
+
+      final savedWaypoints = metadata['waypoints'] as List<dynamic>?;
+      if (savedWaypoints != null) {
+        await supabase.from('waypoint').delete().eq('sendero_id', senderoId);
+        if (savedWaypoints.isNotEmpty) {
+          await supabase.from('waypoint').insert([
+            for (final waypoint in savedWaypoints)
+              {
+                'sendero_id': senderoId,
+                'type': waypoint['type'],
+                'lat': waypoint['lat'],
+                'long': waypoint['long'],
+              },
+          ]);
+        }
+      }
     } on Exception catch (error) {
       throw RoutePublishException(
-        'Los archivos se subieron a R2, pero no se pudieron guardar los datos '
-        'del sendero en Supabase. ($error)',
+        'Los archivos se subieron a R2, pero no se pudieron guardar el sendero '
+        'o sus marcadores en Supabase. ($error)',
       );
     }
   }

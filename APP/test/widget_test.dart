@@ -15,6 +15,7 @@ void main() {
       'name': 'Ruta local',
       'description': 'Una descripción',
       'difficulty': 'Moderado',
+      'sport': 'Trail running',
       'distanceKm': 6.5,
       'photoUrl': 'senderos/ruta.jpg',
       'author': 'Senderista',
@@ -26,6 +27,7 @@ void main() {
     expect(trail.name, 'Ruta local');
     expect(trail.description, 'Una descripción');
     expect(trail.difficulty, 'Moderado');
+    expect(trail.sport, 'Trail running');
     expect(trail.distanceKm, 6.5);
     expect(trail.photoUrl, contains('/senderos/ruta.jpg'));
     expect(trail.author, 'Senderista');

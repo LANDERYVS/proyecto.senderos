@@ -12,6 +12,30 @@ import '../widgets/save_route_dialog.dart';
 import 'grabar_styles.dart';
 import 'localizacion.dart';
 
+enum GrabarMarkerType {
+  mirador(
+    'Mirador',
+    'vista',
+    Icons.camera_alt_outlined,
+    GrabarStyles.primaryGreen,
+  ),
+  bebedero(
+    'Bebedero',
+    'Bebedero',
+    Icons.water_drop_outlined,
+    GrabarStyles.primaryGreen,
+  ),
+  peligro('Peligro', 'peligro', Icons.warning_rounded, Color(0xffd73737)),
+  descanso('Descanso', 'descanso', Icons.weekend_outlined, Color(0xff7650a2));
+
+  const GrabarMarkerType(this.label, this.databaseType, this.icon, this.color);
+
+  final String label;
+  final String databaseType;
+  final IconData icon;
+  final Color color;
+}
+
 class GrabarController extends ChangeNotifier {
   final MapController mapController = MapController();
   final RouteCalculator routeCalculator = RouteCalculator();
@@ -32,6 +56,7 @@ class GrabarController extends ChangeNotifier {
   static const double userWeightKg = 70;
   static const double caloriesPerKgKm = 0.75;
   static const double minimumElevationChangeMeters = 2;
+  static const double minimumWaypointDistanceMeters = 8;
 
   bool isRecording = false;
   bool isPaused = false;
@@ -160,6 +185,28 @@ class GrabarController extends ChangeNotifier {
     }
   }
 
+  void addCurrentLocationMarker(BuildContext context, GrabarMarkerType type) {
+    if (markers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esperá a que se obtenga tu ubicación GPS.'),
+        ),
+      );
+      return;
+    }
+
+    final point = markers.first.point;
+    if (_hasWaypointNear(point)) {
+      _showExistingWaypointMessage(context);
+      return;
+    }
+
+    interestPoints.add(
+      GrabarInterestPoint(point: point, name: type.label, type: type),
+    );
+    notifyListeners();
+  }
+
   double get estimatedCalories => distanceKm * userWeightKg * caloriesPerKgKm;
 
   void _recordElevationChange(double altitude) {
@@ -178,6 +225,18 @@ class GrabarController extends ChangeNotifier {
     } else {
       elevationLossMeters += change.abs();
     }
+  }
+
+  bool _hasWaypointNear(LatLng point) => interestPoints.any(
+    (waypoint) =>
+        routeCalculator.calculateIncrementMeters(waypoint.point, point) <=
+        minimumWaypointDistanceMeters,
+  );
+
+  void _showExistingWaypointMessage(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ya hay un marcador en esa posición.')),
+    );
   }
 
   double? _validAltitude(double altitude) =>
@@ -254,11 +313,20 @@ class GrabarController extends ChangeNotifier {
         points: recordedRoute,
         routeName: details.name,
         description: details.description,
+        sport: details.sport,
         difficulty: details.difficulty,
         photos: details.photos,
         distanceKm: distanceKm,
         elevationGainMeters: elevationGainMeters,
         elevationLossMeters: elevationLossMeters,
+        waypoints: [
+          for (final waypoint in interestPoints)
+            {
+              'type': waypoint.type?.databaseType ?? waypoint.name,
+              'lat': waypoint.point.latitude,
+              'long': waypoint.point.longitude,
+            },
+        ],
       );
       if (saved && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -313,6 +381,10 @@ class GrabarController extends ChangeNotifier {
           content: Text('El punto debe estar sobre el camino trazado'),
         ),
       );
+      return;
+    }
+    if (_hasWaypointNear(routePoint)) {
+      _showExistingWaypointMessage(context);
       return;
     }
 
@@ -377,8 +449,13 @@ class GrabarController extends ChangeNotifier {
 }
 
 class GrabarInterestPoint {
-  const GrabarInterestPoint({required this.point, required this.name});
+  const GrabarInterestPoint({
+    required this.point,
+    required this.name,
+    this.type,
+  });
 
   final LatLng point;
   final String name;
+  final GrabarMarkerType? type;
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/explore_trail.dart';
 import '../screen/detalle_sendero.dart';
+import 'default_user_avatar.dart';
 
 class SenderoCard extends StatelessWidget {
   const SenderoCard({
@@ -78,25 +79,22 @@ class SenderoCard extends StatelessWidget {
                   Positioned(
                     top: 10,
                     left: 10,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
+                    right: 60,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _TrailInfoBadge(
+                          icon: Icons.directions_walk_outlined,
+                          label: trail.sport,
+                          colorScheme: colorScheme,
                         ),
-                        child: Text(
-                          trail.difficulty,
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
+                        _TrailInfoBadge(
+                          icon: Icons.terrain,
+                          label: trail.difficulty,
+                          colorScheme: colorScheme,
                         ),
-                      ),
+                      ],
                     ),
                   ),
                   Positioned(
@@ -163,13 +161,15 @@ class SenderoCard extends StatelessWidget {
                   ],
                   Row(
                     children: [
-                      if (trail.authorPhotoUrl != null) ...[
-                        CircleAvatar(
+                      SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: DefaultUserAvatar(
                           radius: 11,
-                          backgroundImage: NetworkImage(trail.authorPhotoUrl!),
+                          imageUrl: trail.authorPhotoUrl,
                         ),
-                        const SizedBox(width: 6),
-                      ],
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           trail.author,
@@ -199,6 +199,48 @@ class SenderoCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TrailInfoBadge extends StatelessWidget {
+  const _TrailInfoBadge({
+    required this.icon,
+    required this.label,
+    required this.colorScheme,
+  });
+
+  final IconData icon;
+  final String label;
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: colorScheme.primary),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

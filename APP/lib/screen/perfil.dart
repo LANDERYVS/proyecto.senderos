@@ -12,6 +12,7 @@ import '../models/explore_trail.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
+import 'logros_screen.dart';
 import '../widgets/barra_navegacion.dart';
 import '../widgets/default_user_avatar.dart';
 
@@ -134,6 +135,13 @@ class _ProfilePageState extends State<ProfilePage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const GrabarPage()),
+    );
+  }
+
+  void _openAchievements() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LogrosScreen()),
     );
   }
 
@@ -309,6 +317,13 @@ class _ProfilePageState extends State<ProfilePage> {
           leading: const Icon(Icons.email_outlined),
           title: const Text('Correo electrónico'),
           subtitle: Text(_email),
+        ),
+        ListTile(
+          leading: const Icon(Icons.emoji_events_outlined),
+          title: const Text('Mis logros'),
+          subtitle: const Text('Progreso y logros desbloqueados'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: _openAchievements,
         ),
         if (_profile?['premium'] == true)
           const ListTile(

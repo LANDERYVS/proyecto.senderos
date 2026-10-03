@@ -10,6 +10,7 @@ class ExploreTrail {
     required this.name,
     required this.description,
     required this.difficulty,
+    this.sport = 'Sin especificar',
     required this.distanceKm,
     required this.elevation,
     required this.author,
@@ -26,6 +27,7 @@ class ExploreTrail {
   }) {
     final userId = map['user_id']?.toString() ?? 'Usuario desconocido';
     final name = map['sendero_nick']?.toString().trim() ?? '';
+    final sport = map['deporte']?.toString().trim();
     final photo = publicR2Url(map['foto_sendero']?.toString());
     final authorName = userNames[userId] ?? userId;
     final authorPhoto = publicR2Url(userPhotos[userId]);
@@ -36,6 +38,7 @@ class ExploreTrail {
       name: name.isEmpty ? 'Sendero sin nombre' : name,
       description: map['descripcion']?.toString() ?? '',
       difficulty: map['dificultad']?.toString() ?? 'Sin dificultad',
+      sport: sport?.isNotEmpty == true ? sport! : 'Sin especificar',
       distanceKm: (map['distancia'] as num?)?.toDouble() ?? 0,
       elevation: 'Desnivel no disponible',
       author: authorName,
@@ -54,6 +57,7 @@ class ExploreTrail {
       name: name == null || name.isEmpty ? 'Sendero sin nombre' : name,
       description: metadata['description']?.toString() ?? '',
       difficulty: metadata['difficulty']?.toString() ?? 'Sin dificultad',
+      sport: metadata['sport']?.toString() ?? 'Sin especificar',
       distanceKm: (metadata['distanceKm'] as num?)?.toDouble() ?? 0,
       elevation: metadata['elevation']?.toString() ?? 'Desnivel no disponible',
       author: author == null || author.isEmpty ? 'Sendero descargado' : author,
@@ -78,6 +82,7 @@ class ExploreTrail {
   final String name;
   final String description;
   final String difficulty;
+  final String sport;
   final double distanceKm;
   final String elevation;
   final String author;

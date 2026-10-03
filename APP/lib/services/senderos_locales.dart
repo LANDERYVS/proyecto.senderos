@@ -125,6 +125,7 @@ class SenderosLocalesService {
         ..['name'] = trail.name
         ..['description'] = trail.description
         ..['difficulty'] = trail.difficulty
+        ..['sport'] = trail.sport
         ..['distanceKm'] = trail.distanceKm
         ..['photoUrl'] = trail.photoUrl
         ..['author'] = trail.author
@@ -158,6 +159,7 @@ class SenderosLocalesService {
           'name': trail.name,
           'description': trail.description,
           'difficulty': trail.difficulty,
+          'sport': trail.sport,
           'distanceKm': trail.distanceKm,
           'createdByUser': false,
           'isFavorite': false,

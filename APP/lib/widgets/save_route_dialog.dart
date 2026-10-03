@@ -15,6 +15,7 @@ Future<RouteDetails?> showSaveRouteDialog(
   final descriptionController = TextEditingController();
   final imagePicker = ImagePicker();
   final photos = <XFile>[];
+  var sport = 'Senderismo';
   var difficulty = 'Fácil';
   String? validationMessage;
 
@@ -113,6 +114,30 @@ Future<RouteDetails?> showSaveRouteDialog(
                 ),
               ),
               const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                initialValue: sport,
+                decoration: const InputDecoration(labelText: 'Deporte *'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Senderismo',
+                    child: Text('Senderismo'),
+                  ),
+                  DropdownMenuItem(value: 'Ciclismo', child: Text('Ciclismo')),
+                  DropdownMenuItem(
+                    value: 'Trail running',
+                    child: Text('Trail running'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Cabalgata',
+                    child: Text('Cabalgata'),
+                  ),
+                  DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialogState(() => sport = value);
+                },
+              ),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: difficulty,
                 decoration: const InputDecoration(labelText: 'Dificultad *'),
@@ -262,6 +287,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                 RouteDetails(
                   name: name,
                   description: descriptionController.text.trim(),
+                  sport: sport,
                   difficulty: difficulty,
                   photos: List.of(photos),
                 ),
