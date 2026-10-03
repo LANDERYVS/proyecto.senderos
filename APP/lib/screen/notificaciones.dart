@@ -16,6 +16,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   List<Map<String, dynamic>> _sentRequests = const [];
   List<Map<String, dynamic>> _receivedRequests = const [];
   Map<String, Map<String, dynamic>> _profiles = const {};
+  final Set<String> _processingRequestIds = {};
   bool _isLoading = true;
 
   @override
@@ -116,20 +117,48 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   }
 
   Future<void> _acceptRequest(Map<String, dynamic> request) async {
+    final requestId = request['id'].toString();
+    if (!_processingRequestIds.add(requestId)) return;
+    if (mounted) setState(() {});
+
     try {
-      await _client.from('amistades').insert({
-        'users_id': request['users_id'],
-        'target_id': request['target_id'],
-      });
+      final usersId = request['users_id'].toString();
+      final targetId = request['target_id'].toString();
+      final existingFriendship = await _client
+          .from('amistades')
+          .select('id')
+          .eq('users_id', usersId)
+          .eq('target_id', targetId)
+          .limit(1)
+          .maybeSingle();
+      final existingReverseFriendship = existingFriendship == null
+          ? await _client
+                .from('amistades')
+                .select('id')
+                .eq('users_id', targetId)
+                .eq('target_id', usersId)
+                .limit(1)
+                .maybeSingle()
+          : null;
+
+      if (existingFriendship == null && existingReverseFriendship == null) {
+        await _client.from('amistades').insert({
+          'users_id': request['users_id'],
+          'target_id': request['target_id'],
+        });
+      }
       await _deleteRequestRows(request);
       await _removeRequestNotification(request);
       if (!mounted) return;
       await _loadNotifications();
       _showMessage('Solicitud aceptada');
-    } on PostgrestException catch (_) {
-      return;
-    } catch (_) {
-      return;
+    } on PostgrestException catch (error) {
+      _showMessage('No se pudo aceptar la solicitud: ${error.message}');
+    } catch (error) {
+      _showMessage('No se pudo aceptar la solicitud: $error');
+    } finally {
+      _processingRequestIds.remove(requestId);
+      if (mounted) setState(() {});
     }
   }
 
@@ -194,7 +223,6 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         .from('notificaciones')
         .delete()
         .eq('user_id', user.id)
-        .eq('type', 'friend_request')
         .eq('message', '$senderName te ha enviado una solicitud de amistad.');
   }
 
@@ -264,6 +292,9 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                 itemBuilder: (context, index) {
                   if (index < _receivedRequests.length) {
                     final request = _receivedRequests[index];
+                    final isProcessing = _processingRequestIds.contains(
+                      request['id'].toString(),
+                    );
                     final sender = _profiles[request['users_id'].toString()];
                     return Card(
                       margin: EdgeInsets.zero,
@@ -293,18 +324,34 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                               runSpacing: 4,
                               children: [
                                 TextButton.icon(
-                                  onPressed: () => _acceptRequest(request),
-                                  icon: const Icon(Icons.check, size: 16),
-                                  label: const Text('Aceptar'),
+                                  onPressed: isProcessing
+                                      ? null
+                                      : () => _acceptRequest(request),
+                                  icon: isProcessing
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.check, size: 16),
+                                  label: Text(
+                                    isProcessing ? 'Procesando...' : 'Aceptar',
+                                  ),
                                 ),
                                 TextButton.icon(
-                                  onPressed: () => _rejectRequest(request),
+                                  onPressed: isProcessing
+                                      ? null
+                                      : () => _rejectRequest(request),
                                   icon: const Icon(Icons.close, size: 16),
                                   label: const Text('Rechazar'),
                                 ),
                                 IconButton(
                                   tooltip: 'Eliminar',
-                                  onPressed: () => _deleteRequest(request),
+                                  onPressed: isProcessing
+                                      ? null
+                                      : () => _deleteRequest(request),
                                   icon: const Icon(Icons.delete_outline),
                                 ),
                               ],

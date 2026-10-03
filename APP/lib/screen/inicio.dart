@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,28 +24,117 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+  final _client = Supabase.instance.client;
   late int _selectedIndex;
   int _communityVersion = 0;
+  int _notificationCount = 0;
   String _exploreSearchTerm = '';
   String _friendsSearchTerm = '';
   String _savedSearchTerm = '';
   bool _filtersExpanded = false;
   String? _userPhotoUrl;
+  RealtimeChannel? _notificationChannel;
+  Timer? _notificationRefreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialIndex.clamp(0, 4);
     _loadCurrentUserPhoto();
+    _loadNotificationCount();
+    _subscribeToNotifications();
+    _notificationRefreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadNotificationCount(),
+    );
   }
 
-  Future<void> _loadCurrentUserPhoto() async {
-    final user = Supabase.instance.client.auth.currentUser;
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationRefreshTimer?.cancel();
+    final channel = _notificationChannel;
+    if (channel != null) {
+      _client.removeChannel(channel);
+    }
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadNotificationCount();
+    }
+  }
+
+  void _subscribeToNotifications() {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    _notificationChannel = _client
+        .channel('notifications:${user.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notificaciones',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: user.id,
+          ),
+          callback: (_) => _loadNotificationCount(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'solicitudes',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'target_id',
+            value: user.id,
+          ),
+          callback: (_) => _loadNotificationCount(),
+        )
+        .subscribe();
+  }
+
+  Future<void> _loadNotificationCount() async {
+    final user = _client.auth.currentUser;
     if (user == null) return;
 
     try {
-      final profile = await Supabase.instance.client
+      final notifications = await _client
+          .from('notificaciones')
+          .select('id, type')
+          .eq('user_id', user.id);
+      final receivedRequests = await _client
+          .from('solicitudes')
+          .select('id')
+          .eq('target_id', user.id);
+      if (!mounted) return;
+
+      final otherNotificationCount = notifications
+          .where((notification) => notification['type'] != 'friend_request')
+          .length;
+      setState(
+        () => _notificationCount =
+            otherNotificationCount + receivedRequests.length,
+      );
+    } on PostgrestException catch (error) {
+      debugPrint('No se pudo cargar el conteo de notificaciones: $error');
+    } catch (error) {
+      debugPrint('No se pudo cargar el conteo de notificaciones: $error');
+    }
+  }
+
+  Future<void> _loadCurrentUserPhoto() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final profile = await _client
           .from('usuarios')
           .select('user_photo')
           .eq('id', user.id)
@@ -199,7 +290,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 8),
                 IconButton(
                   tooltip: 'Notificaciones',
-                  icon: const Icon(Icons.notifications_none_outlined),
+                  icon: _buildNotificationIcon(),
                   onPressed: () async {
                     await Navigator.push(
                       context,
@@ -207,6 +298,8 @@ class _HomePageState extends State<HomePage> {
                         builder: (_) => const NotificacionesScreen(),
                       ),
                     );
+                    if (!mounted) return;
+                    await _loadNotificationCount();
                     if (!mounted) return;
                     setState(() => _communityVersion++);
                   },
@@ -220,6 +313,44 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: buildNavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _selectDestination,
+      ),
+    );
+  }
+
+  Widget _buildNotificationIcon() {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Align(
+            alignment: Alignment.center,
+            child: Icon(Icons.notifications_none_outlined),
+          ),
+          if (_notificationCount > 0)
+            Positioned(
+              top: -4,
+              right: -8,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  _notificationCount > 99 ? '99+' : '$_notificationCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

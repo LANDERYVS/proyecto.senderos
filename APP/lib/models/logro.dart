@@ -7,10 +7,7 @@ class Logro {
     required this.target,
   });
 
-  factory Logro.fromMap(
-    Map<String, dynamic> map, {
-    int? totalAchievements,
-  }) {
+  factory Logro.fromMap(Map<String, dynamic> map, {int? totalAchievements}) {
     final requirement = map['requisito']?.toString().trim() ?? '';
     final isAllAchievements = requirement.toLowerCase() == 'todos_los_logros';
     return Logro(

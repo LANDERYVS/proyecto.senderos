@@ -114,31 +114,6 @@ class _AmigosContentState extends State<AmigosContent> {
         });
       }
 
-      final senderName =
-          currentUser.userMetadata?['name']?.toString() ??
-          currentUser.email ??
-          'Alguien';
-      final notificationMessage =
-          '$senderName te ha enviado una solicitud de amistad.';
-      final existingNotification = await client
-          .from('notificaciones')
-          .select('id')
-          .eq('user_id', friend.id)
-          .eq('type', 'friend_request')
-          .eq('status', false)
-          .eq('message', notificationMessage)
-          .limit(1)
-          .maybeSingle();
-
-      if (existingNotification == null) {
-        await client.from('notificaciones').insert({
-          'user_id': friend.id,
-          'type': 'friend_request',
-          'message': notificationMessage,
-          'status': false,
-        });
-      }
-
       if (!mounted) return;
       setState(() {
         _sentRequestIds = {..._sentRequestIds, friend.id};
@@ -186,21 +161,16 @@ class _AmigosContentState extends State<AmigosContent> {
     if (shouldRemove != true) return;
 
     try {
-      final directMatch = await client
+      await client
           .from('amistades')
           .delete()
           .eq('users_id', currentUser.id)
-          .eq('target_id', friend.id)
-          .select();
-
-      if (directMatch.isEmpty) {
-        await client
-            .from('amistades')
-            .delete()
-            .eq('users_id', friend.id)
-            .eq('target_id', currentUser.id)
-            .select();
-      }
+          .eq('target_id', friend.id);
+      await client
+          .from('amistades')
+          .delete()
+          .eq('users_id', friend.id)
+          .eq('target_id', currentUser.id);
 
       if (!mounted) return;
       setState(() {
