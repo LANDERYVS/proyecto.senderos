@@ -239,41 +239,45 @@ class _AmigosContentState extends State<AmigosContent> {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        const SizedBox(height: 8),
-        _buildSectionHeader('Agregar personas'),
-        const SizedBox(height: 4),
-        if (_isLoading)
-          const Center(child: CircularProgressIndicator())
-        else if (_filteredFriends.isEmpty)
-          const Text('No encontramos personas con esa búsqueda.')
-        else
-          for (final friend in _filteredFriends)
-            _FriendTile(
-              friend: friend,
-              requestSent: _sentRequestIds.contains(friend.id),
-              isSending: _requestingIds.contains(friend.id),
-              onSendRequest: () => _sendRequest(friend),
-            ),
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 20),
-          child: Divider(),
-        ),
-        _buildSectionHeader('Agregados'),
-        const SizedBox(height: 8),
-        if (_addedFriends.isEmpty)
-          const Text('Aquí aparecerán las personas que acepten tu solicitud.')
-        else
-          for (final friend in _addedFriends)
-            _AddedFriendTile(
-              friend: friend,
-              onRemoveFriend: () => _removeFriend(friend),
-            ),
-        const SizedBox(height: 16),
-        _buildCommunityInfoCard(colors),
-      ],
+    return RefreshIndicator(
+      onRefresh: _loadUsers,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 8),
+          _buildSectionHeader('Agregar personas'),
+          const SizedBox(height: 4),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_filteredFriends.isEmpty)
+            const Text('No encontramos personas con esa búsqueda.')
+          else
+            for (final friend in _filteredFriends)
+              _FriendTile(
+                friend: friend,
+                requestSent: _sentRequestIds.contains(friend.id),
+                isSending: _requestingIds.contains(friend.id),
+                onSendRequest: () => _sendRequest(friend),
+              ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Divider(),
+          ),
+          _buildSectionHeader('Agregados'),
+          const SizedBox(height: 8),
+          if (_addedFriends.isEmpty)
+            const Text('Aquí aparecerán las personas que acepten tu solicitud.')
+          else
+            for (final friend in _addedFriends)
+              _AddedFriendTile(
+                friend: friend,
+                onRemoveFriend: () => _removeFriend(friend),
+              ),
+          const SizedBox(height: 16),
+          _buildCommunityInfoCard(colors),
+        ],
+      ),
     );
   }
 

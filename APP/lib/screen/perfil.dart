@@ -363,13 +363,6 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildProfileHeader(),
             _buildProfileDetails(),
           ],
-          const Divider(),
-          const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.arrow_back),
-            title: const Text('Volver al mapa'),
-            onTap: () => Navigator.pop(context),
-          ),
         ],
       ),
       bottomNavigationBar: buildNavigationBar(

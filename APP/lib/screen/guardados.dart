@@ -421,12 +421,13 @@ class _SavedContentState extends State<SavedContent> {
               topAction: _createdRouteMenu(route),
             );
           }
-          return _SavedRouteCard(
-            route: route,
-            onOpen: () => _openSavedRoute(route),
-            onShare: () => _shareRoute(route),
-            onPublish: () => _publishRoute(route),
-            onDelete: () => _deleteRoute(route),
+          final trail = _favoriteRouteTrail(route);
+          return SenderoCard(
+            trail: trail,
+            isFavorite: true,
+            isSavingFavorite: false,
+            onFavorite: () => _removeFavorite(trail),
+            topAction: _downloadedRouteMenu(route),
           );
         }
 
@@ -454,6 +455,32 @@ class _SavedContentState extends State<SavedContent> {
         ? null
         : '${route.file.parent.path}${Platform.pathSeparator}${route.photos.first}',
   );
+
+  ExploreTrail _favoriteRouteTrail(SavedRoute route) {
+    final metadata = route.metadata ?? {};
+    final senderoId = route.favoriteSenderoId;
+    final photoPath = route.photos.isEmpty
+        ? null
+        : '${route.file.parent.path}${Platform.pathSeparator}${route.photos.first}';
+
+    return ExploreTrail(
+      id: senderoId,
+      userId: metadata['userId']?.toString(),
+      name: route.name,
+      description: route.description,
+      difficulty: route.difficulty,
+      sport: metadata['sport']?.toString() ?? 'Sin especificar',
+      distanceKm: route.distanceKm ?? 0,
+      elevation: metadata['elevation']?.toString() ?? 'Desnivel no disponible',
+      author: metadata['author']?.toString() ?? 'Sendero guardado',
+      authorPhotoUrl: ExploreTrail.publicR2Url(
+        metadata['authorPhotoUrl']?.toString(),
+      ),
+      photoUrl: ExploreTrail.publicR2Url(route.photoUrl),
+      localPhotoPath: photoPath,
+      gpxKey: route.favoriteSourceKey ?? route.downloadedSourceKey,
+    );
+  }
 
   String _routeElevation(SavedRoute route) {
     final gain = (route.metadata?['elevationGainMeters'] as num?)?.toDouble();
@@ -555,8 +582,6 @@ class _SavedContentState extends State<SavedContent> {
             _deleteRoute(route);
           case _SavedRouteAction.share:
             _shareRoute(route);
-          case _SavedRouteAction.publish:
-            break;
         }
       },
       itemBuilder: (context) => const [
@@ -703,101 +728,6 @@ class DownloadedTrailsScreen extends StatelessWidget {
   }
 }
 
-enum _SavedRouteAction { publish, delete, share }
+enum _SavedRouteAction { delete, share }
 
 enum _CreatedRouteAction { edit, publish, delete, share }
-
-class _SavedRouteCard extends StatelessWidget {
-  const _SavedRouteCard({
-    required this.route,
-    required this.onOpen,
-    required this.onShare,
-    required this.onPublish,
-    required this.onDelete,
-  });
-
-  final SavedRoute route;
-  final VoidCallback onOpen;
-  final VoidCallback onShare;
-  final VoidCallback onPublish;
-  final VoidCallback onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    final firstPhoto = route.photos.isNotEmpty
-        ? File('${route.file.parent.path}/${route.photos.first}')
-        : null;
-
-    return Card(
-      child: ListTile(
-        onTap: onOpen,
-        leading: firstPhoto != null && firstPhoto.existsSync()
-            ? Image.file(firstPhoto, width: 52, height: 52, fit: BoxFit.cover)
-            : route.photoUrl != null
-            ? Image.network(
-                route.photoUrl!,
-                width: 52,
-                height: 52,
-                fit: BoxFit.cover,
-                errorBuilder: (_, error, stackTrace) =>
-                    const Icon(Icons.folder, color: Colors.amber),
-              )
-            : const Icon(Icons.folder, color: Colors.amber),
-        title: Text(route.name),
-        subtitle: Text(
-          '${route.description.isNotEmpty ? '${route.description}\n' : ''}'
-          '${route.difficulty} | ${route.photos.length} fotos | Archivo GPX',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: PopupMenuButton<_SavedRouteAction>(
-          tooltip: 'Más opciones',
-          icon: const Icon(Icons.more_vert),
-          onSelected: (value) {
-            switch (value) {
-              case _SavedRouteAction.publish:
-                onPublish();
-              case _SavedRouteAction.delete:
-                onDelete();
-              case _SavedRouteAction.share:
-                onShare();
-            }
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: _SavedRouteAction.publish,
-              enabled: route.isCreatedByUser,
-              child: const Row(
-                children: [
-                  Icon(Icons.cloud_upload_outlined),
-                  SizedBox(width: 8),
-                  Text('Subir sendero'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: _SavedRouteAction.delete,
-              child: Row(
-                children: [
-                  Icon(Icons.delete_outline, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Borrar', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: _SavedRouteAction.share,
-              child: Row(
-                children: [
-                  Icon(Icons.share_outlined),
-                  SizedBox(width: 8),
-                  Text('Compartir'),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

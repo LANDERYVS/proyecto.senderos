@@ -16,7 +16,6 @@ import '../services/senderos_locales.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/clima_sendero_card.dart';
 import '../widgets/route_polyline_map.dart';
-import 'guardados.dart';
 import 'seguir_sendero.dart';
 
 class DetalleSenderoScreen extends StatefulWidget {
@@ -467,13 +466,6 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     );
   }
 
-  void _openDownloadedTrails() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const DownloadedTrailsScreen()),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -551,15 +543,6 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
                       ? 'Ruta no disponible'
                       : 'Descargar GPX y mapa',
                 ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: TextButton.icon(
-                onPressed: _openDownloadedTrails,
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const Text('Ver descargados'),
               ),
             ),
             const SizedBox(height: 20),

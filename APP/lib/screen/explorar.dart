@@ -172,58 +172,66 @@ class _ExploreContentState extends State<ExploreContent> {
 
     return Stack(
       children: [
-        CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: FilterBar(
-                showSearchField: false,
-                showFilters: widget.showFilters,
-                onSearch: widget.onSearchChanged,
-                onDifficultyChanged: (value) =>
-                    setState(() => _difficultyFilter = value),
-                onLengthChanged: (value) =>
-                    setState(() => _lengthFilter = value),
-              ),
-            ),
-            if (_isLoading)
-              const SliverFillRemaining(
-                child: ContentStateView(isLoading: true),
-              )
-            else if (_loadError != null)
-              SliverFillRemaining(
-                child: ContentStateView(
-                  message: _loadError!,
-                  onRetry: _loadTrails,
-                ),
-              )
-            else if (visibleTrails.isEmpty)
-              const SliverFillRemaining(
-                child: ContentStateView(message: 'No se encontraron senderos'),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-                sliver: SliverList.separated(
-                  itemCount: visibleTrails.length,
-                  separatorBuilder: (context, _) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final trail = visibleTrails[index];
-                    final senderoId = trail.id;
-                    return SenderoCard(
-                      trail: trail,
-                      isFavorite:
-                          senderoId != null && _favoriteIds.contains(senderoId),
-                      isSavingFavorite:
-                          senderoId != null &&
-                          _savingFavoriteIds.contains(senderoId),
-                      onFavorite: senderoId == null
-                          ? null
-                          : () => _toggleFavorite(trail),
-                    );
-                  },
+        RefreshIndicator(
+          onRefresh: _loadTrails,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: FilterBar(
+                  showSearchField: false,
+                  showFilters: widget.showFilters,
+                  onSearch: widget.onSearchChanged,
+                  onDifficultyChanged: (value) =>
+                      setState(() => _difficultyFilter = value),
+                  onLengthChanged: (value) =>
+                      setState(() => _lengthFilter = value),
                 ),
               ),
-          ],
+              if (_isLoading)
+                const SliverFillRemaining(
+                  child: ContentStateView(isLoading: true),
+                )
+              else if (_loadError != null)
+                SliverFillRemaining(
+                  child: ContentStateView(
+                    message: _loadError!,
+                    onRetry: _loadTrails,
+                  ),
+                )
+              else if (visibleTrails.isEmpty)
+                const SliverFillRemaining(
+                  child: ContentStateView(
+                    message: 'No se encontraron senderos',
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                  sliver: SliverList.separated(
+                    itemCount: visibleTrails.length,
+                    separatorBuilder: (context, _) =>
+                        const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      final trail = visibleTrails[index];
+                      final senderoId = trail.id;
+                      return SenderoCard(
+                        trail: trail,
+                        isFavorite:
+                            senderoId != null &&
+                            _favoriteIds.contains(senderoId),
+                        isSavingFavorite:
+                            senderoId != null &&
+                            _savingFavoriteIds.contains(senderoId),
+                        onFavorite: senderoId == null
+                            ? null
+                            : () => _toggleFavorite(trail),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
         Positioned(
           right: 20,
