@@ -17,15 +17,30 @@ class DefaultUserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalizedUrl = ExploreTrail.publicR2Url(imageUrl?.trim());
-    final ImageProvider<Object> resolvedImage =
-        (normalizedUrl != null && normalizedUrl.isNotEmpty)
-        ? NetworkImage(normalizedUrl)
-        : const AssetImage('assets/usuario.png');
+    final image = normalizedUrl != null && normalizedUrl.isNotEmpty
+        ? Image.network(
+            normalizedUrl,
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Image.asset(
+              'assets/usuario.png',
+              width: radius * 2,
+              height: radius * 2,
+              fit: BoxFit.cover,
+            ),
+          )
+        : Image.asset(
+            'assets/usuario.png',
+            width: radius * 2,
+            height: radius * 2,
+            fit: BoxFit.cover,
+          );
 
     return CircleAvatar(
       radius: radius,
       backgroundColor: backgroundColor ?? Colors.transparent,
-      backgroundImage: resolvedImage,
+      child: ClipOval(child: image),
     );
   }
 }

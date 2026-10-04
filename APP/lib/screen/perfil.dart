@@ -7,7 +7,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/almacenamiento_r2.dart';
-import '../services/servicio_autenticacion.dart';
 import '../models/explore_trail.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
@@ -59,34 +58,33 @@ class _ProfilePageState extends State<ProfilePage> {
       return;
     }
 
-    try {
-      await ServicioAutenticacion.syncCurrentUserProfile();
+    final fallbackProfile = {
+      'name':
+          user.userMetadata?['name'] ??
+          user.userMetadata?['username'] ??
+          user.email ??
+          'Usuario',
+      'email': user.email ?? '',
+      'user_photo': user.userMetadata?['avatar_url'],
+      'premium': false,
+    };
 
+    try {
       final profile = await Supabase.instance.client
           .from('usuarios')
           .select('name, email, user_photo, premium')
           .eq('id', user.id)
           .maybeSingle();
 
-      final fallbackProfile = {
-        'name':
-            user.userMetadata?['name'] ??
-            user.userMetadata?['username'] ??
-            user.email ??
-            'Usuario',
-        'email': user.email ?? '',
-        'user_photo': user.userMetadata?['avatar_url'],
-        'premium': false,
-      };
-
       if (!mounted) return;
       setState(() {
         _profile = profile ?? fallbackProfile;
         _isLoading = false;
       });
-    } on PostgrestException catch (error) {
+    } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
+        _profile = fallbackProfile;
         _isLoading = false;
       });
       debugPrint('No se pudo cargar el perfil: $error');
@@ -227,6 +225,7 @@ class _ProfilePageState extends State<ProfilePage> {
         file: File(pickedFile.path),
         folder: 'foto_usuarios',
         contentType: _imageContentType(pickedFile.path),
+        objectPrefix: DateTime.now().microsecondsSinceEpoch.toString(),
       );
 
       try {
@@ -310,12 +309,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: LoginStyles.accentGold,
                       shape: BoxShape.circle,
                     ),
-                    child: _photoUrl == null
-                        ? const DefaultUserAvatar(radius: 48)
-                        : CircleAvatar(
-                            radius: 48,
-                            backgroundImage: NetworkImage(_photoUrl!),
-                          ),
+                    child: DefaultUserAvatar(radius: 48, imageUrl: _photoUrl),
                   ),
                   Material(
                     color: LoginStyles.accentGold,

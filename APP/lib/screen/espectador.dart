@@ -24,6 +24,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
   List<ObservedTrailGroup> _trailGroups = const [];
   final Map<int, List<LatLng>> _routePointsByTrailId = {};
   final Set<int> _loadingTrailIds = {};
+  String? _viewerPhotoUrl;
   String? _errorMessage;
   bool _isLoading = true;
   bool _isLoadingGroups = false;
@@ -35,6 +36,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
   @override
   void initState() {
     super.initState();
+    _loadViewerPhoto();
     _loadObservedTrails();
     _loadUnreadAlertCount();
     _refreshTimer = Timer.periodic(
@@ -53,6 +55,32 @@ class _EspectadorContentState extends State<EspectadorContent> {
     _alertCountRefreshTimer?.cancel();
     _locationService.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadViewerPhoto() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final metadataPhoto = user.userMetadata?['avatar_url']?.toString().trim();
+    try {
+      final profile = await Supabase.instance.client
+          .from('usuarios')
+          .select('user_photo')
+          .eq('id', user.id)
+          .maybeSingle();
+      final profilePhoto = profile?['user_photo']?.toString().trim();
+
+      if (!mounted) return;
+      setState(() {
+        _viewerPhotoUrl = profilePhoto?.isNotEmpty == true
+            ? profilePhoto
+            : metadataPhoto;
+      });
+    } on Exception catch (error) {
+      debugPrint('No se pudo cargar la foto del espectador: $error');
+      if (!mounted) return;
+      setState(() => _viewerPhotoUrl = metadataPhoto);
+    }
   }
 
   Future<void> _loadUnreadAlertCount() async {
@@ -82,9 +110,8 @@ class _EspectadorContentState extends State<EspectadorContent> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => NotificacionesAlertasScreen(
-          onAlertSelected: _openAlertTarget,
-        ),
+        builder: (_) =>
+            NotificacionesAlertasScreen(onAlertSelected: _openAlertTarget),
       ),
     );
     if (mounted) await _loadUnreadAlertCount();
@@ -95,7 +122,9 @@ class _EspectadorContentState extends State<EspectadorContent> {
     final trailId = (alert['sendero_id'] as num?)?.toInt();
     if (friendshipId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La alerta no tiene un remitente válido.')),
+        const SnackBar(
+          content: Text('La alerta no tiene un remitente válido.'),
+        ),
       );
       return;
     }
@@ -237,7 +266,8 @@ class _EspectadorContentState extends State<EspectadorContent> {
     final viewerName = metadataName?.isNotEmpty == true
         ? metadataName!
         : currentUser?.email?.split('@').first ?? 'Usuario';
-    final viewerPhoto = currentUser?.userMetadata?['avatar_url']?.toString();
+    final viewerPhoto =
+        _viewerPhotoUrl ?? currentUser?.userMetadata?['avatar_url']?.toString();
 
     return Column(
       children: [
