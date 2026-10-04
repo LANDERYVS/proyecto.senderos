@@ -42,7 +42,9 @@ class _AmigosContentState extends State<AmigosContent> {
       setState(() {
         _isLoading = false;
       });
-      debugPrint('No se cargaron personas: no hay sesión iniciada en Supabase.');
+      debugPrint(
+        'No se cargaron personas: no hay sesión iniciada en Supabase.',
+      );
       return;
     }
 
@@ -51,7 +53,8 @@ class _AmigosContentState extends State<AmigosContent> {
       final sentRequests = await client
           .from('notificaciones_solicitudes')
           .select('target_id')
-          .eq('users_id', currentUser.id);
+          .eq('users_id', currentUser.id)
+          .eq('tipo', 'amistad');
 
       loadingStep = 'amistades';
       final friendships = await client
@@ -130,6 +133,7 @@ class _AmigosContentState extends State<AmigosContent> {
           .select('id')
           .eq('users_id', currentUser.id)
           .eq('target_id', friend.id)
+          .eq('tipo', 'amistad')
           .limit(1)
           .maybeSingle();
 
@@ -137,6 +141,8 @@ class _AmigosContentState extends State<AmigosContent> {
         await client.from('notificaciones_solicitudes').insert({
           'users_id': currentUser.id,
           'target_id': friend.id,
+          'tipo': 'amistad',
+          'estado': 'pendiente',
         });
       }
 

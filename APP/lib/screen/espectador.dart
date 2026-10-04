@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/gpx_import.dart';
 import '../widgets/default_user_avatar.dart';
+import 'notificaciones.dart';
 
 class EspectadorContent extends StatefulWidget {
   const EspectadorContent({super.key});
@@ -27,23 +28,116 @@ class _EspectadorContentState extends State<EspectadorContent> {
   bool _isLoading = true;
   bool _isLoadingGroups = false;
   bool _isRefreshingLocations = false;
+  int _unreadAlertCount = 0;
   Timer? _refreshTimer;
+  Timer? _alertCountRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadObservedTrails();
+    _loadUnreadAlertCount();
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _loadObservedTrails(),
+    );
+    _alertCountRefreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadUnreadAlertCount(),
     );
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _alertCountRefreshTimer?.cancel();
     _locationService.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUnreadAlertCount() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final rows = await Supabase.instance.client
+          .from('notificaciones_alertas')
+          .select('status')
+          .eq('espectador_id', user.id);
+      if (!mounted) return;
+      setState(() {
+        _unreadAlertCount = rows.where((row) => row['status'] != true).length;
+      });
+    } on PostgrestException catch (error) {
+      debugPrint(
+        'No se pudo cargar el conteo de alertas '
+        '(${error.code ?? 'Supabase'}): ${error.message}',
+      );
+    } catch (error) {
+      debugPrint('No se pudo cargar el conteo de alertas: $error');
+    }
+  }
+
+  Future<void> _openAlertInbox() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => NotificacionesAlertasScreen(
+          onAlertSelected: _openAlertTarget,
+        ),
+      ),
+    );
+    if (mounted) await _loadUnreadAlertCount();
+  }
+
+  Future<void> _openAlertTarget(Map<String, dynamic> alert) async {
+    final friendshipId = (alert['amistad_id'] as num?)?.toInt();
+    final trailId = (alert['sendero_id'] as num?)?.toInt();
+    if (friendshipId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('La alerta no tiene un remitente válido.')),
+      );
+      return;
+    }
+
+    var group = _findAlertTargetGroup(friendshipId, trailId);
+    if (group == null) {
+      await _loadObservedTrails();
+      if (!mounted) return;
+      group = _findAlertTargetGroup(friendshipId, trailId);
+    }
+    if (group == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El trayecto de esta alerta ya no está disponible.'),
+        ),
+      );
+      return;
+    }
+
+    final targetGroup = group;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => _ObservedTrailMapPage(
+          group: targetGroup,
+          routePoints: _routePointsByTrailId[targetGroup.trailId] ?? const [],
+        ),
+      ),
+    );
+  }
+
+  ObservedTrailGroup? _findAlertTargetGroup(int friendshipId, int? trailId) {
+    for (final group in _trailGroups) {
+      final hasFriendship = group.observers.any(
+        (observer) => observer.friendshipId == friendshipId,
+      );
+      if (!hasFriendship) continue;
+      if (trailId == null || trailId <= 0 || group.trailId == trailId) {
+        return group;
+      }
+    }
+    return null;
   }
 
   Future<void> _loadObservedTrails() async {
@@ -173,7 +267,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
   }) {
     return Container(
       color: colorScheme.primary,
-      padding: const EdgeInsets.fromLTRB(20, 12, 76, 16),
+      padding: const EdgeInsets.fromLTRB(20, 12, 16, 16),
       child: Row(
         children: [
           DefaultUserAvatar(radius: 30, imageUrl: viewerPhoto),
@@ -220,6 +314,61 @@ class _EspectadorContentState extends State<EspectadorContent> {
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Semantics(
+            label: _unreadAlertCount > 0
+                ? 'Buzón de alertas, $_unreadAlertCount sin leer'
+                : 'Buzón de alertas',
+            button: true,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Material(
+                  color: Colors.white,
+                  shape: const CircleBorder(
+                    side: BorderSide(color: Colors.black, width: 2),
+                  ),
+                  child: IconButton(
+                    tooltip: 'Buzón de alertas',
+                    onPressed: _openAlertInbox,
+                    icon: const Icon(
+                      Icons.notifications_active_outlined,
+                      color: Colors.black,
+                      size: 30,
+                    ),
+                    iconSize: 34,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 58,
+                      height: 58,
+                    ),
+                  ),
+                ),
+                if (_unreadAlertCount > 0)
+                  Positioned(
+                    top: -5,
+                    right: -5,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: Text(
+                        _unreadAlertCount > 99 ? '99+' : '$_unreadAlertCount',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

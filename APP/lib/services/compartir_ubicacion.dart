@@ -14,12 +14,16 @@ class ShareFriend {
     this.phone,
     this.photoUrl,
     this.location,
+    this.requestToFriendStatus,
+    this.requestFromFriendStatus,
   });
 
   factory ShareFriend.fromMap(
     Map<String, dynamic> profile, {
     required int friendshipId,
     LatLng? location,
+    String? requestToFriendStatus,
+    String? requestFromFriendStatus,
   }) {
     final name = profile['name']?.toString().trim();
     final email = profile['email']?.toString().trim() ?? '';
@@ -32,6 +36,8 @@ class ShareFriend {
       phone: phone?.isNotEmpty == true ? phone : null,
       photoUrl: ExploreTrail.publicR2Url(profile['user_photo']?.toString()),
       location: location,
+      requestToFriendStatus: requestToFriendStatus,
+      requestFromFriendStatus: requestFromFriendStatus,
     );
   }
 
@@ -42,6 +48,8 @@ class ShareFriend {
   final String? phone;
   final String? photoUrl;
   final LatLng? location;
+  final String? requestToFriendStatus;
+  final String? requestFromFriendStatus;
 
   ShareFriend withLocation(LatLng? value) => ShareFriend(
     id: id,
@@ -51,6 +59,8 @@ class ShareFriend {
     phone: phone,
     photoUrl: photoUrl,
     location: value,
+    requestToFriendStatus: requestToFriendStatus,
+    requestFromFriendStatus: requestFromFriendStatus,
   );
 }
 
@@ -114,6 +124,24 @@ class CompartirUbicacionService {
 
     if (friendIds.isEmpty) return [];
 
+    final locationRequests = await _client
+        .from('notificaciones_solicitudes')
+        .select('users_id, target_id, estado')
+        .eq('tipo', 'ubicacion')
+        .or('users_id.eq.${currentUser.id},target_id.eq.${currentUser.id}');
+    final requestStatusesByFriend = <String, Map<String, String>>{};
+    for (final request in locationRequests) {
+      final requesterId = request['users_id'].toString();
+      final targetId = request['target_id'].toString();
+      final friendId = requesterId == currentUser.id ? targetId : requesterId;
+      final statuses = requestStatusesByFriend.putIfAbsent(
+        friendId,
+        () => <String, String>{},
+      );
+      statuses[requesterId == currentUser.id ? 'toFriend' : 'fromFriend'] =
+          request['estado'].toString();
+    }
+
     final profiles = await _client
         .from('usuarios')
         .select('id, name, email, telefono, user_photo')
@@ -122,8 +150,48 @@ class CompartirUbicacionService {
       return ShareFriend.fromMap(
         profile,
         friendshipId: friendshipIdsByFriend[profile['id'].toString()]!,
+        requestToFriendStatus:
+            requestStatusesByFriend[profile['id'].toString()]?['toFriend'],
+        requestFromFriendStatus:
+            requestStatusesByFriend[profile['id'].toString()]?['fromFriend'],
       );
     }).toList();
+  }
+
+  Future<void> requestLocation(ShareFriend friend) async {
+    final currentUser = _client.auth.currentUser;
+    if (currentUser == null) {
+      throw StateError('Inicia sesión para solicitar una ubicación.');
+    }
+
+    final existing = await _client
+        .from('notificaciones_solicitudes')
+        .select('id, estado')
+        .eq('users_id', currentUser.id)
+        .eq('target_id', friend.id)
+        .eq('tipo', 'ubicacion')
+        .maybeSingle();
+    final status = existing?['estado']?.toString();
+    if (status == 'pendiente') {
+      throw StateError('Ya tienes una solicitud pendiente para ${friend.name}.');
+    }
+    if (status == 'aceptada') {
+      throw StateError('${friend.name} ya aceptó tu solicitud.');
+    }
+
+    if (existing != null) {
+      await _client
+          .from('notificaciones_solicitudes')
+          .delete()
+          .eq('id', existing['id']);
+    }
+    await _client.from('notificaciones_solicitudes').insert({
+      'users_id': currentUser.id,
+      'target_id': friend.id,
+      'tipo': 'ubicacion',
+      'estado': 'pendiente',
+      'created_at': DateTime.now().toUtc().toIso8601String(),
+    });
   }
 
   Future<List<ObservedTrailGroup>> loadObservedTrails() async {
@@ -243,13 +311,29 @@ class CompartirUbicacionService {
   }
 
   Future<Map<String, LatLng>> loadLocations(Iterable<String> userIds) async {
+    final currentUser = _client.auth.currentUser;
+    if (currentUser == null) return {};
+
     final ids = userIds.toSet().toList();
     if (ids.isEmpty) return {};
+
+    final acceptedRequests = await _client
+        .from('notificaciones_solicitudes')
+        .select('users_id')
+        .eq('target_id', currentUser.id)
+        .eq('tipo', 'ubicacion')
+        .eq('estado', 'aceptada')
+        .inFilter('users_id', ids);
+    final authorizedUserIds = acceptedRequests
+        .map<String>((request) => request['users_id'].toString())
+        .toSet()
+        .toList();
+    if (authorizedUserIds.isEmpty) return {};
 
     final rows = await _client
         .from('ubicacion')
         .select('user_id, lat, long')
-        .inFilter('user_id', ids);
+        .inFilter('user_id', authorizedUserIds);
     return {
       for (final row in rows)
         row['user_id'].toString(): LatLng(
@@ -266,6 +350,20 @@ class CompartirUbicacionService {
   }) async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null) return;
+
+    final approvedRequest = await _client
+        .from('notificaciones_solicitudes')
+        .select('id')
+        .eq('users_id', currentUser.id)
+        .eq('target_id', friend.id)
+        .eq('tipo', 'ubicacion')
+        .eq('estado', 'aceptada')
+        .maybeSingle();
+    if (approvedRequest == null) {
+      throw StateError(
+        'B debe aceptar tu solicitud antes de compartir tu ubicación.',
+      );
+    }
 
     final existing = await _client
         .from('relaciones_espectadores')
@@ -318,6 +416,30 @@ class CompartirUbicacionService {
           .update(location)
           .eq('user_id', currentUser.id);
     }
+  }
+
+  Future<int> sendAlert({
+    required String type,
+    required String message,
+    int? senderoId,
+  }) async {
+    final currentUser = _client.auth.currentUser;
+    if (currentUser == null) {
+      throw StateError('Inicia sesión para enviar una alerta.');
+    }
+
+    final result = await _client.rpc(
+      'enviar_alerta_espectadores',
+      params: {
+        'p_sendero_id': senderoId,
+        'p_type': type,
+        'p_message': message.trim(),
+      },
+    );
+    if (result is! num) {
+      throw StateError('El servidor devolvió una respuesta inválida.');
+    }
+    return result.toInt();
   }
 
   Future<void> stopSharing() async {

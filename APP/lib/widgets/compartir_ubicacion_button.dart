@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -24,6 +26,16 @@ class CompartirUbicacionButton extends StatefulWidget {
 }
 
 class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
+  Timer? _approvalTimer;
+  bool _waitingForApproval = false;
+  bool _checkingApproval = false;
+
+  @override
+  void dispose() {
+    _approvalTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _chooseFriend() async {
     try {
       final friends = await widget.sharingService.loadFriends();
@@ -43,10 +55,12 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
             children: [
               const ListTile(
                 title: Text(
-                  'Compartir mi ubicación',
+                  'Ubicación de amigos',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: Text('Elige un amigo para verla en su mapa.'),
+                subtitle: Text(
+                  'Solicita acceso o comparte tu ubicación con quien te la pidió.',
+                ),
               ),
               for (final friend in friends)
                 ListTile(
@@ -56,16 +70,98 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
                   ),
                   title: Text(friend.name),
                   subtitle: friend.email.isEmpty ? null : Text(friend.email),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: _buildFriendAction(friend),
                   onTap: () => Navigator.pop(context, friend),
                 ),
             ],
           ),
         ),
       );
-      if (friend != null) await _startSharing(friend);
-    } on Exception {
-      _showMessage('No hay conexión a internet.');
+      if (friend != null) {
+        if (friend.requestToFriendStatus == 'aceptada') {
+          await _startSharing(friend);
+        } else if (friend.requestFromFriendStatus == 'aceptada') {
+          _showMessage(
+            'Aceptaste la solicitud de ${friend.name}. Su ubicación '
+            'aparecerá aquí cuando comience a compartirla.',
+          );
+        } else if (friend.requestToFriendStatus == 'pendiente') {
+          _watchForApproval(friend.id);
+          _showMessage('Tu solicitud para ${friend.name} sigue pendiente.');
+        } else if (friend.requestFromFriendStatus == 'pendiente') {
+          _showMessage(
+            'Revisa tus notificaciones para responder la solicitud de '
+            '${friend.name}.',
+          );
+        } else {
+          await _requestLocation(friend);
+        }
+      }
+    } on StateError catch (error) {
+      _showMessage(error.message);
+    } on Exception catch (error) {
+      _showMessage('No se pudo cargar la lista de amigos: $error');
+    }
+  }
+
+  Widget _buildFriendAction(ShareFriend friend) {
+    if (friend.requestFromFriendStatus == 'aceptada') {
+      return const Icon(Icons.location_on_outlined);
+    }
+    if (friend.requestToFriendStatus == 'aceptada') {
+      return const Text('Aceptada');
+    }
+    if (friend.requestToFriendStatus == 'pendiente') {
+      return const Text('Pendiente');
+    }
+    if (friend.requestFromFriendStatus == 'pendiente') {
+      return const Icon(Icons.notifications_outlined);
+    }
+    return const Icon(Icons.chevron_right);
+  }
+
+  Future<void> _requestLocation(ShareFriend friend) async {
+    try {
+      await widget.sharingService.requestLocation(friend);
+      _watchForApproval(friend.id);
+      _showMessage('Solicitud enviada a ${friend.name}.');
+    } on StateError catch (error) {
+      _showMessage(error.message);
+    } on Exception catch (error) {
+      _showMessage('No se pudo enviar la solicitud: $error');
+    }
+  }
+
+  void _watchForApproval(String friendId) {
+    _waitingForApproval = true;
+    _approvalTimer?.cancel();
+    _approvalTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _checkApproval(friendId),
+    );
+  }
+
+  Future<void> _checkApproval(String friendId) async {
+    if (!mounted || !_waitingForApproval || _checkingApproval) return;
+    _checkingApproval = true;
+    try {
+      final friends = await widget.sharingService.loadFriends();
+      if (!mounted || !_waitingForApproval) return;
+      ShareFriend? approvedFriend;
+      for (final friend in friends) {
+        if (friend.id == friendId &&
+            friend.requestToFriendStatus == 'aceptada') {
+          approvedFriend = friend;
+          break;
+        }
+      }
+      if (approvedFriend != null) {
+        await _startSharing(approvedFriend);
+      }
+    } on Exception catch (error) {
+      debugPrint('No se pudo comprobar la aprobación de ubicación: $error');
+    } finally {
+      _checkingApproval = false;
     }
   }
 
@@ -80,11 +176,16 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
         _publishCurrentLocation,
         senderoId: widget.senderoId,
       );
+      _waitingForApproval = false;
+      _approvalTimer?.cancel();
+      _approvalTimer = null;
       if (!mounted) return;
       setState(() {});
       _showMessage('Ubicación compartida con ${friend.name}.');
-    } on Exception {
-      _showMessage('No hay conexión a internet.');
+    } on StateError catch (error) {
+      _showMessage(error.message);
+    } on Exception catch (error) {
+      _showMessage('No se pudo compartir la ubicación: $error');
     }
   }
 
@@ -102,9 +203,9 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       if (!mounted) return;
       setState(() {});
       _showMessage('Dejaste de compartir tu ubicación.');
-    } on Exception {
+    } on Exception catch (error) {
       if (mounted) setState(() {});
-      _showMessage('No hay conexión a internet.');
+      _showMessage('No se pudo dejar de compartir la ubicación: $error');
     }
   }
 
@@ -123,7 +224,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       heroTag: widget.heroTag,
       tooltip: isSharing
           ? 'Dejar de compartir ubicación'
-          : 'Compartir ubicación',
+          : 'Solicitar o compartir ubicación',
       backgroundColor: isSharing ? colorScheme.primary : Colors.white,
       foregroundColor: isSharing ? Colors.white : Colors.black87,
       onPressed: isSharing ? _stopSharing : _chooseFriend,

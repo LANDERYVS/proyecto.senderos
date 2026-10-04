@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../services/compartir_ubicacion.dart';
 import '../widgets/barra_navegacion.dart';
 import '../widgets/compartir_ubicacion_button.dart';
+import '../widgets/enviar_alerta_button.dart';
 import '../widgets/grabar_metrics_panel.dart';
 import '../widgets/waypoint_markers_layer.dart';
 import '../utils/route_calculator.dart';
@@ -436,6 +437,16 @@ class _GrabarPageState extends State<GrabarPage> {
                 children: [
                   _buildMapContent(initialCenter),
                   _buildShareButton(),
+                  Positioned(
+                    top: 16,
+                    left: 72,
+                    child: SafeArea(
+                      child: EnviarAlertaButton(
+                        sharingService: _sharingService,
+                        senderoId: widget.senderoId,
+                      ),
+                    ),
+                  ),
                   _buildCenterLocationButton(),
                   _buildMarkerPicker(),
                 ],

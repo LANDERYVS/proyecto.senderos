@@ -108,6 +108,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
+          table: 'notificaciones_alertas',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'espectador_id',
+            value: user.id,
+          ),
+          callback: (_) => _loadNotificationCount(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
           table: 'notificaciones_solicitudes',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
@@ -124,13 +135,32 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (user == null) return;
 
     try {
+      final globalNotifications = await _client
+          .from('notificaciones_alertas')
+          .select('id, status')
+          .eq('espectador_id', user.id);
       final receivedRequests = await _client
           .from('notificaciones_solicitudes')
           .select('id')
-          .eq('target_id', user.id);
+          .eq('target_id', user.id)
+          .eq('tipo', 'amistad');
+      final receivedLocationRequests = await _client
+          .from('notificaciones_solicitudes')
+          .select('id')
+          .eq('target_id', user.id)
+          .eq('tipo', 'ubicacion')
+          .eq('estado', 'pendiente');
       if (!mounted) return;
 
-      setState(() => _notificationCount = receivedRequests.length);
+      final unreadGlobalCount = globalNotifications
+          .where((notification) => notification['status'] != true)
+          .length;
+      setState(
+        () => _notificationCount =
+            unreadGlobalCount +
+            receivedRequests.length +
+            receivedLocationRequests.length,
+      );
     } on PostgrestException catch (error) {
       debugPrint('No se pudo cargar el conteo de notificaciones: $error');
     } catch (error) {
@@ -273,51 +303,53 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        toolbarHeight: 78,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leadingWidth: 0,
-        automaticallyImplyLeading: false,
-        titleSpacing: 0,
-        title: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: Row(
-              children: [
-                _buildProfileButton(),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: _buildHeaderSearch(),
+      appBar: _selectedIndex == 4
+          ? null
+          : AppBar(
+              toolbarHeight: 78,
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              leadingWidth: 0,
+              automaticallyImplyLeading: false,
+              titleSpacing: 0,
+              title: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  child: Row(
+                    children: [
+                      _buildProfileButton(),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 520),
+                          child: _buildHeaderSearch(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'Notificaciones',
+                        icon: _buildNotificationIcon(),
+                        onPressed: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificacionesScreen(),
+                            ),
+                          );
+                          if (!mounted) return;
+                          await _loadNotificationCount();
+                          if (!mounted) return;
+                          setState(() => _communityVersion++);
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Notificaciones',
-                  icon: _buildNotificationIcon(),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NotificacionesScreen(),
-                      ),
-                    );
-                    if (!mounted) return;
-                    await _loadNotificationCount();
-                    if (!mounted) return;
-                    setState(() => _communityVersion++);
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
       body: _buildBody(),
       bottomNavigationBar: buildNavigationBar(
         selectedIndex: _selectedIndex,

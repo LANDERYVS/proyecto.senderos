@@ -7,6 +7,7 @@ import '../services/compartir_ubicacion.dart';
 import '../services/offline_tile_service.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
 import '../widgets/compartir_ubicacion_button.dart';
+import '../widgets/enviar_alerta_button.dart';
 import '../widgets/grabar_metrics_panel.dart';
 import '../widgets/seguimiento_sendero_map.dart';
 import 'seguimiento_sendero_controller.dart';
@@ -151,6 +152,16 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
                         heroTag: 'share-follow-location',
                         senderoId: widget.senderoId,
                         getCurrentLocation: () async => controller.userLocation,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 16,
+                    left: 72,
+                    child: SafeArea(
+                      child: EnviarAlertaButton(
+                        sharingService: _sharingService,
+                        senderoId: widget.senderoId,
                       ),
                     ),
                   ),
