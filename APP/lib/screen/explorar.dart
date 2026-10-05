@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
 import '../services/obtener_sendero.dart';
@@ -37,7 +36,6 @@ class _ExploreContentState extends State<ExploreContent> {
 
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
-  bool _showOnlyMyTrails = false;
 
   @override
   void initState() {
@@ -140,7 +138,6 @@ class _ExploreContentState extends State<ExploreContent> {
 
   List<ExploreTrail> get _visibleTrails {
     final query = widget.searchTerm.toLowerCase();
-    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
 
     return _trails.where((trail) {
       final matchesSearch =
@@ -155,14 +152,8 @@ class _ExploreContentState extends State<ExploreContent> {
         'Más de 8 km' => trail.distanceKm > 8,
         _ => true,
       };
-      final matchesOwner =
-          !_showOnlyMyTrails ||
-          (currentUserId != null && trail.userId == currentUserId);
 
-      return matchesSearch &&
-          matchesDifficulty &&
-          matchesLength &&
-          matchesOwner;
+      return matchesSearch && matchesDifficulty && matchesLength;
     }).toList();
   }
 
@@ -231,22 +222,6 @@ class _ExploreContentState extends State<ExploreContent> {
                   ),
                 ),
             ],
-          ),
-        ),
-        Positioned(
-          right: 20,
-          bottom: 20,
-          child: FloatingActionButton.extended(
-            onPressed: () =>
-                setState(() => _showOnlyMyTrails = !_showOnlyMyTrails),
-            icon: Icon(_showOnlyMyTrails ? Icons.person_off : Icons.person),
-            label: Text(_showOnlyMyTrails ? 'Todos' : 'Mis senderos'),
-            backgroundColor: _showOnlyMyTrails
-                ? Theme.of(context).colorScheme.primary
-                : const Color(0xFFBDF2C6),
-            foregroundColor: _showOnlyMyTrails
-                ? Colors.white
-                : const Color(0xFF1B3A2F),
           ),
         ),
       ],

@@ -303,6 +303,19 @@ $pointsXml
         'o sus marcadores en Supabase. ($error)',
       );
     }
+
+    metadata
+      ..['gpx_key'] = remoteGpxPath
+      ..['r2_photo_paths'] = remotePhotoPaths
+      ..['uploaded_to_r2'] = true;
+    try {
+      await metadataFile.writeAsString(jsonEncode(metadata));
+    } on Exception catch (error) {
+      throw RoutePublishException(
+        'El sendero se publicó, pero no se pudo actualizar su estado local. '
+        'Vuelve a publicarlo para sincronizarlo. ($error)',
+      );
+    }
   }
 
   String _fileExtension(String path) {

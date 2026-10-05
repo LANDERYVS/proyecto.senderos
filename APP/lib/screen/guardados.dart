@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/explore_trail.dart';
 import '../models/saved_route.dart';
 import '../models/trail_waypoint.dart';
@@ -40,6 +42,7 @@ class _SavedContentState extends State<SavedContent> {
   final ObtenerSenderoService _trailService = ObtenerSenderoService();
   final RouteStorageService _routeStorageService = RouteStorageService();
   List<SavedRoute> _routes = [];
+  List<ExploreTrail> _uploadedTrails = [];
   List<ExploreTrail> _favoriteTrails = [];
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
@@ -54,25 +57,43 @@ class _SavedContentState extends State<SavedContent> {
 
   Future<void> _loadRoutes() async {
     final routes = await _savedRoutesService.loadRoutes();
+    var uploadedTrails = <ExploreTrail>[];
     var favoriteTrails = <ExploreTrail>[];
     if (!widget.downloadsOnly) {
-      try {
-        final favoriteIds = await _favoritesService.loadFavoriteIds();
-        if (favoriteIds.isNotEmpty) {
-          favoriteTrails = (await _trailService.obtenerSenderos())
-              .where(
-                (trail) => trail.id != null && favoriteIds.contains(trail.id),
-              )
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        try {
+          final remoteTrails = await _trailService.obtenerSenderos();
+          uploadedTrails = remoteTrails
+              .where((trail) => trail.userId == userId)
               .toList();
-        }
-      } on Exception catch (error) {
-        debugPrint('Error al cargar senderos favoritos: $error');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No se pudieron sincronizar favoritos'),
-            ),
-          );
+
+          try {
+            final favoriteIds = await _favoritesService.loadFavoriteIds();
+            favoriteTrails = remoteTrails
+                .where(
+                  (trail) => trail.id != null && favoriteIds.contains(trail.id),
+                )
+                .toList();
+          } on Exception catch (error) {
+            debugPrint('Error al cargar senderos favoritos: $error');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('No se pudieron sincronizar favoritos'),
+                ),
+              );
+            }
+          }
+        } on Exception catch (error) {
+          debugPrint('Error al cargar senderos remotos: $error');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se pudieron cargar los senderos publicados'),
+              ),
+            );
+          }
         }
       }
     }
@@ -80,6 +101,7 @@ class _SavedContentState extends State<SavedContent> {
     if (mounted) {
       setState(() {
         _routes = routes;
+        _uploadedTrails = uploadedTrails;
         _favoriteTrails = favoriteTrails;
       });
     }
@@ -240,9 +262,28 @@ class _SavedContentState extends State<SavedContent> {
     }
   }
 
+  Future<void> _refreshRoutesAfterPublish() async {
+    try {
+      await _loadRoutes();
+    } on Exception catch (error) {
+      debugPrint('No se pudo actualizar la lista tras publicar: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'El sendero se publicó, pero la lista no pudo actualizarse.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _publishRoute(SavedRoute route) async {
     try {
       await _routeStorageService.publishRoute(route);
+      if (!mounted) return;
+      await _refreshRoutesAfterPublish();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sendero "${route.name}" publicado')),
@@ -269,6 +310,8 @@ class _SavedContentState extends State<SavedContent> {
         }
       }
     } on RoutePublishException catch (error) {
+      if (!mounted) return;
+      await _refreshRoutesAfterPublish();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -389,16 +432,20 @@ class _SavedContentState extends State<SavedContent> {
 
   Widget _buildRouteList() {
     final localRoutes = _filteredRoutes;
+    final remoteUploaded = _filteredUploadedTrails;
     final remoteFavorites = widget.downloadsOnly
         ? const <ExploreTrail>[]
         : _filteredFavoriteTrails;
-    if (localRoutes.isEmpty && remoteFavorites.isEmpty) {
+    if (localRoutes.isEmpty &&
+        remoteUploaded.isEmpty &&
+        remoteFavorites.isEmpty) {
       return ContentStateView(message: _emptyRouteMessage);
     }
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-      itemCount: localRoutes.length + remoteFavorites.length,
+      itemCount:
+          localRoutes.length + remoteUploaded.length + remoteFavorites.length,
       separatorBuilder: (context, index) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
         if (index < localRoutes.length) {
@@ -433,7 +480,17 @@ class _SavedContentState extends State<SavedContent> {
           );
         }
 
-        final trail = remoteFavorites[index - localRoutes.length];
+        final uploadedIndex = index - localRoutes.length;
+        if (uploadedIndex < remoteUploaded.length) {
+          return SenderoCard(
+            trail: remoteUploaded[uploadedIndex],
+            isFavorite: false,
+            isSavingFavorite: false,
+            onFavorite: null,
+          );
+        }
+
+        final trail = remoteFavorites[uploadedIndex - remoteUploaded.length];
         return SenderoCard(
           trail: trail,
           isFavorite: true,
@@ -646,11 +703,7 @@ class _SavedContentState extends State<SavedContent> {
                       (route) => route.isCreatedByUser && !route.uploadedToR2,
                     )
                     .toList()
-              : _routes
-                    .where(
-                      (route) => route.isCreatedByUser && route.uploadedToR2,
-                    )
-                    .toList()
+              : const <SavedRoute>[]
         : _selectedSection == 0
         ? _routes.where((route) => route.isAvailableOffline).toList()
         : _routes
@@ -679,6 +732,29 @@ class _SavedContentState extends State<SavedContent> {
               route.distanceKm! >= 3 &&
               route.distanceKm! <= 8,
         'Más de 8 km' => route.distanceKm != null && route.distanceKm! > 8,
+        _ => true,
+      };
+      return matchesSearch && matchesDifficulty && matchesLength;
+    }).toList();
+  }
+
+  List<ExploreTrail> get _filteredUploadedTrails {
+    if (widget.downloadsOnly || _selectedTab != 0 || _selectedSection != 1) {
+      return const [];
+    }
+
+    final query = widget.searchTerm.toLowerCase();
+    return _uploadedTrails.where((trail) {
+      final matchesSearch =
+          trail.name.toLowerCase().contains(query) ||
+          trail.description.toLowerCase().contains(query);
+      final matchesDifficulty =
+          _difficultyFilter == 'Dificultad' ||
+          trail.difficulty == _difficultyFilter;
+      final matchesLength = switch (_lengthFilter) {
+        'Menos de 3 km' => trail.distanceKm < 3,
+        '3 a 8 km' => trail.distanceKm >= 3 && trail.distanceKm <= 8,
+        'Más de 8 km' => trail.distanceKm > 8,
         _ => true,
       };
       return matchesSearch && matchesDifficulty && matchesLength;
