@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -5,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../models/trail_waypoint.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/offline_tile_service.dart';
+import '../services/ubicacion_app.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
 import '../widgets/compartir_ubicacion_button.dart';
 import '../widgets/enviar_alerta_button.dart';
@@ -46,6 +49,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
   TileLayer? _offlineTileLayer;
   bool _isLoadingMap = false;
   bool _allowPop = false;
+  bool _stoppingSharing = false;
 
   @override
   void initState() {
@@ -61,6 +65,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
 
   void _refresh() {
     if (mounted) setState(() {});
+    if (!UbicacionApp.enabled.value) unawaited(_stopSharingIfActive());
   }
 
   Future<void> _loadOfflineMap() async {
@@ -94,11 +99,14 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
   }
 
   Future<void> _stopSharingIfActive() async {
-    if (_sharingService.sharingFriend == null) return;
+    if (_stoppingSharing || _sharingService.sharingFriend == null) return;
+    _stoppingSharing = true;
     try {
       await _sharingService.stopSharing();
     } on Exception catch (error) {
       debugPrint('No se pudo detener la compartición de ubicación: $error');
+    } finally {
+      _stoppingSharing = false;
     }
   }
 

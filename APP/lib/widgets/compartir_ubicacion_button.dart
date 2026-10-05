@@ -13,12 +13,14 @@ class CompartirUbicacionButton extends StatefulWidget {
     required this.getCurrentLocation,
     required this.heroTag,
     this.senderoId,
+    this.onSharingChanged,
   });
 
   final CompartirUbicacionService sharingService;
   final Future<LatLng?> Function() getCurrentLocation;
   final String heroTag;
   final int? senderoId;
+  final VoidCallback? onSharingChanged;
 
   @override
   State<CompartirUbicacionButton> createState() =>
@@ -186,6 +188,8 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       _showMessage(error.message);
     } on Exception catch (error) {
       _showMessage('No se pudo compartir la ubicación: $error');
+    } finally {
+      widget.onSharingChanged?.call();
     }
   }
 
@@ -206,6 +210,8 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     } on Exception catch (error) {
       if (mounted) setState(() {});
       _showMessage('No se pudo dejar de compartir la ubicación: $error');
+    } finally {
+      widget.onSharingChanged?.call();
     }
   }
 

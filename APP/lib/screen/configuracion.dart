@@ -6,7 +6,9 @@ import '../widgets/barra_navegacion.dart';
 
 import '../services/servicio_autenticacion.dart';
 import '../services/tema_app.dart';
+import '../services/ubicacion_app.dart';
 import '../widgets/config_card.dart';
+import 'localizacion.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
   const ConfiguracionScreen({super.key});
@@ -66,11 +68,21 @@ class ConfiguracionScreen extends StatelessWidget {
             );
           },
         ),
-        ConfigCard(
-          icon: Icons.location_on_outlined,
-          title: 'Ubicación',
-          subtitle: 'Activada',
-          onTap: () => _showMessage(context, 'Ubicación: Activada'),
+        ValueListenableBuilder<bool>(
+          valueListenable: UbicacionApp.enabled,
+          builder: (context, isEnabled, _) => ConfigCard(
+            icon: isEnabled
+                ? Icons.location_on_outlined
+                : Icons.location_off_outlined,
+            title: 'Ubicación',
+            subtitle: isEnabled ? 'Activada en la app' : 'Pausada en la app',
+            trailing: Switch(
+              value: isEnabled,
+              onChanged: (enabled) =>
+                  _setLocationEnabled(context, enabled),
+            ),
+            onTap: () => _setLocationEnabled(context, !isEnabled),
+          ),
         ),
       ],
     );
@@ -135,6 +147,29 @@ class ConfiguracionScreen extends StatelessWidget {
     } catch (error) {
       if (!context.mounted) return;
       _showMessage(context, 'No se pudo guardar el tema: $error');
+    }
+  }
+
+  Future<void> _setLocationEnabled(BuildContext context, bool enabled) async {
+    try {
+      if (enabled) {
+        final hasPermission = await LocalizacionService()
+            .requestLocationPermission();
+        if (!hasPermission) {
+          if (context.mounted) {
+            _showMessage(
+              context,
+              'No se activó la ubicación porque falta el permiso del sistema.',
+            );
+          }
+          return;
+        }
+      }
+
+      await UbicacionApp.setEnabled(enabled);
+    } catch (error) {
+      if (!context.mounted) return;
+      _showMessage(context, 'No se pudo cambiar la ubicación: $error');
     }
   }
 }

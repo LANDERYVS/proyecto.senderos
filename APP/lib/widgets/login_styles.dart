@@ -17,7 +17,8 @@ class LoginStyles {
     colors: [deepGreen, forestGreen, warmBeige],
   );
 
-  static Widget buildLogo() {
+  static Widget buildLogo(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -52,7 +53,7 @@ class LoginStyles {
             fontSize: 42,
             fontWeight: FontWeight.w900,
             letterSpacing: 5,
-            color: const Color(0xFF1F2E1D),
+            color: isDark ? Colors.white : const Color(0xFF1F2E1D),
             shadows: [
               Shadow(
                 color: Colors.black.withAlpha(25),
@@ -63,12 +64,12 @@ class LoginStyles {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Descubre senderos, vive la aventura',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 15,
-            color: Color(0xFF4D5A4A),
+            color: isDark ? Colors.white70 : const Color(0xFF4D5A4A),
             fontWeight: FontWeight.w500,
             letterSpacing: 0.5,
           ),
@@ -78,22 +79,27 @@ class LoginStyles {
   }
 
   static Widget buildInputField({
+    required BuildContext context,
     required TextEditingController controller,
     required String labelText,
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     return TextField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Color(0xFF1F2E1D)),
+      style: TextStyle(color: isDark ? Colors.white : const Color(0xFF1F2E1D)),
       decoration: InputDecoration(
         filled: true,
-        fillColor: softCream,
+        fillColor: isDark ? const Color(0xFF303A33) : softCream,
         labelText: labelText,
-        labelStyle: const TextStyle(color: Color(0xFF5E665F)),
-        floatingLabelStyle: const TextStyle(color: primaryGreen),
+        labelStyle: TextStyle(
+          color: isDark ? Colors.white70 : const Color(0xFF5E665F),
+        ),
+        floatingLabelStyle: TextStyle(color: colorScheme.primary),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
@@ -104,7 +110,7 @@ class LoginStyles {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: primaryGreen, width: 1.8),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.8),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
@@ -115,9 +121,12 @@ class LoginStyles {
   }
 
   static Widget buildProfileAvatarSelector({
+    required BuildContext context,
     required XFile? selectedAvatar,
     required VoidCallback onPick,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     final file = selectedAvatar == null ? null : File(selectedAvatar.path);
 
     return Column(
@@ -129,22 +138,22 @@ class LoginStyles {
             children: [
               CircleAvatar(
                 radius: 54,
-                backgroundColor: primaryGreen.withAlpha(30),
+                backgroundColor: colorScheme.primary.withAlpha(30),
                 backgroundImage: file != null ? FileImage(file) : null,
                 child: file == null
-                    ? const Icon(
+                    ? Icon(
                         Icons.person_add_alt_1_rounded,
                         size: 38,
-                        color: primaryGreen,
+                        color: colorScheme.primary,
                       )
                     : null,
               ),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: primaryGreen,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary,
                   shape: BoxShape.circle,
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
                       blurRadius: 8,
@@ -162,22 +171,23 @@ class LoginStyles {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'Foto de perfil',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF2E5E47),
+            color: isDark ? Colors.white : const Color(0xFF2E5E47),
           ),
         ),
       ],
     );
   }
 
-  static ButtonStyle actionButtonStyle() {
+  static ButtonStyle actionButtonStyle(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return ElevatedButton.styleFrom(
-      backgroundColor: primaryGreen,
-      foregroundColor: Colors.white,
+      backgroundColor: colorScheme.primary,
+      foregroundColor: colorScheme.onPrimary,
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 0,

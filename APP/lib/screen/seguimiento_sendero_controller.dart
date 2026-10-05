@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../services/ubicacion_app.dart';
 import '../utils/route_calculator.dart';
 import 'localizacion.dart';
 
@@ -12,7 +13,9 @@ class SeguimientoSenderoController extends ChangeNotifier {
   SeguimientoSenderoController({
     required this.routePoints,
     required this.mapController,
-  });
+  }) {
+    UbicacionApp.enabled.addListener(_onLocationPreferenceChanged);
+  }
 
   final List<LatLng> routePoints;
   final MapController mapController;
@@ -24,6 +27,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
   DateTime? _startTime;
   double? _lastAltitude;
   bool _isDisposed = false;
+  int _locationGeneration = 0;
 
   LatLng? userLocation;
   bool isLoadingLocation = true;
@@ -48,9 +52,20 @@ class SeguimientoSenderoController extends ChangeNotifier {
   Future<void> start() async {
     _startTime = DateTime.now();
     _startTimer();
+    await _startLocationTracking();
+  }
+
+  Future<void> _startLocationTracking() async {
+    final generation = ++_locationGeneration;
+    if (!UbicacionApp.enabled.value) {
+      isLoadingLocation = false;
+      _notify();
+      return;
+    }
 
     try {
       if (!await _localizacionService.requestPermissionAndStartTracking()) {
+        if (generation != _locationGeneration || _isDisposed) return;
         isLoadingLocation = false;
         _notify();
         return;
@@ -59,14 +74,24 @@ class SeguimientoSenderoController extends ChangeNotifier {
       final position = await _localizacionService.getCurrentPosition().timeout(
         const Duration(seconds: 15),
       );
-      if (!_isDisposed && position != null) _updateUserLocation(position);
+      if (generation != _locationGeneration ||
+          _isDisposed ||
+          !UbicacionApp.enabled.value) {
+        return;
+      }
+      if (position != null) _updateUserLocation(position);
     } on Exception catch (error) {
       debugPrint('No se obtuvo una posición inicial: $error');
     }
 
-    if (_isDisposed) return;
+    if (generation != _locationGeneration ||
+        _isDisposed ||
+        !UbicacionApp.enabled.value) {
+      return;
+    }
     isLoadingLocation = false;
     _notify();
+    await _positionSubscription?.cancel();
     _positionSubscription = _localizacionService
         .getPositionStream(showNotification: false)
         .listen(
@@ -77,6 +102,22 @@ class SeguimientoSenderoController extends ChangeNotifier {
             debugPrint('Error al recibir ubicación: $error');
           },
         );
+  }
+
+  void _onLocationPreferenceChanged() {
+    if (!UbicacionApp.enabled.value) {
+      _locationGeneration++;
+      _positionSubscription?.cancel();
+      _positionSubscription = null;
+      userLocation = null;
+      isLoadingLocation = false;
+      _notify();
+      return;
+    }
+
+    isLoadingLocation = true;
+    _notify();
+    _startLocationTracking();
   }
 
   void _startTimer() {
@@ -164,6 +205,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
   @override
   void dispose() {
     _isDisposed = true;
+    UbicacionApp.enabled.removeListener(_onLocationPreferenceChanged);
     _timer?.cancel();
     _positionSubscription?.cancel();
     super.dispose();

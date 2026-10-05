@@ -5,6 +5,7 @@ import 'screen/inicio.dart';
 import 'screen/previsualizar_gpx.dart';
 import 'services/gpx_open_service.dart';
 import 'services/tema_app.dart';
+import 'services/ubicacion_app.dart';
 import 'widgets/login.dart';
 
 Future<void> main() async {
@@ -14,6 +15,7 @@ Future<void> main() async {
     publishableKey: 'sb_publishable_LVcxjnDwgqPpbjMuEu3Inw_fXSgxp8I',
   );
   await TemaApp.load();
+  await UbicacionApp.load();
   runApp(const MyApp());
 }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../services/compartir_ubicacion.dart';
+import '../services/ubicacion_app.dart';
 import '../widgets/barra_navegacion.dart';
 import '../widgets/compartir_ubicacion_button.dart';
 import '../widgets/enviar_alerta_button.dart';
@@ -34,6 +36,7 @@ class _GrabarPageState extends State<GrabarPage> {
   final CompartirUbicacionService _sharingService = CompartirUbicacionService();
   final DraggableScrollableController _markerSheetController =
       DraggableScrollableController();
+  bool _stoppingSharing = false;
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class _GrabarPageState extends State<GrabarPage> {
 
   void _onControllerChanged() {
     if (mounted) setState(() {});
+    if (!UbicacionApp.enabled.value) unawaited(_stopSharingIfActive());
   }
 
   @override
@@ -76,6 +80,15 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Future<void> _toggleRecording() async {
+    if (!_controller.isRecording && !UbicacionApp.enabled.value) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Activa la ubicación en Configuración para grabar.'),
+        ),
+      );
+      return;
+    }
+
     await _controller.toggleRecording();
     if (!mounted) return;
     setState(() {});
@@ -89,11 +102,15 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Future<void> _stopSharingIfActive() async {
-    if (_sharingService.sharingFriend == null) return;
+    if (_stoppingSharing || _sharingService.sharingFriend == null) return;
+    _stoppingSharing = true;
     try {
       await _sharingService.stopSharing();
     } on Exception catch (error) {
       debugPrint('No se pudo detener la compartición de ubicación: $error');
+    } finally {
+      _stoppingSharing = false;
+      if (mounted) setState(() {});
     }
   }
 
@@ -228,6 +245,9 @@ class _GrabarPageState extends State<GrabarPage> {
           sharingService: _sharingService,
           heroTag: 'share-location',
           senderoId: widget.senderoId,
+          onSharingChanged: () {
+            if (mounted) setState(() {});
+          },
           getCurrentLocation: () async => _controller.markers.isEmpty
               ? null
               : _controller.markers.first.point,
@@ -437,16 +457,17 @@ class _GrabarPageState extends State<GrabarPage> {
                 children: [
                   _buildMapContent(initialCenter),
                   _buildShareButton(),
-                  Positioned(
-                    top: 16,
-                    left: 72,
-                    child: SafeArea(
-                      child: EnviarAlertaButton(
-                        sharingService: _sharingService,
-                        senderoId: widget.senderoId,
+                  if (_sharingService.sharingFriend != null)
+                    Positioned(
+                      top: 16,
+                      left: 72,
+                      child: SafeArea(
+                        child: EnviarAlertaButton(
+                          sharingService: _sharingService,
+                          senderoId: widget.senderoId,
+                        ),
                       ),
                     ),
-                  ),
                   _buildCenterLocationButton(),
                   _buildMarkerPicker(),
                 ],

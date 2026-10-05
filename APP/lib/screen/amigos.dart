@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
+import 'perfil_publico.dart';
 import '../widgets/default_user_avatar.dart';
 
 class AmigosContent extends StatefulWidget {
@@ -65,7 +66,7 @@ class _AmigosContentState extends State<AmigosContent> {
       loadingStep = 'usuarios';
       final profiles = await client
           .from('usuarios')
-          .select('id, name, email, user_photo')
+          .select('id, name, email, user_photo, premium')
           .neq('id', currentUser.id)
           .order('name');
 
@@ -241,6 +242,21 @@ class _AmigosContentState extends State<AmigosContent> {
     }
   }
 
+  void _openFriendProfile(_Friend friend) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PublicProfilePage(
+          userId: friend.id,
+          initialName: friend.name,
+          initialEmail: friend.username,
+          initialPhotoUrl: friend.photoUrl,
+          isPremium: friend.isPremium,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionHeader(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -256,32 +272,8 @@ class _AmigosContentState extends State<AmigosContent> {
     );
   }
 
-  Widget _buildCommunityInfoCard(ColorScheme colors) {
-    return Card(
-      elevation: 0,
-      color: colors.primaryContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Icon(Icons.groups_outlined, size: 30, color: colors.primary),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Text(
-                'Comparte tus senderos con tu comunidad y descubre nuevas rutas.',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return RefreshIndicator(
       onRefresh: _loadUsers,
       child: ListView(
@@ -302,6 +294,7 @@ class _AmigosContentState extends State<AmigosContent> {
                 requestSent: _sentRequestIds.contains(friend.id),
                 isSending: _requestingIds.contains(friend.id),
                 onSendRequest: () => _sendRequest(friend),
+                onTap: () => _openFriendProfile(friend),
               ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20),
@@ -316,9 +309,8 @@ class _AmigosContentState extends State<AmigosContent> {
               _AddedFriendTile(
                 friend: friend,
                 onRemoveFriend: () => _removeFriend(friend),
+                onTap: () => _openFriendProfile(friend),
               ),
-          const SizedBox(height: 16),
-          _buildCommunityInfoCard(colors),
         ],
       ),
     );
@@ -340,6 +332,7 @@ class _Friend {
     required this.name,
     required this.username,
     required this.initials,
+    required this.isPremium,
     this.photoUrl,
   });
 
@@ -359,6 +352,7 @@ class _Friend {
       username: email ?? '',
       initials: initials.isEmpty ? '?' : initials,
       photoUrl: ExploreTrail.publicR2Url(profile['user_photo']?.toString()),
+      isPremium: profile['premium'] == true,
     );
   }
 
@@ -367,6 +361,7 @@ class _Friend {
   final String username;
   final String initials;
   final String? photoUrl;
+  final bool isPremium;
 }
 
 class _FriendTile extends StatelessWidget {
@@ -375,12 +370,14 @@ class _FriendTile extends StatelessWidget {
     required this.requestSent,
     required this.isSending,
     required this.onSendRequest,
+    required this.onTap,
   });
 
   final _Friend friend;
   final bool requestSent;
   final bool isSending;
   final VoidCallback onSendRequest;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -410,6 +407,7 @@ class _FriendTile extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           subtitle: friend.username.isEmpty ? null : Text(friend.username),
+          onTap: onTap,
           trailing: OutlinedButton.icon(
             onPressed: requestSent || isSending ? null : onSendRequest,
             icon: isSending
@@ -430,10 +428,15 @@ class _FriendTile extends StatelessWidget {
 }
 
 class _AddedFriendTile extends StatelessWidget {
-  const _AddedFriendTile({required this.friend, required this.onRemoveFriend});
+  const _AddedFriendTile({
+    required this.friend,
+    required this.onRemoveFriend,
+    required this.onTap,
+  });
 
   final _Friend friend;
   final VoidCallback onRemoveFriend;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -444,6 +447,7 @@ class _AddedFriendTile extends StatelessWidget {
         leading: DefaultUserAvatar(radius: 20, imageUrl: friend.photoUrl),
         title: Text(friend.name),
         subtitle: friend.username.isEmpty ? null : Text(friend.username),
+        onTap: onTap,
         trailing: IconButton(
           onPressed: onRemoveFriend,
           tooltip: 'Eliminar amigo',

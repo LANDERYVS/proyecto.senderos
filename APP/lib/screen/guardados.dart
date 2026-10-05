@@ -332,7 +332,7 @@ class _SavedContentState extends State<SavedContent> {
     return FloatingActionButton.extended(
       onPressed: _openGpx,
       icon: const Icon(Icons.folder_open_outlined),
-      label: const Text('Abrir GPX'),
+      label: const Text('Importar sendero'),
       backgroundColor: const Color(0xFFBDF2C6),
       foregroundColor: const Color(0xFF1B3A2F),
     );

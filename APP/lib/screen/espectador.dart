@@ -297,112 +297,118 @@ class _EspectadorContentState extends State<EspectadorContent> {
   }) {
     return Container(
       color: colorScheme.primary,
-      padding: const EdgeInsets.fromLTRB(20, 12, 16, 16),
-      child: Row(
-        children: [
-          DefaultUserAvatar(radius: 30, imageUrl: viewerPhoto),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  viewerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: colorScheme.onPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  'ESPECTADOR',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: colorScheme.onPrimary.withValues(alpha: 0.78),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 16, 22),
+          child: Row(
+            children: [
+              DefaultUserAvatar(radius: 30, imageUrl: viewerPhoto),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.visibility,
-                      size: 18,
-                      color: colorScheme.onPrimary,
+                    Text(
+                      viewerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        'Observando a $_observerCount '
-                        '${_observerCount == 1 ? 'usuario' : 'usuarios'}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    Text(
+                      'ESPECTADOR',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: colorScheme.onPrimary.withValues(alpha: 0.78),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.visibility,
+                          size: 18,
                           color: colorScheme.onPrimary,
                         ),
-                      ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            'Observando a $_observerCount '
+                            '${_observerCount == 1 ? 'usuario' : 'usuarios'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colorScheme.onPrimary),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Semantics(
-            label: _unreadAlertCount > 0
-                ? 'Buzón de alertas, $_unreadAlertCount sin leer'
-                : 'Buzón de alertas',
-            button: true,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Material(
-                  color: Colors.white,
-                  shape: const CircleBorder(
-                    side: BorderSide(color: Colors.black, width: 2),
-                  ),
-                  child: IconButton(
-                    tooltip: 'Buzón de alertas',
-                    onPressed: _openAlertInbox,
-                    icon: const Icon(
-                      Icons.notifications_active_outlined,
-                      color: Colors.black,
-                      size: 30,
-                    ),
-                    iconSize: 34,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 58,
-                      height: 58,
-                    ),
-                  ),
-                ),
-                if (_unreadAlertCount > 0)
-                  Positioned(
-                    top: -5,
-                    right: -5,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black, width: 2),
+              ),
+              const SizedBox(width: 12),
+              Semantics(
+                label: _unreadAlertCount > 0
+                    ? 'Buzón de alertas, $_unreadAlertCount sin leer'
+                    : 'Buzón de alertas',
+                button: true,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(
+                        side: BorderSide(color: Colors.black, width: 2),
                       ),
-                      child: Text(
-                        _unreadAlertCount > 99 ? '99+' : '$_unreadAlertCount',
-                        style: const TextStyle(
+                      child: IconButton(
+                        tooltip: 'Buzón de alertas',
+                        onPressed: _openAlertInbox,
+                        icon: const Icon(
+                          Icons.notifications_active_outlined,
                           color: Colors.black,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                          size: 30,
+                        ),
+                        iconSize: 34,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 58,
+                          height: 58,
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                    if (_unreadAlertCount > 0)
+                      Positioned(
+                        top: -5,
+                        right: -5,
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black, width: 2),
+                          ),
+                          child: Text(
+                            _unreadAlertCount > 99
+                                ? '99+'
+                                : '$_unreadAlertCount',
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -57,8 +57,6 @@ dependencies:
   xml: ^7.0.1
   achievement_view: ^1.0.1
   fifty_achievement_engine: ^0.2.2
-  firebase_core: ^4.15.0
-  firebase_messaging: ^16.7.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

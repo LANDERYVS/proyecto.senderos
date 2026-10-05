@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../services/ubicacion_app.dart';
 import '../services/offline_tile_service.dart';
 import '../services/guardado_local.dart';
 import '../utils/route_calculator.dart';
@@ -37,6 +38,10 @@ enum GrabarMarkerType {
 }
 
 class GrabarController extends ChangeNotifier {
+  GrabarController() {
+    UbicacionApp.enabled.addListener(_onLocationPreferenceChanged);
+  }
+
   final MapController mapController = MapController();
   final RouteCalculator routeCalculator = RouteCalculator();
   final RouteStorageService routeStorageService = RouteStorageService();
@@ -61,6 +66,7 @@ class GrabarController extends ChangeNotifier {
   bool isRecording = false;
   bool isPaused = false;
   bool _hasCenteredOnInitialLocation = false;
+  int _locationGeneration = 0;
   double distanceKm = 0;
   double elevationGainMeters = 0;
   double elevationLossMeters = 0;
@@ -77,6 +83,7 @@ class GrabarController extends ChangeNotifier {
 
   @override
   void dispose() {
+    UbicacionApp.enabled.removeListener(_onLocationPreferenceChanged);
     positionSubscription?.cancel();
     locationRefreshTimer?.cancel();
     recordingTimer?.cancel();
@@ -84,17 +91,35 @@ class GrabarController extends ChangeNotifier {
   }
 
   Future<void> requestPermissionAndStartTracking() async {
-    final granted = await localizacionService
-        .requestPermissionAndStartTracking();
-    if (!granted) {
-      status = 'Permiso de ubicación denegado';
+    final generation = ++_locationGeneration;
+    if (!UbicacionApp.enabled.value) {
+      status = 'Ubicación pausada desde Configuración';
+      notifyListeners();
       return;
     }
 
-    await startLocationUpdates();
+    final granted = await localizacionService
+        .requestPermissionAndStartTracking();
+    if (generation != _locationGeneration || !UbicacionApp.enabled.value) {
+      return;
+    }
+    if (!granted) {
+      status = 'Permiso de ubicación denegado';
+      notifyListeners();
+      return;
+    }
+
+    if (isRecording) {
+      startLocationStream(showNotification: true);
+      await refreshCurrentLocation();
+    } else {
+      await startLocationUpdates();
+    }
   }
 
   Future<void> startLocationUpdates() async {
+    if (!UbicacionApp.enabled.value) return;
+    final generation = _locationGeneration;
     Position? position;
     try {
       position = await localizacionService.getCurrentPosition();
@@ -102,6 +127,9 @@ class GrabarController extends ChangeNotifier {
       handleLocationError(error);
     }
 
+    if (generation != _locationGeneration || !UbicacionApp.enabled.value) {
+      return;
+    }
     if (position == null) {
       status = '';
       return;
@@ -112,10 +140,13 @@ class GrabarController extends ChangeNotifier {
   }
 
   void startLocationStream({required bool showNotification}) {
+    if (!UbicacionApp.enabled.value) return;
     positionSubscription?.cancel();
     positionSubscription = localizacionService
         .getPositionStream(showNotification: showNotification)
-        .listen(updateLocation, onError: handleLocationError);
+        .listen((position) {
+          if (UbicacionApp.enabled.value) updateLocation(position);
+        }, onError: handleLocationError);
 
     locationRefreshTimer?.cancel();
     locationRefreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -124,16 +155,39 @@ class GrabarController extends ChangeNotifier {
   }
 
   Future<void> refreshCurrentLocation() async {
-    if ((!isRecording && positionSubscription == null)) return;
+    if (!UbicacionApp.enabled.value ||
+        (!isRecording && positionSubscription == null)) {
+      return;
+    }
 
     try {
       final position = await localizacionService.getCurrentPosition();
-      if (position != null) {
+      if (position != null && UbicacionApp.enabled.value) {
         updateLocation(position);
       }
     } catch (error) {
-      handleLocationError(error);
+      if (UbicacionApp.enabled.value) handleLocationError(error);
     }
+  }
+
+  void _onLocationPreferenceChanged() {
+    if (!UbicacionApp.enabled.value) {
+      _locationGeneration++;
+      positionSubscription?.cancel();
+      positionSubscription = null;
+      locationRefreshTimer?.cancel();
+      locationRefreshTimer = null;
+      markers.clear();
+      status = 'Ubicación pausada desde Configuración';
+      if (isRecording) {
+        recordingStatus = 'GPS pausado desde Configuración';
+      }
+      notifyListeners();
+      return;
+    }
+
+    if (isRecording) recordingStatus = 'Obteniendo ubicación...';
+    unawaited(requestPermissionAndStartTracking());
   }
 
   void handleLocationError(Object error) {
@@ -270,9 +324,11 @@ class GrabarController extends ChangeNotifier {
       return;
     }
 
-    startLocationStream(showNotification: true);
+    if (UbicacionApp.enabled.value) {
+      startLocationStream(showNotification: true);
+    }
     startRecordingTimer();
-    await refreshCurrentLocation();
+    if (UbicacionApp.enabled.value) await refreshCurrentLocation();
   }
 
   void startRecordingTimer() {

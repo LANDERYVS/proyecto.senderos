@@ -144,10 +144,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFFEAE1D2),
+      backgroundColor: isDark ? colorScheme.surface : const Color(0xFFEAE1D2),
       body: Container(
-        decoration: const BoxDecoration(gradient: LoginStyles.screenGradient),
+        decoration: BoxDecoration(
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF101914), Color(0xFF1B2B22), Color(0xFF29382F)],
+                )
+              : LoginStyles.screenGradient,
+        ),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -157,7 +167,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 constraints: const BoxConstraints(maxWidth: 420),
                 padding: const EdgeInsets.all(26),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(235),
+                  color: isDark
+                      ? const Color(0xFF202923).withAlpha(245)
+                      : Colors.white.withAlpha(235),
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
@@ -170,10 +182,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    LoginStyles.buildLogo(),
+                    LoginStyles.buildLogo(context),
                     const SizedBox(height: 28),
                     if (isCreatingAccount) ...[
                       LoginStyles.buildProfileAvatarSelector(
+                        context: context,
                         selectedAvatar: _selectedAvatar,
                         onPick: _pickProfileImage,
                       ),
@@ -181,18 +194,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     if (isCreatingAccount)
                       LoginStyles.buildInputField(
+                        context: context,
                         controller: usernameController,
                         labelText: 'Nombre de usuario *',
                       ),
                     if (isCreatingAccount) const SizedBox(height: 16),
                     if (isCreatingAccount)
                       LoginStyles.buildInputField(
+                        context: context,
                         controller: phoneController,
                         labelText: 'Número de teléfono *',
                         keyboardType: TextInputType.phone,
                       ),
                     if (isCreatingAccount) const SizedBox(height: 16),
                     LoginStyles.buildInputField(
+                      context: context,
                       controller: emailController,
                       labelText: isCreatingAccount
                           ? 'Correo electrónico *'
@@ -200,6 +216,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 16),
                     LoginStyles.buildInputField(
+                      context: context,
                       controller: passwordController,
                       labelText: isCreatingAccount
                           ? 'Contraseña *'
@@ -209,6 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (isCreatingAccount) ...[
                       const SizedBox(height: 16),
                       LoginStyles.buildInputField(
+                        context: context,
                         controller: confirmPasswordController,
                         labelText: 'Confirmar contraseña *',
                         obscureText: true,
@@ -219,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: isCreatingAccount ? _createAccount : _login,
-                        style: LoginStyles.actionButtonStyle(),
+                        style: LoginStyles.actionButtonStyle(context),
                         child: Text(
                           isCreatingAccount ? 'Crear cuenta' : 'Iniciar sesión',
                           style: const TextStyle(
@@ -242,7 +260,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         });
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF2E5E47),
+                        foregroundColor: isDark
+                            ? colorScheme.primary
+                            : const Color(0xFF2E5E47),
                       ),
                       child: Text(
                         isCreatingAccount
