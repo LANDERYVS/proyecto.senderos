@@ -677,6 +677,10 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
             .toList();
         _receivedLocationRequests = receivedLocationRequests
             .map<Map<String, dynamic>>((row) => Map<String, dynamic>.from(row))
+            .where((request) {
+              final status = request['estado']?.toString().toLowerCase() ?? '';
+              return status == 'pendiente' || status == 'pending';
+            })
             .toList();
         _profiles = {
           for (final row in profileRows)
@@ -810,6 +814,11 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         },
       );
       if (!mounted) return;
+      setState(() {
+        _receivedLocationRequests = _receivedLocationRequests
+            .where((item) => item['id'] != request['id'])
+            .toList();
+      });
       await _loadNotifications();
       _showMessage(
         accept

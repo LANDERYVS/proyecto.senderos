@@ -18,6 +18,7 @@ class SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 50, maxHeight: 50),
       child: TextField(
@@ -30,13 +31,13 @@ class SearchField extends StatelessWidget {
           prefixIcon: const Icon(Icons.search, size: 26),
           suffixIcon: suffixIcon,
           filled: true,
-          fillColor: const Color(0xfff2f2f2),
+          fillColor: colors.surfaceContainerHighest,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,
             vertical: 12,
           ),
-          hintStyle: const TextStyle(color: Color(0xff8d8d8d), fontSize: 15),
+          hintStyle: TextStyle(color: colors.onSurfaceVariant, fontSize: 15),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
             borderSide: BorderSide.none,
@@ -47,7 +48,7 @@ class SearchField extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(28),
-            borderSide: const BorderSide(color: Color(0xffd9d9d9), width: 1),
+            borderSide: BorderSide(color: colors.outline, width: 1),
           ),
           prefixIconConstraints: const BoxConstraints(minWidth: 42),
         ),

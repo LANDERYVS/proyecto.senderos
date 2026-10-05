@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/explore_trail.dart';
+import '../services/compartir_ubicacion.dart';
 import '../services/logros_service.dart';
 import 'amigos.dart';
 import 'guardados.dart';
@@ -27,6 +28,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _client = Supabase.instance.client;
+  final _sharingService = CompartirUbicacionService();
   late int _selectedIndex;
   int _communityVersion = 0;
   int _notificationCount = 0;
@@ -39,6 +41,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Timer? _notificationRefreshTimer;
   Timer? _achievementRefreshTimer;
   bool _checkingAchievements = false;
+  bool _hasSharedLocation = false;
+  bool _checkingSharedLocation = false;
 
   @override
   void initState() {
@@ -47,11 +51,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _selectedIndex = widget.initialIndex.clamp(0, 4);
     _loadCurrentUserPhoto();
     _loadNotificationCount();
+    _loadSharedLocationStatus();
     _checkAchievements();
     _subscribeToNotifications();
     _notificationRefreshTimer = Timer.periodic(
       const Duration(seconds: 5),
-      (_) => _loadNotificationCount(),
+      (_) {
+        _loadNotificationCount();
+        _loadSharedLocationStatus();
+      },
     );
     _achievementRefreshTimer = Timer.periodic(
       const Duration(seconds: 30),
@@ -64,6 +72,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _notificationRefreshTimer?.cancel();
     _achievementRefreshTimer?.cancel();
+    _sharingService.dispose();
     final channel = _notificationChannel;
     if (channel != null) {
       _client.removeChannel(channel);
@@ -75,7 +84,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _loadNotificationCount();
+      _loadSharedLocationStatus();
       _checkAchievements();
+    }
+  }
+
+  Future<void> _loadSharedLocationStatus() async {
+    if (!mounted ||
+        _checkingSharedLocation ||
+        _client.auth.currentUser == null) {
+      return;
+    }
+
+    _checkingSharedLocation = true;
+    try {
+      final groups = await _sharingService.loadObservedTrails();
+      final hasSharedLocation = groups.any(
+        (group) => group.observers.any((observer) => observer.location != null),
+      );
+      if (mounted && hasSharedLocation != _hasSharedLocation) {
+        setState(() => _hasSharedLocation = hasSharedLocation);
+      }
+    } catch (error) {
+      debugPrint('No se pudo comprobar si hay ubicaciones compartidas: $error');
+    } finally {
+      _checkingSharedLocation = false;
     }
   }
 
@@ -290,7 +323,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         height: 42,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xffe2e2e2), width: 1.5),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+            width: 1.5,
+          ),
         ),
         child: ClipOval(
           child: DefaultUserAvatar(radius: 20, imageUrl: _userPhotoUrl),
@@ -307,8 +343,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ? null
           : AppBar(
               toolbarHeight: 78,
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,
               leadingWidth: 0,
@@ -354,6 +390,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       bottomNavigationBar: buildNavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: _selectDestination,
+        hasSharedLocation: _hasSharedLocation,
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'inicio.dart';
 import '../widgets/barra_navegacion.dart';
 
 import '../services/servicio_autenticacion.dart';
+import '../services/tema_app.dart';
 import '../widgets/config_card.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
@@ -49,11 +50,21 @@ class ConfiguracionScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle(context, 'Configuración de la App'),
-        ConfigCard(
-          icon: Icons.brightness_medium,
-          title: 'Tema',
-          subtitle: 'Claro (fijo)',
-          onTap: () => _showMessage(context, 'Tema: Claro (fijo)'),
+        ValueListenableBuilder<ThemeMode>(
+          valueListenable: TemaApp.themeMode,
+          builder: (context, themeMode, _) {
+            final isDark = themeMode == ThemeMode.dark;
+            return ConfigCard(
+              icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+              title: 'Tema',
+              subtitle: isDark ? 'Oscuro' : 'Claro',
+              trailing: Switch(
+                value: isDark,
+                onChanged: (enabled) => _setDarkMode(context, enabled),
+              ),
+              onTap: () => _setDarkMode(context, !isDark),
+            );
+          },
         ),
         ConfigCard(
           icon: Icons.location_on_outlined,
@@ -116,5 +127,14 @@ class ConfiguracionScreen extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _setDarkMode(BuildContext context, bool enabled) async {
+    try {
+      await TemaApp.setDarkMode(enabled);
+    } catch (error) {
+      if (!context.mounted) return;
+      _showMessage(context, 'No se pudo guardar el tema: $error');
+    }
   }
 }

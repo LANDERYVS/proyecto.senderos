@@ -278,21 +278,27 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader() {
+    final colors = Theme.of(context).colorScheme;
+    final isDark = colors.brightness == Brightness.dark;
+    final headerForeground = isDark ? colors.onSurface : Colors.white;
+    final headerGradient = isDark
+        ? [colors.surfaceContainerHighest, colors.surfaceContainer]
+        : [LoginStyles.deepGreen, LoginStyles.forestGreen];
     return Column(
       children: [
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [LoginStyles.deepGreen, LoginStyles.forestGreen],
+              colors: headerGradient,
             ),
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: LoginStyles.deepGreen.withAlpha(35),
+                color: headerGradient.first.withAlpha(isDark ? 70 : 35),
                 blurRadius: 18,
                 offset: const Offset(0, 9),
               ),
@@ -345,7 +351,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 _name,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
+                  color: headerForeground,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -363,19 +369,19 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: LoginStyles.accentGold.withAlpha(150),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.workspace_premium_rounded,
                         size: 16,
                         color: LoginStyles.accentGold,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         'THOPO PREMIUM',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: headerForeground,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.6,
                           fontSize: 11,
@@ -389,7 +395,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   'Senderista THOPO',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withAlpha(210),
+                    color: headerForeground.withAlpha(210),
                   ),
                 ),
               ],
@@ -442,7 +448,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Card(
           margin: EdgeInsets.zero,
           elevation: 0,
-          color: LoginStyles.softCream,
+          color: colors.surfaceContainerLow,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
             side: BorderSide(color: colors.outlineVariant.withAlpha(120)),
@@ -453,10 +459,10 @@ class _ProfilePageState extends State<ProfilePage> {
               vertical: 5,
             ),
             leading: CircleAvatar(
-              backgroundColor: LoginStyles.primaryGreen.withAlpha(20),
-              child: const Icon(
+              backgroundColor: colors.primaryContainer,
+              child: Icon(
                 Icons.email_outlined,
-                color: LoginStyles.primaryGreen,
+                color: colors.onPrimaryContainer,
               ),
             ),
             title: const Text(
@@ -470,7 +476,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Card(
           margin: EdgeInsets.zero,
           elevation: 0,
-          color: LoginStyles.softCream,
+          color: colors.surfaceContainerLow,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
             side: BorderSide(color: colors.outlineVariant.withAlpha(120)),
@@ -481,10 +487,10 @@ class _ProfilePageState extends State<ProfilePage> {
               vertical: 5,
             ),
             leading: CircleAvatar(
-              backgroundColor: LoginStyles.accentGold.withAlpha(45),
-              child: const Icon(
+              backgroundColor: colors.secondaryContainer,
+              child: Icon(
                 Icons.emoji_events_outlined,
-                color: LoginStyles.deepGreen,
+                color: colors.onSecondaryContainer,
               ),
             ),
             title: const Text(
@@ -502,7 +508,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Card(
           margin: EdgeInsets.zero,
           elevation: 0,
-          color: LoginStyles.primaryGreen,
+          color: colors.primaryContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -511,28 +517,25 @@ class _ProfilePageState extends State<ProfilePage> {
               horizontal: 16,
               vertical: 5,
             ),
-            leading: const CircleAvatar(
-              backgroundColor: Colors.white,
-              child: Icon(
-                Icons.settings_outlined,
-                color: LoginStyles.primaryGreen,
-              ),
+            leading: CircleAvatar(
+              backgroundColor: colors.surface,
+              child: Icon(Icons.settings_outlined, color: colors.primary),
             ),
-            title: const Text(
+            title: Text(
               'Configuración',
               style: TextStyle(
-                color: Colors.white,
+                color: colors.onPrimaryContainer,
                 fontWeight: FontWeight.w700,
               ),
             ),
             subtitle: Text(
               'Preferencias y opciones de la cuenta',
-              style: TextStyle(color: Colors.white.withAlpha(220)),
+              style: TextStyle(color: colors.onPrimaryContainer.withAlpha(220)),
             ),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.arrow_forward_ios_rounded,
               size: 16,
-              color: Colors.white,
+              color: colors.onPrimaryContainer,
             ),
             onTap: _openSettings,
           ),
@@ -584,11 +587,12 @@ class _ProfileStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 14),
         decoration: BoxDecoration(
-          color: LoginStyles.softCream,
+          color: colors.surfaceContainerLow,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: Theme.of(context).colorScheme.outlineVariant.withAlpha(120),
@@ -596,7 +600,7 @@ class _ProfileStatCard extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Icon(icon, color: LoginStyles.primaryGreen, size: 21),
+            Icon(icon, color: colors.primary, size: 21),
             const SizedBox(height: 7),
             Text(
               value,
@@ -604,7 +608,7 @@ class _ProfileStatCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: LoginStyles.deepGreen,
+                color: colors.onSurface,
               ),
             ),
             const SizedBox(height: 2),

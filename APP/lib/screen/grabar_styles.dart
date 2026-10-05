@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class GrabarStyles {
   static const Color primaryGreen = Color(0xff4f683c);
   static const Color primaryPink = Color(0xffec1768);
-  static const Color panelBackground = Color(0xfffbfaf7);
 
   static const EdgeInsets panelPadding = EdgeInsets.fromLTRB(16, 12, 16, 12);
   static const EdgeInsets screenPadding = EdgeInsets.all(16);
@@ -26,27 +25,31 @@ class GrabarStyles {
     shape: RoundedRectangleBorder(borderRadius: buttonRadius),
   );
 
-  static final ButtonStyle secondaryButtonStyle = ElevatedButton.styleFrom(
-    backgroundColor: const Color(0xffe9efe4),
-    foregroundColor: primaryGreen,
-    elevation: 0,
-    shape: RoundedRectangleBorder(borderRadius: buttonRadius),
-  );
+  static ButtonStyle secondaryButtonStyle(BuildContext context) =>
+      ElevatedButton.styleFrom(
+        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+        foregroundColor: Theme.of(context).colorScheme.onSecondaryContainer,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: buttonRadius),
+      );
 
   static TextStyle metricLabelStyle(BuildContext context) => TextStyle(
-    color: Colors.grey.shade600,
+    color: Theme.of(context).colorScheme.onSurfaceVariant,
     fontSize: 11,
     fontWeight: FontWeight.w600,
   );
 
-  static const TextStyle metricValueStyle = TextStyle(
-    color: Color(0xff171916),
+  static TextStyle metricValueStyle(BuildContext context) => TextStyle(
+    color: Theme.of(context).colorScheme.onSurface,
     fontSize: 19,
     fontWeight: FontWeight.w700,
   );
 
   static TextStyle statusStyle(BuildContext context) =>
-      TextStyle(color: Colors.grey.shade600, fontSize: 10);
+      TextStyle(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        fontSize: 10,
+      );
 
   static Widget currentLocationMarker({
     double size = 34,

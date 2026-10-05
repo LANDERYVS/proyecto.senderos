@@ -47,10 +47,11 @@ class _FilterBarState extends State<FilterBar> {
   /// [filter] = valor actual del filtro
   /// [options] = lista de opciones a mostrar
   void _chooseFilter(String filter, List<String> options) {
+    final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -111,7 +112,7 @@ class _FilterBarState extends State<FilterBar> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: Padding(
@@ -180,7 +181,9 @@ class _FilterButton extends StatelessWidget {
         foregroundColor: isSelected
             ? colorScheme.onPrimaryContainer
             : colorScheme.onSurface,
-        backgroundColor: Colors.white,
+        backgroundColor: isSelected
+            ? colorScheme.primaryContainer
+            : colorScheme.surface,
         side: BorderSide(
           color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
         ),

@@ -34,12 +34,13 @@ class GrabarMetricsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: GrabarStyles.panelBackground,
+        color: colors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         border: Border(
-          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+          top: BorderSide(color: colors.outlineVariant),
         ),
         boxShadow: [
           BoxShadow(
@@ -115,7 +116,7 @@ class GrabarMetricsPanel extends StatelessWidget {
                       onPressed: onTogglePause!,
                       label: isPaused ? 'Reanudar' : 'Pausar',
                       icon: isPaused ? Icons.play_arrow : Icons.pause,
-                      style: GrabarStyles.secondaryButtonStyle,
+                      style: GrabarStyles.secondaryButtonStyle(context),
                     ),
                   ),
                 if (onTogglePause != null && onStop != null)

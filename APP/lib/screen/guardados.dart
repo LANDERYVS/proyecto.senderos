@@ -354,6 +354,7 @@ class _SavedContentState extends State<SavedContent> {
 
   Widget _tabButton({required String label, required int index}) {
     final isSelected = _selectedTab == index;
+    final colors = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => setState(() {
         _selectedTab = index;
@@ -364,8 +365,8 @@ class _SavedContentState extends State<SavedContent> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: isSelected ? Colors.black : Colors.transparent,
-              width: 2.5,
+              color: isSelected ? colors.primary : colors.outlineVariant,
+              width: isSelected ? 2 : 1,
             ),
           ),
         ),
@@ -373,10 +374,9 @@ class _SavedContentState extends State<SavedContent> {
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: isSelected ? Colors.black : Colors.grey.shade600,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: isSelected ? colors.onSurface : colors.onSurfaceVariant,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screen/inicio.dart';
 import 'screen/previsualizar_gpx.dart';
 import 'services/gpx_open_service.dart';
+import 'services/tema_app.dart';
 import 'widgets/login.dart';
 
 Future<void> main() async {
@@ -12,6 +13,7 @@ Future<void> main() async {
     url: 'https://bwigvvonhdlbwlcnnoea.supabase.co',
     publishableKey: 'sb_publishable_LVcxjnDwgqPpbjMuEu3Inw_fXSgxp8I',
   );
+  await TemaApp.load();
   runApp(const MyApp());
 }
 
@@ -79,25 +81,36 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: _navigatorKey,
-      scaffoldMessengerKey: _messengerKey,
-      title: 'Mapa en tiempo real',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xff4f8f3a),
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        textTheme: ThemeData.light().textTheme.apply(
-          bodyColor: Colors.black,
-          displayColor: Colors.black,
-        ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: TemaApp.themeMode,
+      builder: (context, themeMode, _) => MaterialApp(
+        navigatorKey: _navigatorKey,
+        scaffoldMessengerKey: _messengerKey,
+        title: 'Mapa en tiempo real',
+        debugShowCheckedModeBanner: false,
+        theme: _buildTheme(Brightness.light),
+        darkTheme: _buildTheme(Brightness.dark),
+        themeMode: themeMode,
+        home: AuthGate(home: const HomePage()),
       ),
-      home: AuthGate(home: const HomePage()),
+    );
+  }
+
+  ThemeData _buildTheme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xff4f8f3a),
+        brightness: brightness,
+      ),
+      scaffoldBackgroundColor: isDark ? null : Colors.white,
+      textTheme: (isDark ? ThemeData.dark() : ThemeData.light()).textTheme
+          .apply(
+            bodyColor: isDark ? Colors.white : Colors.black,
+            displayColor: isDark ? Colors.white : Colors.black,
+          ),
     );
   }
 }

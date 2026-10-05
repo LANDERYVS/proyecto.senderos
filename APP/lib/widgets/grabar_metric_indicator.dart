@@ -23,7 +23,7 @@ class GrabarMetricIndicator extends StatelessWidget {
           crossAxisAlignment: alignment,
           children: [
             Text(label, style: GrabarStyles.metricLabelStyle(context)),
-            Text(value, style: GrabarStyles.metricValueStyle),
+            Text(value, style: GrabarStyles.metricValueStyle(context)),
           ],
         ),
       ],
