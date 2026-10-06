@@ -123,14 +123,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                     child: Text('Senderismo'),
                   ),
                   DropdownMenuItem(value: 'Ciclismo', child: Text('Ciclismo')),
-                  DropdownMenuItem(
-                    value: 'Trail running',
-                    child: Text('Trail running'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Cabalgata',
-                    child: Text('Cabalgata'),
-                  ),
+                  DropdownMenuItem(value: 'Trekking', child: Text('Trekking')),
                   DropdownMenuItem(value: 'Otro', child: Text('Otro')),
                 ],
                 onChanged: (value) {

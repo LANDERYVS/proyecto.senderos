@@ -67,7 +67,7 @@ class SeguimientoSenderoMap extends StatelessWidget {
                 polylines: [
                   Polyline(
                     points: routePoints,
-                    color: const Color(0xff4f8f3a),
+                    color: const Color(0xffff9800),
                     strokeWidth: 6,
                   ),
                 ],
