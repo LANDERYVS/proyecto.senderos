@@ -160,6 +160,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ),
           callback: (_) => _loadNotificationCount(),
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'notificaciones_espectador',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'target_id',
+            value: user.id,
+          ),
+          callback: (_) => _loadNotificationCount(),
+        )
         .subscribe();
   }
 
@@ -175,13 +186,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final receivedRequests = await _client
           .from('notificaciones_solicitudes')
           .select('id')
-          .eq('target_id', user.id)
-          .eq('tipo', 'amistad');
+          .eq('target_id', user.id);
       final receivedLocationRequests = await _client
-          .from('notificaciones_solicitudes')
+          .from('notificaciones_espectador')
           .select('id')
           .eq('target_id', user.id)
-          .eq('tipo', 'ubicacion')
           .eq('estado', 'pendiente');
       if (!mounted) return;
 

@@ -81,7 +81,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       );
       if (friend != null) {
         if (friend.requestToFriendStatus == 'aceptada') {
-          await _startSharing(friend);
+          await _requestLocation(friend);
         } else if (friend.requestFromFriendStatus == 'aceptada') {
           _showMessage(
             'Aceptaste la solicitud de ${friend.name}. Su ubicación '
@@ -111,7 +111,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       return const Icon(Icons.location_on_outlined);
     }
     if (friend.requestToFriendStatus == 'aceptada') {
-      return const Text('Aceptada');
+      return const Text('Solicitar de nuevo');
     }
     if (friend.requestToFriendStatus == 'pendiente') {
       return const Text('Pendiente');

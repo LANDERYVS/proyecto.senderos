@@ -589,6 +589,17 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
+          table: 'notificaciones_espectador',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'target_id',
+            value: user.id,
+          ),
+          callback: (_) => _loadNotifications(),
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
           table: 'notificaciones_alertas',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
@@ -632,28 +643,24 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
           .from('notificaciones_solicitudes')
           .select('id, users_id, target_id, created_at')
           .eq('users_id', user.id)
-          .eq('tipo', 'amistad')
           .order('created_at', ascending: false);
       loadingStep = 'solicitudes de amistad recibidas';
       final receivedRequests = await _client
           .from('notificaciones_solicitudes')
           .select('id, users_id, target_id, created_at')
           .eq('target_id', user.id)
-          .eq('tipo', 'amistad')
           .order('created_at', ascending: false);
       loadingStep = 'solicitudes de ubicación enviadas';
       final sentLocationRequests = await _client
-          .from('notificaciones_solicitudes')
-          .select('id, users_id, target_id, estado, created_at')
-          .eq('users_id', user.id)
-          .eq('tipo', 'ubicacion')
+          .from('notificaciones_espectador')
+          .select('id, user_id, target_id, estado, created_at')
+          .eq('user_id', user.id)
           .order('created_at', ascending: false);
       loadingStep = 'solicitudes de ubicación recibidas';
       final receivedLocationRequests = await _client
-          .from('notificaciones_solicitudes')
-          .select('id, users_id, target_id, estado, created_at')
+          .from('notificaciones_espectador')
+          .select('id, user_id, target_id, estado, created_at')
           .eq('target_id', user.id)
-          .eq('tipo', 'ubicacion')
           .order('created_at', ascending: false);
       loadingStep = 'perfiles de usuarios';
       final profileRows = await _client
@@ -805,14 +812,32 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     if (!_processingRequestIds.add('location-$requestId')) return;
     if (mounted) setState(() {});
 
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      _processingRequestIds.remove('location-$requestId');
+      if (mounted) setState(() {});
+      return;
+    }
+
     try {
-      await _client.rpc(
-        'responder_solicitud_ubicacion',
-        params: {
-          'p_request_id': (request['id'] as num).toInt(),
-          'p_accept': accept,
-        },
-      );
+      final response = accept
+          ? await _client
+                .from('notificaciones_espectador')
+                .update({'estado': 'aceptada'})
+                .eq('id', request['id'])
+                .eq('target_id', userId)
+                .eq('estado', 'pendiente')
+                .select('id')
+          : await _client
+                .from('notificaciones_espectador')
+                .delete()
+                .eq('id', request['id'])
+                .eq('target_id', userId)
+                .eq('estado', 'pendiente')
+                .select('id');
+      if (response.isEmpty) {
+        throw StateError('La solicitud ya no está pendiente.');
+      }
       if (!mounted) return;
       setState(() {
         _receivedLocationRequests = _receivedLocationRequests
@@ -841,11 +866,10 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
 
     try {
       await _client
-          .from('notificaciones_solicitudes')
+          .from('notificaciones_espectador')
           .delete()
           .eq('id', request['id'])
-          .eq('users_id', userId)
-          .eq('tipo', 'ubicacion');
+          .eq('user_id', userId);
       if (!mounted) return;
       await _loadNotifications();
       _showMessage('Solicitud eliminada.');
@@ -1029,7 +1053,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                     final isProcessing = _processingRequestIds.contains(
                       requestId,
                     );
-                    final requester = _profiles[request['users_id'].toString()];
+                    final requester = _profiles[request['user_id'].toString()];
                     return Card(
                       margin: EdgeInsets.zero,
                       child: Padding(

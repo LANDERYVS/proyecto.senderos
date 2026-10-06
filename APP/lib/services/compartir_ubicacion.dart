@@ -99,6 +99,7 @@ class CompartirUbicacionService {
   final SupabaseClient _client;
   Timer? _sharingTimer;
   ShareFriend? _sharingFriend;
+  int? _sharingRelationId;
 
   ShareFriend? get sharingFriend => _sharingFriend;
 
@@ -125,21 +126,29 @@ class CompartirUbicacionService {
     if (friendIds.isEmpty) return [];
 
     final locationRequests = await _client
-        .from('notificaciones_solicitudes')
-        .select('users_id, target_id, estado')
-        .eq('tipo', 'ubicacion')
-        .or('users_id.eq.${currentUser.id},target_id.eq.${currentUser.id}');
+        .from('notificaciones_espectador')
+        .select('user_id, target_id, estado, created_at')
+        .or('user_id.eq.${currentUser.id},target_id.eq.${currentUser.id}');
+    locationRequests.sort((a, b) {
+      final aCreatedAt =
+          DateTime.tryParse(a['created_at']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final bCreatedAt =
+          DateTime.tryParse(b['created_at']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      return bCreatedAt.compareTo(aCreatedAt);
+    });
     final requestStatusesByFriend = <String, Map<String, String>>{};
     for (final request in locationRequests) {
-      final requesterId = request['users_id'].toString();
+      final requesterId = request['user_id'].toString();
       final targetId = request['target_id'].toString();
       final friendId = requesterId == currentUser.id ? targetId : requesterId;
       final statuses = requestStatusesByFriend.putIfAbsent(
         friendId,
         () => <String, String>{},
       );
-      statuses[requesterId == currentUser.id ? 'toFriend' : 'fromFriend'] =
-          request['estado'].toString();
+      final direction = requesterId == currentUser.id ? 'toFriend' : 'fromFriend';
+      statuses.putIfAbsent(direction, () => request['estado'].toString());
     }
 
     final profiles = await _client
@@ -164,31 +173,33 @@ class CompartirUbicacionService {
       throw StateError('Inicia sesión para solicitar una ubicación.');
     }
 
-    final existing = await _client
-        .from('notificaciones_solicitudes')
+    final existingRequests = await _client
+        .from('notificaciones_espectador')
         .select('id, estado')
-        .eq('users_id', currentUser.id)
-        .eq('target_id', friend.id)
-        .eq('tipo', 'ubicacion')
-        .maybeSingle();
-    final status = existing?['estado']?.toString();
-    if (status == 'pendiente') {
-      throw StateError('Ya tienes una solicitud pendiente para ${friend.name}.');
-    }
-    if (status == 'aceptada') {
-      throw StateError('${friend.name} ya aceptó tu solicitud.');
+        .eq('user_id', currentUser.id)
+        .eq('target_id', friend.id);
+    if (existingRequests.any((request) => request['estado'] == 'pendiente')) {
+      throw StateError(
+        'Ya tienes una solicitud pendiente para ${friend.name}.',
+      );
     }
 
-    if (existing != null) {
-      await _client
-          .from('notificaciones_solicitudes')
+    if (existingRequests.isNotEmpty) {
+      final deleted = await _client
+          .from('notificaciones_espectador')
           .delete()
-          .eq('id', existing['id']);
+          .eq('user_id', currentUser.id)
+          .eq('target_id', friend.id)
+          .select('id');
+      if (deleted.length != existingRequests.length) {
+        throw StateError(
+          'No se pudo restablecer la solicitud anterior para ${friend.name}.',
+        );
+      }
     }
-    await _client.from('notificaciones_solicitudes').insert({
-      'users_id': currentUser.id,
+    await _client.from('notificaciones_espectador').insert({
+      'user_id': currentUser.id,
       'target_id': friend.id,
-      'tipo': 'ubicacion',
       'estado': 'pendiente',
       'created_at': DateTime.now().toUtc().toIso8601String(),
     });
@@ -318,14 +329,13 @@ class CompartirUbicacionService {
     if (ids.isEmpty) return {};
 
     final acceptedRequests = await _client
-        .from('notificaciones_solicitudes')
-        .select('users_id')
+        .from('notificaciones_espectador')
+        .select('user_id')
         .eq('target_id', currentUser.id)
-        .eq('tipo', 'ubicacion')
         .eq('estado', 'aceptada')
-        .inFilter('users_id', ids);
+        .inFilter('user_id', ids);
     final authorizedUserIds = acceptedRequests
-        .map<String>((request) => request['users_id'].toString())
+        .map<String>((request) => request['user_id'].toString())
         .toSet()
         .toList();
     if (authorizedUserIds.isEmpty) return {};
@@ -352,11 +362,10 @@ class CompartirUbicacionService {
     if (currentUser == null) return;
 
     final approvedRequest = await _client
-        .from('notificaciones_solicitudes')
+        .from('notificaciones_espectador')
         .select('id')
-        .eq('users_id', currentUser.id)
+        .eq('user_id', currentUser.id)
         .eq('target_id', friend.id)
-        .eq('tipo', 'ubicacion')
         .eq('estado', 'aceptada')
         .maybeSingle();
     if (approvedRequest == null) {
@@ -372,21 +381,34 @@ class CompartirUbicacionService {
         .eq('espectador_id', friend.id)
         .maybeSingle();
 
+    late final int relationId;
     if (existing == null) {
-      await _client.from('relaciones_espectadores').insert({
-        'amistad': friend.friendshipId,
-        'espectador_id': friend.id,
-        'enabled': true,
-        'sendero_id': senderoId,
-      });
+      final inserted = await _client
+          .from('relaciones_espectadores')
+          .insert({
+            'amistad': friend.friendshipId,
+            'espectador_id': friend.id,
+            'enabled': true,
+            'sendero_id': senderoId,
+          })
+          .select('id')
+          .single();
+      relationId = (inserted['id'] as num).toInt();
     } else {
-      await _client
+      final updated = await _client
           .from('relaciones_espectadores')
           .update({'enabled': true, 'sendero_id': senderoId})
-          .eq('id', existing['id']);
+          .eq('id', existing['id'])
+          .select('id')
+          .maybeSingle();
+      if (updated == null) {
+        throw StateError('No se pudo activar la relación para compartir.');
+      }
+      relationId = (existing['id'] as num).toInt();
     }
     _sharingTimer?.cancel();
     _sharingFriend = friend;
+    _sharingRelationId = relationId;
     _sharingTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => publishLocation(),
@@ -445,16 +467,48 @@ class CompartirUbicacionService {
   Future<void> stopSharing() async {
     final currentUser = _client.auth.currentUser;
     final friend = _sharingFriend;
-    if (currentUser == null || friend == null) return;
+    final relationId = _sharingRelationId;
+    if (currentUser == null || friend == null || relationId == null) return;
 
-    await _client
-        .from('relaciones_espectadores')
-        .update({'enabled': false})
-        .eq('amistad', friend.friendshipId)
-        .eq('espectador_id', friend.id);
     _sharingTimer?.cancel();
     _sharingTimer = null;
+    final updated = await _client
+        .from('relaciones_espectadores')
+        .update({'enabled': false})
+        .eq('id', relationId)
+        .eq('amistad', friend.friendshipId)
+        .eq('espectador_id', friend.id)
+        .select('id');
+    if (updated.isEmpty) {
+      throw StateError(
+        'No se pudo finalizar la relación para dejar de compartir.',
+      );
+    }
+
     _sharingFriend = null;
+    _sharingRelationId = null;
+
+    await _client
+        .from('notificaciones_espectador')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('target_id', friend.id)
+        .eq('estado', 'aceptada');
+
+    final deleted = await _client
+        .from('relaciones_espectadores')
+        .delete()
+        .eq('id', relationId)
+        .eq('amistad', friend.friendshipId)
+        .eq('espectador_id', friend.id)
+        .eq('enabled', false)
+        .select('id');
+    if (deleted.isEmpty) {
+      throw StateError('La relación se desactivó, pero no se pudo eliminar.');
+    }
+
+    _sharingTimer?.cancel();
+    _sharingTimer = null;
   }
 
   void dispose() {
