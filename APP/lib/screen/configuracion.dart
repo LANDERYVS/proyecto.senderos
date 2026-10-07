@@ -8,6 +8,7 @@ import '../services/servicio_autenticacion.dart';
 import '../services/tema_app.dart';
 import '../services/ubicacion_app.dart';
 import '../widgets/config_card.dart';
+import 'editar_perfil.dart';
 import 'localizacion.dart';
 
 class ConfiguracionScreen extends StatelessWidget {
@@ -94,6 +95,15 @@ class ConfiguracionScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle(context, 'Configuración de Usuario'),
+        ConfigCard(
+          icon: Icons.person_outline,
+          title: 'Datos personales',
+          subtitle: 'Edita tu nombre y teléfono',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EditarPerfilScreen()),
+          ),
+        ),
         ConfigCard(
           icon: Icons.security_outlined,
           title: 'Privacidad',

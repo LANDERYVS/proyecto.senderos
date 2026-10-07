@@ -149,7 +149,13 @@ class _SavedContentState extends State<SavedContent> {
           builder: (_) => PrevisualizarGpxScreen(file: file, route: route),
         ),
       );
-      if (imported == true) await _loadRoutes();
+      if (imported == true) {
+        setState(() {
+          _selectedTab = 0;
+          _selectedSection = 0;
+        });
+        await _loadRoutes();
+      }
     } on GpxImportException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -346,7 +352,7 @@ class _SavedContentState extends State<SavedContent> {
       child: Row(
         children: [
           Expanded(child: _tabButton(label: 'Mis senderos', index: 0)),
-          Expanded(child: _tabButton(label: 'Senderos favoritos', index: 1)),
+          Expanded(child: _tabButton(label: 'Otros', index: 1)),
         ],
       ),
     );
@@ -692,6 +698,21 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  bool _matchesSearch(String candidate, String query) {
+    final value = candidate.toLowerCase();
+    return value.contains(query);
+  }
+
+  bool _matchesLength(double? distance) {
+    if (distance == null) return false;
+    return switch (_lengthFilter) {
+      'Menos de 3 km' => distance < 3,
+      '3 a 8 km' => distance >= 3 && distance <= 8,
+      'Más de 8 km' => distance > 8,
+      _ => true,
+    };
+  }
+
   List<SavedRoute> get _filteredRoutes {
     final query = widget.searchTerm.toLowerCase();
     final routesForTab = widget.downloadsOnly
@@ -720,21 +741,14 @@ class _SavedContentState extends State<SavedContent> {
 
     return routesForTab.where((route) {
       final matchesSearch =
-          route.name.toLowerCase().contains(query) ||
-          route.description.toLowerCase().contains(query);
+          _matchesSearch(route.name, query) ||
+          _matchesSearch(route.description, query);
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           route.difficulty == _difficultyFilter;
-      final matchesLength = switch (_lengthFilter) {
-        'Menos de 3 km' => route.distanceKm != null && route.distanceKm! < 3,
-        '3 a 8 km' =>
-          route.distanceKm != null &&
-              route.distanceKm! >= 3 &&
-              route.distanceKm! <= 8,
-        'Más de 8 km' => route.distanceKm != null && route.distanceKm! > 8,
-        _ => true,
-      };
-      return matchesSearch && matchesDifficulty && matchesLength;
+      return matchesSearch &&
+          matchesDifficulty &&
+          _matchesLength(route.distanceKm);
     }).toList();
   }
 
@@ -746,18 +760,14 @@ class _SavedContentState extends State<SavedContent> {
     final query = widget.searchTerm.toLowerCase();
     return _uploadedTrails.where((trail) {
       final matchesSearch =
-          trail.name.toLowerCase().contains(query) ||
-          trail.description.toLowerCase().contains(query);
+          _matchesSearch(trail.name, query) ||
+          _matchesSearch(trail.description, query);
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           trail.difficulty == _difficultyFilter;
-      final matchesLength = switch (_lengthFilter) {
-        'Menos de 3 km' => trail.distanceKm < 3,
-        '3 a 8 km' => trail.distanceKm >= 3 && trail.distanceKm <= 8,
-        'Más de 8 km' => trail.distanceKm > 8,
-        _ => true,
-      };
-      return matchesSearch && matchesDifficulty && matchesLength;
+      return matchesSearch &&
+          matchesDifficulty &&
+          _matchesLength(trail.distanceKm);
     }).toList();
   }
 
@@ -766,18 +776,14 @@ class _SavedContentState extends State<SavedContent> {
     final query = widget.searchTerm.toLowerCase();
     return _favoriteTrails.where((trail) {
       final matchesSearch =
-          trail.name.toLowerCase().contains(query) ||
-          trail.description.toLowerCase().contains(query);
+          _matchesSearch(trail.name, query) ||
+          _matchesSearch(trail.description, query);
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           trail.difficulty == _difficultyFilter;
-      final matchesLength = switch (_lengthFilter) {
-        'Menos de 3 km' => trail.distanceKm < 3,
-        '3 a 8 km' => trail.distanceKm >= 3 && trail.distanceKm <= 8,
-        'Más de 8 km' => trail.distanceKm > 8,
-        _ => true,
-      };
-      return matchesSearch && matchesDifficulty && matchesLength;
+      return matchesSearch &&
+          matchesDifficulty &&
+          _matchesLength(trail.distanceKm);
     }).toList();
   }
 
@@ -791,18 +797,6 @@ class _SavedContentState extends State<SavedContent> {
     return _selectedSection == 0
         ? 'Todavía no hay senderos descargados'
         : 'Todavía no hay senderos favoritos';
-  }
-}
-
-class DownloadedTrailsScreen extends StatelessWidget {
-  const DownloadedTrailsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Descargados')),
-      body: const SavedContent(downloadsOnly: true, showFilters: false),
-    );
   }
 }
 

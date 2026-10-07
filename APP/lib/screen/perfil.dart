@@ -72,7 +72,9 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final profile = await Supabase.instance.client
           .from('usuarios')
-          .select('name, email, user_photo, premium')
+          .select(
+            'name, email, user_photo, premium, kilometros_caminados',
+          )
           .eq('id', user.id)
           .maybeSingle();
 
@@ -98,17 +100,20 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final trailRows = await Supabase.instance.client
           .from('senderos')
-          .select('id, distancia')
+          .select('id')
           .eq('user_id', user.id);
+      final userStats = await Supabase.instance.client
+          .from('usuarios')
+          .select('kilometros_caminados')
+          .eq('id', user.id)
+          .single();
       final achievementRows = await Supabase.instance.client
           .from('user_logros')
           .select('logro_id')
           .eq('user_id', user.id);
 
-      var distance = 0.0;
-      for (final row in trailRows) {
-        distance += (row['distancia'] as num?)?.toDouble() ?? 0;
-      }
+      final distance =
+          (userStats['kilometros_caminados'] as num?)?.toDouble() ?? 0;
 
       if (!mounted) return;
       setState(() {
@@ -157,18 +162,20 @@ class _ProfilePageState extends State<ProfilePage> {
     return metadataPhoto?.isNotEmpty == true ? metadataPhoto : null;
   }
 
-  void _openSettings() {
-    Navigator.push(
+  Future<void> _openSettings() async {
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
     );
+    if (mounted) await _loadProfile();
   }
 
-  void _openRecordingScreen() {
-    Navigator.push(
+  Future<void> _openRecordingScreen() async {
+    await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const GrabarPage()),
     );
+    if (mounted) await _loadActivityStats();
   }
 
   void _openAchievements() {

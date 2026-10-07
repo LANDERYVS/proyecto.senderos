@@ -46,6 +46,7 @@ class RouteStorageService {
     required double elevationGainMeters,
     required double elevationLossMeters,
     List<Map<String, dynamic>> waypoints = const [],
+    File? sourceGpx,
   }) async {
     if (points.isEmpty) return false;
 
@@ -77,7 +78,11 @@ $pointsXml
 </gpx>
 ''';
 
-    await gpxFile.writeAsString(gpx);
+    if (sourceGpx == null) {
+      await gpxFile.writeAsString(gpx);
+    } else if (sourceGpx.path != gpxFile.path) {
+      await sourceGpx.copy(gpxFile.path);
+    }
 
     final savedPhotoPaths = <String>[];
     if (photos.isNotEmpty) {

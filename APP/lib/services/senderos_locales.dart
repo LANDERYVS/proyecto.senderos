@@ -13,9 +13,7 @@ class SenderosLocalesService {
   static const _uuid = Uuid();
   final WaypointService _waypointService = WaypointService();
 
-  Future<List<Map<String, dynamic>>> _waypointsForTrail(
-    int? senderoId,
-  ) async {
+  Future<List<Map<String, dynamic>>> _waypointsForTrail(int? senderoId) async {
     if (senderoId == null) return [];
     final waypoints = await _waypointService.fetchForTrail(senderoId);
     return waypoints.map((waypoint) => waypoint.toMap()).toList();

@@ -679,7 +679,7 @@ class _ObservedTrailMap extends StatelessWidget {
             polylines: [
               Polyline(
                 points: points,
-                color: colorScheme.primary,
+                color: const Color(0xffff9800),
                 strokeWidth: 5,
               ),
             ],

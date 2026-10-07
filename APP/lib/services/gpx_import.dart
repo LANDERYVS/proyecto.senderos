@@ -3,14 +3,22 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:xml/xml.dart';
 
 class GpxRouteData {
-  const GpxRouteData({required this.name, required this.points});
+  const GpxRouteData({
+    required this.name,
+    required this.points,
+    required this.distanceKm,
+    required this.elevationGainMeters,
+    required this.elevationLossMeters,
+  });
 
   final String name;
   final List<LatLng> points;
+  final double distanceKm;
+  final double elevationGainMeters;
+  final double elevationLossMeters;
 }
 
 class GpxImportException implements Exception {
@@ -77,10 +85,34 @@ class GpxImportService {
   GpxRouteData _readContent(String content, {required String fallbackName}) {
     try {
       final document = XmlDocument.parse(content);
-      final points = [
+      final routeElements = [
         ...document.findAllElements('trkpt'),
         ...document.findAllElements('rtept'),
-      ].map(_pointFromElement).whereType<LatLng>().toList();
+      ];
+      final points = <LatLng>[];
+      var elevationGainMeters = 0.0;
+      var elevationLossMeters = 0.0;
+      double? previousElevation;
+
+      for (final element in routeElements) {
+        final point = _pointFromElement(element);
+        if (point == null) continue;
+        points.add(point);
+
+        final elevation = double.tryParse(
+          element.getElement('ele')?.innerText.trim() ?? '',
+        );
+        if (elevation == null) continue;
+        if (previousElevation != null) {
+          final elevationChange = elevation - previousElevation;
+          if (elevationChange > 0) {
+            elevationGainMeters += elevationChange;
+          } else {
+            elevationLossMeters -= elevationChange;
+          }
+        }
+        previousElevation = elevation;
+      }
 
       if (points.length < 2) {
         throw const GpxImportException(
@@ -92,36 +124,27 @@ class GpxImportService {
           .findAllElements('name')
           .map((element) => element.innerText.trim())
           .firstWhere((value) => value.isNotEmpty, orElse: () => fallbackName);
-      return GpxRouteData(name: name, points: points);
+      const distanceCalculator = Distance(roundResult: false);
+      var distanceKm = 0.0;
+      for (var index = 1; index < points.length; index++) {
+        distanceKm += distanceCalculator.as(
+          LengthUnit.Kilometer,
+          points[index - 1],
+          points[index],
+        );
+      }
+      return GpxRouteData(
+        name: name,
+        points: points,
+        distanceKm: distanceKm,
+        elevationGainMeters: elevationGainMeters,
+        elevationLossMeters: elevationLossMeters,
+      );
     } on GpxImportException {
       rethrow;
     } on Exception catch (error) {
       throw GpxImportException('No se pudo leer el archivo GPX: $error');
     }
-  }
-
-  Future<File> importFile({required File source, required String name}) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final safeName = name
-        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-    final baseName = '${safeName.isEmpty ? 'sendero' : safeName}_$timestamp';
-    final destination = File('${directory.path}/$baseName.gpx');
-    await source.copy(destination.path);
-    await File('${directory.path}/$baseName.json').writeAsString(
-      jsonEncode({
-        'name': name,
-        'description': 'Importado desde un archivo GPX',
-        'difficulty': 'Fácil',
-        'photos': <String>[],
-        'createdByUser': true,
-        'isFavorite': false,
-        'createdAt': DateTime.now().toIso8601String(),
-      }),
-    );
-    return destination;
   }
 
   LatLng? _pointFromElement(XmlElement element) {

@@ -9,6 +9,7 @@ import '../models/trail_waypoint.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/offline_tile_service.dart';
 import '../services/ubicacion_app.dart';
+import '../services/walking_stats_service.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
 import '../widgets/compartir_ubicacion_button.dart';
 import '../widgets/enviar_alerta_button.dart';
@@ -45,6 +46,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
   final MapController _mapController = MapController();
   final OfflineTileService _tileService = OfflineTileService();
   final CompartirUbicacionService _sharingService = CompartirUbicacionService();
+  final WalkingStatsService _walkingStatsService = WalkingStatsService();
   late final SeguimientoSenderoController _trackingController;
 
   TileLayer? _offlineTileLayer;
@@ -94,6 +96,21 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
       exitLabel: 'Detener seguimiento',
     );
     if (!mounted || !shouldExit) return;
+    _trackingController.stopTracking();
+    try {
+      await _walkingStatsService.recordCompletedWalk(
+        distanceKm: _trackingController.distanceKm,
+      );
+    } on WalkingStatsException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
+      debugPrint('No se pudieron registrar los kilómetros caminados: $error');
+      return;
+    }
+    if (!mounted) return;
     await _stopSharingIfActive();
     if (!mounted) return;
     setState(() => _allowPop = true);

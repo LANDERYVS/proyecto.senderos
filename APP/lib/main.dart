@@ -88,6 +88,10 @@ class _MyAppState extends State<MyApp> {
       builder: (context, themeMode, _) => MaterialApp(
         navigatorKey: _navigatorKey,
         scaffoldMessengerKey: _messengerKey,
+        builder: (context, child) => ColoredBox(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          child: SafeArea(top: false, child: child ?? const SizedBox.shrink()),
+        ),
         title: 'Mapa en tiempo real',
         debugShowCheckedModeBanner: false,
         theme: _buildTheme(Brightness.light),

@@ -75,16 +75,21 @@ class LogrosService {
 
     final trailRows = await _client
         .from('senderos')
-        .select('id, distancia')
+        .select('id')
         .eq('user_id', user.id);
+    final userStats = await _client
+        .from('usuarios')
+        .select('kilometros_caminados')
+        .eq('id', user.id)
+        .single();
     final trails = (trailRows as List).whereType<Map<String, dynamic>>();
     final trailIds = <int>[];
-    var distanceKm = 0.0;
     for (final trail in trails) {
       final id = (trail['id'] as num?)?.toInt();
       if (id != null) trailIds.add(id);
-      distanceKm += (trail['distancia'] as num?)?.toDouble() ?? 0;
     }
+    final distanceKm =
+        (userStats['kilometros_caminados'] as num?)?.toDouble() ?? 0;
 
     var waypointCount = 0;
     if (trailIds.isNotEmpty) {

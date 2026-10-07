@@ -45,17 +45,20 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       final client = Supabase.instance.client;
       final trailRows = await client
           .from('senderos')
-          .select('id, distancia')
+          .select('id')
           .eq('user_id', widget.userId);
+      final userStats = await client
+          .from('usuarios')
+          .select('kilometros_caminados')
+          .eq('id', widget.userId)
+          .single();
       final achievementRows = await client
           .from('user_logros')
           .select('logro_id')
           .eq('user_id', widget.userId);
 
-      var distance = 0.0;
-      for (final row in trailRows) {
-        distance += (row['distancia'] as num?)?.toDouble() ?? 0;
-      }
+      final distance =
+          (userStats['kilometros_caminados'] as num?)?.toDouble() ?? 0;
 
       if (!mounted) return;
       setState(() {

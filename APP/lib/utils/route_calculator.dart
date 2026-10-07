@@ -111,3 +111,29 @@ class RouteCalculator {
     );
   }
 }
+
+class RouteDistanceAccumulator {
+  static const double _maximumLocationJumpMeters = 100;
+
+  final RouteCalculator _routeCalculator = RouteCalculator();
+  LatLng? _previousPoint;
+  double distanceMeters = 0;
+
+  void addLocation(LatLng point) {
+    final previousPoint = _previousPoint;
+    _previousPoint = point;
+    if (previousPoint == null) return;
+
+    final incrementMeters = _routeCalculator.calculateIncrementMeters(
+      previousPoint,
+      point,
+    );
+    if (incrementMeters <= _maximumLocationJumpMeters) {
+      distanceMeters += incrementMeters;
+    }
+  }
+
+  void resetBaseline() {
+    _previousPoint = null;
+  }
+}

@@ -3,6 +3,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto/widgets/save_route_dialog.dart';
 
 void main() {
+  testWidgets('uses the imported route name as the initial name', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () {
+                showSaveRouteDialog(
+                  context,
+                  duration: 'No disponible',
+                  distanceKm: 2.4,
+                  elevationGainMeters: 85,
+                  initialName: 'Sendero importado',
+                );
+              },
+              child: const Text('Abrir formulario'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir formulario'));
+    await tester.pumpAndSettle();
+
+    final nameField = tester.widget<TextField>(find.byType(TextField).first);
+    expect(nameField.controller?.text, 'Sendero importado');
+  });
+
   testWidgets('requires at least one photo before saving a route', (
     tester,
   ) async {

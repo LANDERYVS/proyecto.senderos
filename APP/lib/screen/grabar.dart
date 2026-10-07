@@ -80,6 +80,12 @@ class _GrabarPageState extends State<GrabarPage> {
   }
 
   Future<void> _toggleRecording() async {
+    if (!_controller.isRecording && _controller.hasUnrecordedWalk) {
+      await _controller.finishAndSaveRoute(context);
+      if (mounted) setState(() {});
+      return;
+    }
+
     if (!_controller.isRecording && !UbicacionApp.enabled.value) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -5,8 +5,10 @@ import 'package:flutter_map/flutter_map.dart';
 
 import '../models/trail_waypoint.dart';
 import '../services/gpx_import.dart';
+import '../services/guardado_local.dart';
 import '../services/offline_tile_service.dart';
 import '../widgets/route_polyline_map.dart';
+import '../widgets/save_route_dialog.dart';
 import 'seguir_sendero_descargado.dart';
 
 class PrevisualizarGpxScreen extends StatefulWidget {
@@ -52,11 +54,29 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
   }
 
   Future<void> _importRoute() async {
+    final details = await showSaveRouteDialog(
+      context,
+      duration: 'No disponible',
+      distanceKm: widget.route.distanceKm,
+      elevationGainMeters: widget.route.elevationGainMeters,
+      initialName: widget.route.name,
+    );
+    if (details == null || !mounted) return;
+
     setState(() => _isImporting = true);
     try {
-      await GpxImportService().importFile(
-        source: widget.file,
-        name: widget.route.name,
+      await RouteStorageService().saveRoute(
+        points: widget.route.points,
+        routeName: details.name,
+        description: details.description,
+        sport: details.sport,
+        difficulty: details.difficulty,
+        photos: details.photos,
+        distanceKm: widget.route.distanceKm,
+        elevationGainMeters: widget.route.elevationGainMeters,
+        elevationLossMeters: widget.route.elevationLossMeters,
+        waypoints: [for (final waypoint in widget.waypoints) waypoint.toMap()],
+        sourceGpx: widget.file,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../services/ubicacion_app.dart';
 import '../services/offline_tile_service.dart';
 import '../services/guardado_local.dart';
+import '../services/walking_stats_service.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/confirm_exit_recording_dialog.dart';
 import '../widgets/save_route_dialog.dart';
@@ -47,6 +48,7 @@ class GrabarController extends ChangeNotifier {
   final RouteStorageService routeStorageService = RouteStorageService();
   final OfflineTileService offlineTileService = OfflineTileService();
   final LocalizacionService localizacionService = LocalizacionService();
+  final WalkingStatsService walkingStatsService = WalkingStatsService();
   final LatLng initialPosition = const LatLng(-37.3217, -59.1332);
 
   final List<LatLng> recordedRoute = [];
@@ -68,6 +70,7 @@ class GrabarController extends ChangeNotifier {
   bool _hasCenteredOnInitialLocation = false;
   int _locationGeneration = 0;
   double distanceKm = 0;
+  bool _walkingDistanceRecorded = false;
   double elevationGainMeters = 0;
   double elevationLossMeters = 0;
   double? _lastRecordedAltitude;
@@ -262,6 +265,7 @@ class GrabarController extends ChangeNotifier {
   }
 
   double get estimatedCalories => distanceKm * userWeightKg * caloriesPerKgKm;
+  bool get hasUnrecordedWalk => !_walkingDistanceRecorded && distanceKm > 0;
 
   void _recordElevationChange(double altitude) {
     final validAltitude = _validAltitude(altitude);
@@ -307,6 +311,7 @@ class GrabarController extends ChangeNotifier {
     } else {
       recordedRoute.clear();
       distanceKm = 0;
+      _walkingDistanceRecorded = false;
       elevationGainMeters = 0;
       elevationLossMeters = 0;
       _lastRecordedAltitude = null;
@@ -356,6 +361,21 @@ class GrabarController extends ChangeNotifier {
       return;
     }
 
+    try {
+      if (!_walkingDistanceRecorded) {
+        await walkingStatsService.recordCompletedWalk(distanceKm: distanceKm);
+        _walkingDistanceRecorded = distanceKm > 0;
+      }
+    } on WalkingStatsException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      debugPrint('No se pudieron registrar los kilómetros caminados: $error');
+      return;
+    }
+
     final details = await showSaveRouteDialog(
       context,
       duration: formattedDuration,
@@ -386,9 +406,20 @@ class GrabarController extends ChangeNotifier {
       );
       if (saved && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Trayecto "${details.name}" guardado')),
+          SnackBar(
+            content: Text(
+              'Trayecto "${details.name}" guardado y kilómetros registrados',
+            ),
+          ),
         );
       }
+    } on WalkingStatsException catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      debugPrint('No se pudieron registrar los kilómetros caminados: $error');
     } on RoutePublishException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -481,7 +512,18 @@ class GrabarController extends ChangeNotifier {
   }
 
   Future<bool> confirmExitIfRecording(BuildContext context) async {
-    if (!isRecording) return true;
+    if (!isRecording) {
+      if (!hasUnrecordedWalk) return true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Los kilómetros de la caminata están pendientes. '
+            'Reintenta guardarlos antes de salir.',
+          ),
+        ),
+      );
+      return false;
+    }
 
     final confirmed = await showDialog<bool>(
       context: context,

@@ -10,8 +10,9 @@ Future<RouteDetails?> showSaveRouteDialog(
   required String duration,
   required double distanceKm,
   required double elevationGainMeters,
+  String initialName = '',
 }) async {
-  final nameController = TextEditingController();
+  final nameController = TextEditingController(text: initialName);
   final descriptionController = TextEditingController();
   final imagePicker = ImagePicker();
   final photos = <XFile>[];

@@ -20,7 +20,8 @@ class SeguimientoSenderoController extends ChangeNotifier {
   final List<LatLng> routePoints;
   final MapController mapController;
   final LocalizacionService _localizacionService = LocalizacionService();
-  final Distance _distanceCalculator = const Distance();
+  final RouteDistanceAccumulator _distanceAccumulator =
+      RouteDistanceAccumulator();
 
   StreamSubscription<Position>? _positionSubscription;
   Timer? _timer;
@@ -32,6 +33,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
   LatLng? userLocation;
   bool isLoadingLocation = true;
   bool isPaused = false;
+  bool isFinished = false;
   Duration elapsedTime = Duration.zero;
   double distanceKm = 0;
   double elevationGainMeters = 0;
@@ -110,6 +112,8 @@ class SeguimientoSenderoController extends ChangeNotifier {
       _positionSubscription?.cancel();
       _positionSubscription = null;
       userLocation = null;
+      _distanceAccumulator.resetBaseline();
+      _lastAltitude = null;
       isLoadingLocation = false;
       _notify();
       return;
@@ -129,9 +133,12 @@ class SeguimientoSenderoController extends ChangeNotifier {
   }
 
   void togglePause() {
+    if (isFinished) return;
     if (isPaused) {
       isPaused = false;
       _startTime = DateTime.now().subtract(elapsedTime);
+      _distanceAccumulator.resetBaseline();
+      _lastAltitude = null;
       _startTimer();
     } else {
       isPaused = true;
@@ -139,6 +146,16 @@ class SeguimientoSenderoController extends ChangeNotifier {
       elapsedTime = DateTime.now().difference(_startTime!);
     }
     _notify();
+  }
+
+  void stopTracking() {
+    if (isFinished) return;
+    isFinished = true;
+    isPaused = true;
+    _locationGeneration++;
+    _timer?.cancel();
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
   }
 
   void _updateUserLocation(Position position) {
@@ -154,31 +171,8 @@ class SeguimientoSenderoController extends ChangeNotifier {
   }
 
   void _updateProgress(LatLng point, double altitude) {
-    if (routePoints.isEmpty) return;
-
-    var nearestIndex = 0;
-    var nearestDistance = double.infinity;
-    for (var index = 0; index < routePoints.length; index++) {
-      final distance = _distanceCalculator.as(
-        LengthUnit.Meter,
-        point,
-        routePoints[index],
-      );
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearestIndex = index;
-      }
-    }
-
-    var distanceAlongRoute = 0.0;
-    for (var index = 0; index < nearestIndex; index++) {
-      distanceAlongRoute += _distanceCalculator.as(
-        LengthUnit.Meter,
-        routePoints[index],
-        routePoints[index + 1],
-      );
-    }
-    distanceKm = distanceAlongRoute / 1000;
+    _distanceAccumulator.addLocation(point);
+    distanceKm = _distanceAccumulator.distanceMeters / 1000;
 
     if (!altitude.isFinite) return;
     final previousAltitude = _lastAltitude;

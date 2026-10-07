@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -47,6 +49,8 @@ class RoutePolylineMap extends StatelessWidget {
       );
     }
 
+    final panBounds = _boundsWithPanMargin(LatLngBounds.fromPoints(points));
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
@@ -55,6 +59,13 @@ class RoutePolylineMap extends StatelessWidget {
           options: MapOptions(
             initialCenter: RouteCalculator.centerOfPoints(points)!,
             initialZoom: 14,
+            initialCameraFit: CameraFit.bounds(
+              bounds: panBounds,
+              padding: const EdgeInsets.all(24),
+            ),
+            cameraConstraint: CameraConstraint.contain(bounds: panBounds),
+            minZoom: 5,
+            maxZoom: 18,
           ),
           children: [
             tileLayer ??
@@ -66,7 +77,7 @@ class RoutePolylineMap extends StatelessWidget {
               polylines: [
                 Polyline(
                   points: points,
-                  color: const Color(0xff4f8f3a),
+                  color: const Color(0xffff9800),
                   strokeWidth: 5,
                 ),
               ],
@@ -74,6 +85,24 @@ class RoutePolylineMap extends StatelessWidget {
             WaypointMarkersLayer(waypoints: waypoints),
           ],
         ),
+      ),
+    );
+  }
+
+  LatLngBounds _boundsWithPanMargin(LatLngBounds routeBounds) {
+    final latitudeSpan = routeBounds.north - routeBounds.south;
+    final longitudeSpan = routeBounds.east - routeBounds.west;
+    final latitudeMargin = math.max(latitudeSpan * 0.1, 0.001);
+    final longitudeMargin = math.max(longitudeSpan * 0.1, 0.001);
+
+    return LatLngBounds(
+      LatLng(
+        routeBounds.south - latitudeMargin,
+        routeBounds.west - longitudeMargin,
+      ),
+      LatLng(
+        routeBounds.north + latitudeMargin,
+        routeBounds.east + longitudeMargin,
       ),
     );
   }
