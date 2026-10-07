@@ -12,12 +12,14 @@ import '../models/clima_sendero.dart';
 import '../models/explore_trail.dart';
 import '../models/trail_waypoint.dart';
 import '../services/offline_tile_service.dart';
+import '../services/premium_access_service.dart';
 import '../services/servicio_clima_sendero.dart';
 import '../services/senderos_locales.dart';
 import '../services/waypoint_service.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/clima_sendero_card.dart';
 import '../widgets/route_polyline_map.dart';
+import 'premium_access.dart';
 import 'seguir_sendero.dart';
 
 class DetalleSenderoScreen extends StatefulWidget {
@@ -35,8 +37,12 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   bool _isLoadingRoute = true;
   String? _routeError;
   bool _isLoadingWeather = false;
+  bool _isCheckingPremium = true;
+  bool _isPremium = false;
+  String? _premiumAccessError;
   ClimaSendero? _weather;
   final _weatherService = ServicioClimaSendero();
+  final _premiumAccessService = PremiumAccessService();
   final _offlineTileService = OfflineTileService();
   final _savedRoutesService = SenderosLocalesService();
   Timer? _weatherRefreshTimer;
@@ -49,8 +55,12 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   void initState() {
     super.initState();
     _loadRoute();
+    _loadPremiumAccess();
     _weatherRefreshTimer = Timer.periodic(const Duration(minutes: 30), (_) {
-      if (mounted && _routePoints.isNotEmpty && !_isLoadingWeather) {
+      if (mounted &&
+          _isPremium &&
+          _routePoints.isNotEmpty &&
+          !_isLoadingWeather) {
         _loadTrailWeather(RouteCalculator.centerOfPoints(_routePoints)!);
       }
     });
@@ -147,7 +157,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         }
       }
       await _loadOfflineMap(localGpx != null);
-      if (points.isNotEmpty) {
+      if (_isPremium && points.isNotEmpty) {
         _loadTrailWeather(RouteCalculator.centerOfPoints(points)!);
       }
     } on Exception catch (error) {
@@ -161,6 +171,45 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
 
   String get _offlineRegionId =>
       'trail_${widget.trail.id ?? widget.trail.gpxKey}';
+
+  Future<void> _loadPremiumAccess() async {
+    if (mounted) {
+      setState(() {
+        _isCheckingPremium = true;
+        _premiumAccessError = null;
+      });
+    }
+
+    try {
+      final hasAccess = await _premiumAccessService.hasAccess();
+      if (!mounted) return;
+      setState(() {
+        _isPremium = hasAccess;
+        _isCheckingPremium = false;
+        if (!hasAccess) _weather = null;
+      });
+      if (hasAccess && _routePoints.isNotEmpty && !_isLoadingWeather) {
+        _loadTrailWeather(RouteCalculator.centerOfPoints(_routePoints)!);
+      }
+    } on Exception catch (error) {
+      debugPrint('No se pudo verificar el acceso premium: $error');
+      if (!mounted) return;
+      setState(() {
+        _isPremium = false;
+        _isCheckingPremium = false;
+        _premiumAccessError = 'No se pudo verificar el acceso premium.';
+        _weather = null;
+      });
+    }
+  }
+
+  Future<void> _openPremiumSettings() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const PremiumAccessScreen()),
+    );
+    if (mounted) await _loadPremiumAccess();
+  }
 
   Future<void> _loadOfflineMap(bool hasLocalGpx) async {
     final hasTiles = await _offlineTileService.hasDownloadedTiles(
@@ -199,6 +248,28 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
 
   Future<void> _downloadOfflineResources() async {
     if (_isDownloadingOffline || _routePoints.length < 2) return;
+    try {
+      final hasAccess = await _premiumAccessService.hasAccess();
+      if (!mounted) return;
+      setState(() {
+        _isPremium = hasAccess;
+        _premiumAccessError = null;
+      });
+      if (!hasAccess) {
+        await _openPremiumSettings();
+        return;
+      }
+    } on Exception catch (error) {
+      debugPrint('No se pudo verificar el acceso premium: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo verificar el acceso premium.'),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isDownloadingOffline = true;
       _downloadProgress = 0;
@@ -240,6 +311,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   }
 
   Future<void> _loadTrailWeather(LatLng location) async {
+    if (!_isPremium) return;
     setState(() {
       _isLoadingWeather = true;
     });
@@ -268,6 +340,39 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
           routeName: widget.trail.name,
           senderoId: widget.trail.id,
           waypoints: _waypoints,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumRequiredCard({
+    required String message,
+    required VoidCallback onPressed,
+    required String buttonLabel,
+    IconData icon = Icons.workspace_premium_outlined,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return Card(
+      margin: EdgeInsets.zero,
+      color: colors.surfaceContainerLow,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: colors.primary),
+                const SizedBox(width: 10),
+                Expanded(child: Text(message)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(onPressed: onPressed, child: Text(buttonLabel)),
+            ),
+          ],
         ),
       ),
     );
@@ -560,20 +665,29 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed:
-                    _isDownloadingOffline ||
+                    _isCheckingPremium ||
+                        _isDownloadingOffline ||
                         _isOfflineReady ||
                         _isLoadingRoute ||
                         _routePoints.length < 2 ||
                         widget.trail.gpxUrl == null
                     ? null
-                    : _downloadOfflineResources,
+                    : _isPremium
+                    ? _downloadOfflineResources
+                    : _openPremiumSettings,
                 icon: Icon(
-                  _isOfflineReady
+                  !_isPremium
+                      ? Icons.lock_outline
+                      : _isOfflineReady
                       ? Icons.offline_pin
                       : Icons.download_for_offline_outlined,
                 ),
                 label: Text(
-                  _isDownloadingOffline
+                  _isCheckingPremium
+                      ? 'Verificando Premium'
+                      : !_isPremium
+                      ? 'Premium: descargar sendero'
+                      : _isDownloadingOffline
                       ? 'Descargando ${(_downloadProgress * 100).round()}%'
                       : _isOfflineReady
                       ? 'Disponible sin conexión'
@@ -593,17 +707,37 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
-            ClimaSenderoCard(
-              isLoading: _isLoadingRoute || _isLoadingWeather,
-              hasRoute: _routePoints.isNotEmpty,
-              weather: _weather,
-              location: RouteCalculator.centerOfPoints(_routePoints),
-              onRefresh: _routePoints.isEmpty
-                  ? () {}
-                  : () => _loadTrailWeather(
-                      RouteCalculator.centerOfPoints(_routePoints)!,
-                    ),
-            ),
+            if (_isPremium)
+              ClimaSenderoCard(
+                isLoading: _isLoadingRoute || _isLoadingWeather,
+                hasRoute: _routePoints.isNotEmpty,
+                weather: _weather,
+                location: RouteCalculator.centerOfPoints(_routePoints),
+                onRefresh: _routePoints.isEmpty
+                    ? () {}
+                    : () => _loadTrailWeather(
+                        RouteCalculator.centerOfPoints(_routePoints)!,
+                      ),
+              )
+            else
+              _buildPremiumRequiredCard(
+                message:
+                    _premiumAccessError ??
+                    (_isCheckingPremium
+                        ? 'Verificando acceso premium...'
+                        : 'Activa Premium para consultar el clima del sendero.'),
+                onPressed: _isCheckingPremium
+                    ? () {}
+                    : _premiumAccessError == null
+                    ? _openPremiumSettings
+                    : _loadPremiumAccess,
+                buttonLabel: _premiumAccessError == null
+                    ? 'Ver Premium'
+                    : 'Reintentar',
+                icon: _premiumAccessError == null
+                    ? Icons.workspace_premium_outlined
+                    : Icons.refresh,
+              ),
             const SizedBox(height: 28),
             _buildDeleteTrailButton(),
           ],

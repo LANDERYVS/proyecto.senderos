@@ -7,11 +7,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/almacenamiento_r2.dart';
+import '../services/premium_access_service.dart';
 import '../models/explore_trail.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
 import 'logros_screen.dart';
+import 'premium_access.dart';
 import '../widgets/barra_navegacion.dart';
 import '../widgets/default_user_avatar.dart';
 import '../widgets/login_styles.dart';
@@ -33,11 +35,13 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   bool _isLoading = true;
   bool _isUploadingPhoto = false;
+  bool? _premiumDemoOverride;
   int _publishedTrails = 0;
   double _distanceKm = 0;
   int _unlockedAchievements = 0;
   final ImagePicker _imagePicker = ImagePicker();
   final AlmacenamientoR2 _almacenamientoR2 = AlmacenamientoR2();
+  final PremiumAccessService _premiumAccessService = PremiumAccessService();
 
   @override
   void initState() {
@@ -53,6 +57,7 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
+        _premiumDemoOverride = null;
       });
       debugPrint('No se pudo cargar el perfil: no hay una sesión iniciada.');
       return;
@@ -72,21 +77,22 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final profile = await Supabase.instance.client
           .from('usuarios')
-          .select(
-            'name, email, user_photo, premium, kilometros_caminados',
-          )
+          .select('name, email, user_photo, premium, kilometros_caminados')
           .eq('id', user.id)
           .maybeSingle();
+      final premiumDemoOverride = await _loadPremiumDemoOverride(user.id);
 
       if (!mounted) return;
       setState(() {
         _profile = profile ?? fallbackProfile;
+        _premiumDemoOverride = premiumDemoOverride;
         _isLoading = false;
       });
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
         _profile = fallbackProfile;
+        _premiumDemoOverride = null;
         _isLoading = false;
       });
       debugPrint('No se pudo cargar el perfil: $error');
@@ -145,6 +151,18 @@ class _ProfilePageState extends State<ProfilePage> {
     return Supabase.instance.client.auth.currentUser?.email ?? '';
   }
 
+  bool get _isPremium =>
+      _premiumDemoOverride ?? _profile?['premium'] == true;
+
+  Future<bool?> _loadPremiumDemoOverride(String userId) async {
+    try {
+      return await _premiumAccessService.loadLocalOverride(userId);
+    } on Exception catch (error) {
+      debugPrint('No se pudo cargar la simulación local de premium: $error');
+      return null;
+    }
+  }
+
   String? get _photoUrl {
     final profilePhoto = _profile?['user_photo']?.toString().trim();
     if (profilePhoto?.isNotEmpty == true) {
@@ -166,6 +184,14 @@ class _ProfilePageState extends State<ProfilePage> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(builder: (_) => const ConfiguracionScreen()),
+    );
+    if (mounted) await _loadProfile();
+  }
+
+  Future<void> _openPremiumSettings() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const PremiumAccessScreen()),
     );
     if (mounted) await _loadProfile();
   }
@@ -362,7 +388,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              if (_profile?['premium'] == true) ...[
+              if (_isPremium) ...[
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -509,6 +535,40 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
             onTap: _openAchievements,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: colors.surfaceContainerLow,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: colors.outlineVariant.withAlpha(120)),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 5,
+            ),
+            leading: CircleAvatar(
+              backgroundColor: colors.tertiaryContainer,
+              child: Icon(
+                Icons.workspace_premium_outlined,
+                color: colors.onTertiaryContainer,
+              ),
+            ),
+            title: const Text(
+              'Premium',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              _isPremium
+                  ? 'Activado · Ver beneficios y administrar'
+                  : 'Ver beneficios y activar',
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+            onTap: _openPremiumSettings,
           ),
         ),
         const SizedBox(height: 12),
