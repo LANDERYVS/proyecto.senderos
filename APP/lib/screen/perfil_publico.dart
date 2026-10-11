@@ -1,9 +1,12 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/explore_trail.dart';
-import '../widgets/default_user_avatar.dart';
-import '../widgets/login_styles.dart';
+import '../models/modelo_sendero.dart';
+import '../widgets/avatar_usuario.dart';
+import '../app_styles.dart';
+// La clase PublicProfilePage reúne los datos y las acciones de esta parte de la app.
 
 class PublicProfilePage extends StatefulWidget {
   const PublicProfilePage({
@@ -24,6 +27,7 @@ class PublicProfilePage extends StatefulWidget {
   @override
   State<PublicProfilePage> createState() => _PublicProfilePageState();
 }
+// La clase _PublicProfilePageState reúne los datos y las acciones de esta parte de la app.
 
 class _PublicProfilePageState extends State<PublicProfilePage> {
   bool _isLoadingStats = true;
@@ -33,12 +37,14 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   int _unlockedAchievements = 0;
 
   String? get _photoUrl => ExploreTrail.publicR2Url(widget.initialPhotoUrl);
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadActivityStats();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadActivityStats() async {
     try {
@@ -86,7 +92,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     final headerForeground = isDark ? colors.onSurface : Colors.white;
     final headerGradient = isDark
         ? [colors.surfaceContainerHighest, colors.surfaceContainer]
-        : [LoginStyles.deepGreen, LoginStyles.forestGreen];
+        : [AppStyles.deepGreen, AppStyles.forestGreen];
 
     return Column(
       children: [
@@ -113,7 +119,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(
-                  color: LoginStyles.accentGold,
+                  color: AppStyles.accentGold,
                   shape: BoxShape.circle,
                 ),
                 child: DefaultUserAvatar(radius: 48, imageUrl: _photoUrl),
@@ -135,10 +141,10 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: LoginStyles.accentGold.withAlpha(30),
+                    color: AppStyles.accentGold.withAlpha(30),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: LoginStyles.accentGold.withAlpha(150),
+                      color: AppStyles.accentGold.withAlpha(150),
                     ),
                   ),
                   child: Row(
@@ -147,7 +153,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                       const Icon(
                         Icons.workspace_premium_rounded,
                         size: 16,
-                        color: LoginStyles.accentGold,
+                        color: AppStyles.accentGold,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -295,6 +301,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
       ],
     );
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -311,6 +318,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
     );
   }
 }
+// La clase _ProfileStatCard reúne los datos y las acciones de esta parte de la app.
 
 class _ProfileStatCard extends StatelessWidget {
   const _ProfileStatCard({
@@ -322,6 +330,7 @@ class _ProfileStatCard extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

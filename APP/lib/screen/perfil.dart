@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 import 'dart:io';
 
@@ -8,21 +10,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/almacenamiento_r2.dart';
 import '../services/premium_access_service.dart';
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
 import 'configuracion.dart';
 import 'grabar.dart';
 import 'inicio.dart';
 import 'logros_screen.dart';
 import 'premium_access.dart';
 import '../widgets/barra_navegacion.dart';
-import '../widgets/default_user_avatar.dart';
-import '../widgets/login_styles.dart';
+import '../widgets/avatar_usuario.dart';
+import '../app_styles.dart';
+import '../widgets/no_transition_page_route.dart';
+// La clase _ProfilePhotoSaveException reúne los datos y las acciones de esta parte de la app.
 
 class _ProfilePhotoSaveException implements Exception {
   const _ProfilePhotoSaveException(this.message);
 
   final String message;
 }
+// La clase ProfilePage reúne los datos y las acciones de esta parte de la app.
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -30,6 +35,7 @@ class ProfilePage extends StatefulWidget {
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
+// La clase _ProfilePageState reúne los datos y las acciones de esta parte de la app.
 
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
@@ -42,6 +48,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final ImagePicker _imagePicker = ImagePicker();
   final AlmacenamientoR2 _almacenamientoR2 = AlmacenamientoR2();
   final PremiumAccessService _premiumAccessService = PremiumAccessService();
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -49,6 +56,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _loadProfile();
     _loadActivityStats();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadProfile() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -98,6 +106,7 @@ class _ProfilePageState extends State<ProfilePage> {
       debugPrint('No se pudo cargar el perfil: $error');
     }
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadActivityStats() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -151,8 +160,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Supabase.instance.client.auth.currentUser?.email ?? '';
   }
 
-  bool get _isPremium =>
-      _premiumDemoOverride ?? _profile?['premium'] == true;
+  bool get _isPremium => _premiumDemoOverride ?? _profile?['premium'] == true;
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<bool?> _loadPremiumDemoOverride(String userId) async {
     try {
@@ -179,6 +188,7 @@ class _ProfilePageState extends State<ProfilePage> {
         .trim();
     return metadataPhoto?.isNotEmpty == true ? metadataPhoto : null;
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openSettings() async {
     await Navigator.push<void>(
@@ -187,22 +197,25 @@ class _ProfilePageState extends State<ProfilePage> {
     );
     if (mounted) await _loadProfile();
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openPremiumSettings() async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (_) => const PremiumAccessScreen()),
+      NoTransitionPageRoute(builder: (_) => const PremiumAccessScreen()),
     );
     if (mounted) await _loadProfile();
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openRecordingScreen() async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (_) => const GrabarPage()),
+      NoTransitionPageRoute(builder: (_) => const GrabarPage()),
     );
     if (mounted) await _loadActivityStats();
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   void _openAchievements() {
     Navigator.push(
@@ -210,13 +223,15 @@ class _ProfilePageState extends State<ProfilePage> {
       MaterialPageRoute(builder: (_) => const LogrosScreen()),
     );
   }
+  // Abre la pantalla relacionada con la opción elegida.
 
   void _navigateToHome(int index) {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
+      NoTransitionPageRoute(builder: (_) => HomePage(initialIndex: index)),
     );
   }
+  // Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -316,7 +331,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final headerForeground = isDark ? colors.onSurface : Colors.white;
     final headerGradient = isDark
         ? [colors.surfaceContainerHighest, colors.surfaceContainer]
-        : [LoginStyles.deepGreen, LoginStyles.forestGreen];
+        : [AppStyles.deepGreen, AppStyles.forestGreen];
     return Column(
       children: [
         Container(
@@ -345,13 +360,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(
-                      color: LoginStyles.accentGold,
+                      color: AppStyles.accentGold,
                       shape: BoxShape.circle,
                     ),
                     child: DefaultUserAvatar(radius: 48, imageUrl: _photoUrl),
                   ),
                   Material(
-                    color: LoginStyles.accentGold,
+                    color: AppStyles.accentGold,
                     shape: const CircleBorder(),
                     child: InkWell(
                       onTap: _isUploadingPhoto ? null : _changeProfilePhoto,
@@ -365,13 +380,13 @@ class _ProfilePageState extends State<ProfilePage> {
                                   dimension: 17,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: LoginStyles.deepGreen,
+                                    color: AppStyles.deepGreen,
                                   ),
                                 )
                               : const Icon(
                                   Icons.camera_alt_rounded,
                                   size: 18,
-                                  color: LoginStyles.deepGreen,
+                                  color: AppStyles.deepGreen,
                                 ),
                         ),
                       ),
@@ -396,10 +411,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: LoginStyles.accentGold.withAlpha(30),
+                    color: AppStyles.accentGold.withAlpha(30),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: LoginStyles.accentGold.withAlpha(150),
+                      color: AppStyles.accentGold.withAlpha(150),
                     ),
                   ),
                   child: Row(
@@ -408,7 +423,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       const Icon(
                         Icons.workspace_premium_rounded,
                         size: 16,
-                        color: LoginStyles.accentGold,
+                        color: AppStyles.accentGold,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -610,6 +625,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ],
     );
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -640,6 +656,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
+// La clase _ProfileStatCard reúne los datos y las acciones de esta parte de la app.
 
 class _ProfileStatCard extends StatelessWidget {
   const _ProfileStatCard({
@@ -651,6 +668,7 @@ class _ProfileStatCard extends StatelessWidget {
   final IconData icon;
   final String value;
   final String label;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

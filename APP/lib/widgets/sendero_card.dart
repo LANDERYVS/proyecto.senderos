@@ -1,28 +1,46 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
 import '../screen/detalle_sendero.dart';
-import 'default_user_avatar.dart';
+import 'avatar_usuario.dart';
+import 'no_transition_page_route.dart';
 
+// Tarjeta de un sendero con su imagen, información principal y acción de compartir.
 class SenderoCard extends StatelessWidget {
   const SenderoCard({
     super.key,
     required this.trail,
-    required this.isFavorite,
-    required this.isSavingFavorite,
-    required this.onFavorite,
     this.topAction,
     this.onTap,
   });
 
   final ExploreTrail trail;
-  final bool isFavorite;
-  final bool isSavingFavorite;
-  final VoidCallback? onFavorite;
   final Widget? topAction;
   final VoidCallback? onTap;
+
+  Future<void> _shareTrail(BuildContext context) async {
+    final shareText = [
+      'Mira este sendero: ${trail.name}',
+      if (trail.description.isNotEmpty) trail.description,
+      'Actividad: ${trail.sport}',
+      'Dificultad: ${trail.difficulty}',
+      'Distancia: ${trail.distanceKm.toStringAsFixed(1)} km',
+      if (trail.gpxUrl != null) 'Recorrido GPX: ${trail.gpxUrl}',
+    ].join('\n');
+
+    try {
+      await SharePlus.instance.share(ShareParams(text: shareText));
+    } on Exception catch (error) {
+      debugPrint('No se pudo compartir el sendero: $error');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo compartir el sendero')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +56,13 @@ class SenderoCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
+        // Permite reemplazar la navegación predeterminada al detalle del sendero.
         onTap:
             onTap ??
             () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
+                NoTransitionPageRoute(
                   builder: (_) => DetalleSenderoScreen(trail: trail),
                 ),
               );
@@ -51,12 +70,14 @@ class SenderoCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Superpone los datos del sendero y la acción superior sobre la fotografía.
             SizedBox(
               height: 172,
               width: double.infinity,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // Prioriza la foto local; si no existe o falla, usa la remota o la imagen de respaldo.
                   trail.localPhotoPath != null
                       ? Image.file(
                           File(trail.localPhotoPath!),
@@ -84,6 +105,7 @@ class SenderoCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
+                        // Identifica el tipo de actividad y la dificultad del recorrido.
                         _TrailInfoBadge(
                           icon: Icons.directions_walk_outlined,
                           label: trail.sport,
@@ -100,36 +122,25 @@ class SenderoCard extends StatelessWidget {
                   Positioned(
                     top: 4,
                     right: 4,
-                    child:
-                        topAction ??
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (topAction != null) ...[
+                          topAction!,
+                          const SizedBox(width: 4),
+                        ],
                         IconButton(
-                          tooltip: isFavorite
-                              ? 'Quitar de favoritos'
-                              : 'Guardar en favoritos',
-                          onPressed: onFavorite == null || isSavingFavorite
-                              ? null
-                              : onFavorite,
+                          tooltip: 'Compartir sendero',
+                          onPressed: () => _shareTrail(context),
                           style: IconButton.styleFrom(
                             backgroundColor: colorScheme.surface,
-                            foregroundColor: isFavorite
-                                ? colorScheme.error
-                                : colorScheme.onSurface,
+                            foregroundColor: colorScheme.onSurface,
                             minimumSize: const Size(44, 44),
                           ),
-                          icon: isSavingFavorite
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  isFavorite
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                ),
+                          icon: const Icon(Icons.share_outlined),
                         ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -139,6 +150,7 @@ class SenderoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Limita el título a una línea para mantener uniforme la tarjeta.
                   Text(
                     trail.name,
                     maxLines: 1,
@@ -149,6 +161,7 @@ class SenderoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   if (trail.description.isNotEmpty) ...[
+                    // La descripción es opcional y se recorta a dos líneas.
                     Text(
                       trail.description,
                       maxLines: 2,
@@ -161,6 +174,7 @@ class SenderoCard extends StatelessWidget {
                   ],
                   Row(
                     children: [
+                      // Muestra quién publicó el sendero y su distancia total.
                       SizedBox(
                         width: 22,
                         height: 22,
@@ -204,6 +218,7 @@ class SenderoCard extends StatelessWidget {
   }
 }
 
+// Etiqueta compacta con icono para mostrar atributos como actividad o dificultad.
 class _TrailInfoBadge extends StatelessWidget {
   const _TrailInfoBadge({
     required this.icon,

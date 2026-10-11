@@ -1,9 +1,12 @@
+// Aquí se define un componente visual reutilizable.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../models/trail_waypoint.dart';
-import 'waypoint_markers_layer.dart';
+import '../models/waypoints_sendero.dart';
+import 'waypoints_mapa.dart';
+// La clase SeguimientoSenderoMap reúne los datos y las acciones de esta parte de la app.
 
 class SeguimientoSenderoMap extends StatelessWidget {
   const SeguimientoSenderoMap({
@@ -34,6 +37,7 @@ class SeguimientoSenderoMap extends StatelessWidget {
   final TileLayer? tileLayer;
   final double initialZoom;
   final List<TrailWaypoint> waypoints;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +73,48 @@ class SeguimientoSenderoMap extends StatelessWidget {
                     points: routePoints,
                     color: const Color(0xffff9800),
                     strokeWidth: 6,
+                  ),
+                ],
+              ),
+            if (routePoints.length > 1)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    width: 44,
+                    height: 44,
+                    point: routePoints.first,
+                    child: const Tooltip(
+                      message: 'Inicio',
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0xff2e7d32),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 34,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            if (routePoints.isNotEmpty)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    width: 44,
+                    height: 44,
+                    point: routePoints.last,
+                    child: const Tooltip(
+                      message: 'Llegada',
+                      child: Icon(
+                        Icons.flag,
+                        color: Color(0xff2e7d32),
+                        size: 38,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -123,17 +169,19 @@ class SeguimientoSenderoMap extends StatelessWidget {
             ),
           ),
         Positioned(
+          top: 16,
           right: 16,
-          bottom: 16,
-          child: Material(
-            color: Colors.white,
-            elevation: 3,
-            shape: const CircleBorder(),
-            child: IconButton(
-              tooltip: 'Centrar en mi ubicación',
-              onPressed: onCenterOnUserLocation,
-              icon: const Icon(Icons.my_location_outlined),
-              color: const Color(0xff4f8f3a),
+          child: SafeArea(
+            child: Material(
+              color: Colors.white,
+              elevation: 3,
+              shape: const CircleBorder(),
+              child: IconButton(
+                tooltip: 'Centrar en mi ubicación',
+                onPressed: onCenterOnUserLocation,
+                icon: const Icon(Icons.my_location_outlined),
+                color: const Color(0xff4f8f3a),
+              ),
             ),
           ),
         ),

@@ -1,8 +1,11 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'package:flutter/material.dart';
 
 import 'grabar.dart';
 import 'inicio.dart';
 import '../widgets/barra_navegacion.dart';
+import '../widgets/no_transition_page_route.dart';
 
 import '../services/servicio_autenticacion.dart';
 import '../services/tema_app.dart';
@@ -10,9 +13,11 @@ import '../services/ubicacion_app.dart';
 import '../widgets/config_card.dart';
 import 'editar_perfil.dart';
 import 'localizacion.dart';
+// La clase ConfiguracionScreen reúne los datos y las acciones de esta parte de la app.
 
 class ConfiguracionScreen extends StatelessWidget {
   const ConfiguracionScreen({super.key});
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +39,7 @@ class ConfiguracionScreen extends StatelessWidget {
           if (index == 2) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const GrabarPage()),
+              NoTransitionPageRoute(builder: (_) => const GrabarPage()),
             );
           } else {
             Navigator.pushReplacement(
@@ -58,7 +63,9 @@ class ConfiguracionScreen extends StatelessWidget {
           builder: (context, themeMode, _) {
             final isDark = themeMode == ThemeMode.dark;
             return ConfigCard(
-              icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+              icon: isDark
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
               title: 'Tema',
               subtitle: isDark ? 'Oscuro' : 'Claro',
               trailing: Switch(
@@ -79,8 +86,7 @@ class ConfiguracionScreen extends StatelessWidget {
             subtitle: isEnabled ? 'Activada en la app' : 'Pausada en la app',
             trailing: Switch(
               value: isEnabled,
-              onChanged: (enabled) =>
-                  _setLocationEnabled(context, enabled),
+              onChanged: (enabled) => _setLocationEnabled(context, enabled),
             ),
             onTap: () => _setLocationEnabled(context, !isEnabled),
           ),
@@ -145,6 +151,7 @@ class ConfiguracionScreen extends StatelessWidget {
   }
 
   /// Muestra un mensaje temporal
+  // Muestra al usuario las opciones o el aviso que corresponde a esta acción.
   void _showMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(
       context,

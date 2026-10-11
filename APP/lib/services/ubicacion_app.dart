@@ -1,5 +1,9 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// La clase UbicacionApp reúne los datos y las acciones de esta parte de la app.
 
 class UbicacionApp {
   UbicacionApp._();

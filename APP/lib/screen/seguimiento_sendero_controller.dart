@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import '../services/ubicacion_app.dart';
 import '../utils/route_calculator.dart';
 import 'localizacion.dart';
+// La clase SeguimientoSenderoController reúne los datos y las acciones de esta parte de la app.
 
 class SeguimientoSenderoController extends ChangeNotifier {
   SeguimientoSenderoController({
@@ -50,12 +53,14 @@ class SeguimientoSenderoController extends ChangeNotifier {
         userLocation ??
         const LatLng(-34.6037, -58.3816);
   }
+  // Inicia el proceso necesario para esta función.
 
   Future<void> start() async {
     _startTime = DateTime.now();
     _startTimer();
     await _startLocationTracking();
   }
+  // Inicia el proceso necesario para esta función.
 
   Future<void> _startLocationTracking() async {
     final generation = ++_locationGeneration;
@@ -123,6 +128,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
     _notify();
     _startLocationTracking();
   }
+  // Inicia el proceso necesario para esta función.
 
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -131,6 +137,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
       _notify();
     });
   }
+  // Cambia entre activar y desactivar esta función.
 
   void togglePause() {
     if (isFinished) return;
@@ -157,18 +164,15 @@ class SeguimientoSenderoController extends ChangeNotifier {
     _positionSubscription?.cancel();
     _positionSubscription = null;
   }
+  // Actualiza los datos existentes con la información nueva.
 
   void _updateUserLocation(Position position) {
     final point = LatLng(position.latitude, position.longitude);
     userLocation = point;
     if (!isPaused) _updateProgress(point, position.altitude);
-    try {
-      mapController.move(point, 16);
-    } on StateError {
-      // The map controller may not be attached yet.
-    }
     _notify();
   }
+  // Actualiza los datos existentes con la información nueva.
 
   void _updateProgress(LatLng point, double altitude) {
     _distanceAccumulator.addLocation(point);
@@ -195,6 +199,7 @@ class SeguimientoSenderoController extends ChangeNotifier {
   void _notify() {
     if (!_isDisposed) notifyListeners();
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {

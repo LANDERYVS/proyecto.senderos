@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -9,18 +11,22 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:xml/xml.dart';
 
 import '../models/clima_sendero.dart';
-import '../models/explore_trail.dart';
-import '../models/trail_waypoint.dart';
+import '../models/modelo_sendero.dart';
+import '../models/waypoints_sendero.dart';
 import '../services/offline_tile_service.dart';
 import '../services/premium_access_service.dart';
 import '../services/servicio_clima_sendero.dart';
 import '../services/senderos_locales.dart';
-import '../services/waypoint_service.dart';
+import '../services/sendero_reacciones.dart';
+import '../services/senderos_favoritos.dart';
+import '../services/traer_waypoints.dart';
 import '../utils/route_calculator.dart';
 import '../widgets/clima_sendero_card.dart';
-import '../widgets/route_polyline_map.dart';
+import '../widgets/mapa_trazado_sendero.dart';
+import '../widgets/no_transition_page_route.dart';
 import 'premium_access.dart';
 import 'seguir_sendero.dart';
+// La clase DetalleSenderoScreen reúne los datos y las acciones de esta parte de la app.
 
 class DetalleSenderoScreen extends StatefulWidget {
   const DetalleSenderoScreen({super.key, required this.trail});
@@ -30,6 +36,7 @@ class DetalleSenderoScreen extends StatefulWidget {
   @override
   State<DetalleSenderoScreen> createState() => _DetalleSenderoScreenState();
 }
+// La clase _DetalleSenderoScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   List<LatLng> _routePoints = const [];
@@ -45,17 +52,28 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
   final _premiumAccessService = PremiumAccessService();
   final _offlineTileService = OfflineTileService();
   final _savedRoutesService = SenderosLocalesService();
+  final _reactionService = SenderoReaccionesService();
+  final _favoritesService = SenderosFavoritosService();
   Timer? _weatherRefreshTimer;
   TileLayer? _offlineTileLayer;
   bool _isDownloadingOffline = false;
   bool _isOfflineReady = false;
   double _downloadProgress = 0;
+  bool _isLoadingSocialActions = true;
+  bool _isSavingReaction = false;
+  bool _isSavingFavorite = false;
+  bool _isFavorite = false;
+  int _likes = 0;
+  int _dislikes = 0;
+  String? _userReaction;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadRoute();
     _loadPremiumAccess();
+    _loadSocialActions();
     _weatherRefreshTimer = Timer.periodic(const Duration(minutes: 30), (_) {
       if (mounted &&
           _isPremium &&
@@ -65,12 +83,143 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       }
     });
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
     _weatherRefreshTimer?.cancel();
     super.dispose();
   }
+
+  Future<void> _loadSocialActions() async {
+    final senderoId = widget.trail.id;
+    if (senderoId == null) {
+      if (mounted) setState(() => _isLoadingSocialActions = false);
+      return;
+    }
+
+    try {
+      final state = await _reactionService.loadState(senderoId);
+      if (!mounted) return;
+      setState(() {
+        _likes = state.likes;
+        _dislikes = state.dislikes;
+        _userReaction = state.userReaction;
+      });
+    } on Exception catch (error) {
+      debugPrint('No se pudieron cargar las reacciones del sendero: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudieron cargar los likes y dislikes.'),
+          ),
+        );
+      }
+    }
+
+    try {
+      final favoriteIds = await _favoritesService.loadFavoriteIds();
+      if (mounted) {
+        setState(() => _isFavorite = favoriteIds.contains(senderoId));
+      }
+    } on Exception catch (error) {
+      debugPrint('No se pudo consultar si el sendero es favorito: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo cargar el estado favorito.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingSocialActions = false);
+    }
+  }
+
+  Future<void> _castReactionVote(String reaction) async {
+    final senderoId = widget.trail.id;
+    if (senderoId == null || _isSavingReaction || _userReaction != null) {
+      return;
+    }
+
+    setState(() => _isSavingReaction = true);
+    try {
+      final state = await _reactionService.castVote(senderoId, reaction);
+      if (!mounted) return;
+      setState(() {
+        _likes = state.likes;
+        _dislikes = state.dislikes;
+        _userReaction = state.userReaction;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isSavingReaction = false);
+    }
+  }
+
+  Future<void> _removeReactionVote(String reaction) async {
+    final senderoId = widget.trail.id;
+    if (senderoId == null || _isSavingReaction || _userReaction != reaction) {
+      return;
+    }
+
+    setState(() => _isSavingReaction = true);
+    try {
+      final state = await _reactionService.removeVote(senderoId, reaction);
+      if (!mounted) return;
+      setState(() {
+        _likes = state.likes;
+        _dislikes = state.dislikes;
+        _userReaction = state.userReaction;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isSavingReaction = false);
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final senderoId = widget.trail.id;
+    if (senderoId == null || _isSavingFavorite) return;
+
+    final wasFavorite = _isFavorite;
+    setState(() => _isSavingFavorite = true);
+    try {
+      if (wasFavorite) {
+        await _favoritesService.removeFavorite(senderoId);
+        try {
+          await _savedRoutesService.removeFavoriteCache(widget.trail);
+        } on Exception catch (error) {
+          debugPrint('No se pudo actualizar el favorito local: $error');
+        }
+      } else {
+        await _favoritesService.addFavorite(senderoId);
+        try {
+          await _savedRoutesService.saveFavorite(widget.trail);
+        } on Exception catch (error) {
+          debugPrint('No se pudo guardar la copia local del favorito: $error');
+        }
+      }
+      if (mounted) setState(() => _isFavorite = !wasFavorite);
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isSavingFavorite = false);
+    }
+  }
+
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadRoute() async {
     final url = widget.trail.gpxUrl;
@@ -171,6 +320,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
 
   String get _offlineRegionId =>
       'trail_${widget.trail.id ?? widget.trail.gpxKey}';
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadPremiumAccess() async {
     if (mounted) {
@@ -202,14 +352,16 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       });
     }
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openPremiumSettings() async {
     await Navigator.push<void>(
       context,
-      MaterialPageRoute(builder: (_) => const PremiumAccessScreen()),
+      NoTransitionPageRoute(builder: (_) => const PremiumAccessScreen()),
     );
     if (mounted) await _loadPremiumAccess();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadOfflineMap(bool hasLocalGpx) async {
     final hasTiles = await _offlineTileService.hasDownloadedTiles(
@@ -245,6 +397,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       ),
     );
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _downloadOfflineResources() async {
     if (_isDownloadingOffline || _routePoints.length < 2) return;
@@ -309,6 +462,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       if (mounted) setState(() => _isDownloadingOffline = false);
     }
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadTrailWeather(LatLng location) async {
     if (!_isPremium) return;
@@ -330,6 +484,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       });
     }
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   void _openTrailTracking() {
     Navigator.push(
@@ -377,6 +532,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       ),
     );
   }
+  // Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteOwnTrail() async {
     final currentUserId = Supabase.instance.client.auth.currentUser?.id;
@@ -449,6 +605,80 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  Widget _buildSocialActions() {
+    if (widget.trail.id == null) return const SizedBox.shrink();
+
+    final reactionsDisabled = _isLoadingSocialActions || _isSavingReaction;
+    return Card(
+      margin: const EdgeInsets.only(top: 16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SenderoSocialAction(
+                label: 'Me gusta',
+                tooltip: _userReaction == 'like'
+                    ? 'Quitar Me gusta'
+                    : 'Me gusta',
+                value: '$_likes',
+                icon: Icons.thumb_up_alt_outlined,
+                selectedIcon: Icons.thumb_up,
+                color: const Color(0xff2e7d32),
+                isSelected: _userReaction == 'like',
+                isLoading: reactionsDisabled,
+                onPressed: reactionsDisabled
+                    ? null
+                    : _userReaction == 'like'
+                    ? () => _removeReactionVote('like')
+                    : _userReaction == null
+                    ? () => _castReactionVote('like')
+                    : null,
+              ),
+            ),
+            Expanded(
+              child: _SenderoSocialAction(
+                label: _isFavorite ? 'Guardado' : 'Favorito',
+                tooltip: _isFavorite
+                    ? 'Quitar de favoritos'
+                    : 'Guardar en favoritos',
+                value: null,
+                icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: const Color(0xffd81b60),
+                isSelected: _isFavorite,
+                isLoading: _isLoadingSocialActions || _isSavingFavorite,
+                onPressed: _isLoadingSocialActions || _isSavingFavorite
+                    ? null
+                    : _toggleFavorite,
+              ),
+            ),
+            Expanded(
+              child: _SenderoSocialAction(
+                label: 'No me gusta',
+                tooltip: _userReaction == 'dislike'
+                    ? 'Quitar No me gusta'
+                    : 'No me gusta',
+                value: '$_dislikes',
+                icon: Icons.thumb_down_alt_outlined,
+                selectedIcon: Icons.thumb_down,
+                color: const Color(0xffc62828),
+                isSelected: _userReaction == 'dislike',
+                isLoading: reactionsDisabled,
+                onPressed: reactionsDisabled
+                    ? null
+                    : _userReaction == 'dislike'
+                    ? () => _removeReactionVote('dislike')
+                    : _userReaction == null
+                    ? () => _castReactionVote('dislike')
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTrailHero() {
@@ -609,6 +839,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
       ),
     );
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -628,19 +859,31 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
               elevation: widget.trail.elevation,
             ),
             const SizedBox(height: 24),
-            Text(
-              'Descripción',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Descripción',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.trail.description.isEmpty
+                          ? 'Este sendero no tiene una descripción.'
+                          : widget.trail.description,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              widget.trail.description.isEmpty
-                  ? 'Este sendero no tiene una descripción.'
-                  : widget.trail.description,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
+            _buildSocialActions(),
             const SizedBox(height: 24),
             Text(
               'Trayecto',
@@ -746,6 +989,7 @@ class _DetalleSenderoScreenState extends State<DetalleSenderoScreen> {
     );
   }
 }
+// La clase _TrailInfo reúne los datos y las acciones de esta parte de la app.
 
 class _TrailInfo extends StatelessWidget {
   const _TrailInfo({
@@ -757,6 +1001,7 @@ class _TrailInfo extends StatelessWidget {
   final String difficulty;
   final String distance;
   final String elevation;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -798,6 +1043,7 @@ class _TrailInfo extends StatelessWidget {
     );
   }
 }
+// La clase _InfoItem reúne los datos y las acciones de esta parte de la app.
 
 class _InfoItem extends StatelessWidget {
   const _InfoItem({
@@ -809,6 +1055,7 @@ class _InfoItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -832,6 +1079,76 @@ class _InfoItem extends StatelessWidget {
           style: Theme.of(
             context,
           ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+}
+
+class _SenderoSocialAction extends StatelessWidget {
+  const _SenderoSocialAction({
+    required this.label,
+    required this.tooltip,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.isLoading,
+    required this.onPressed,
+    this.selectedIcon,
+  });
+
+  final String label;
+  final String tooltip;
+  final String? value;
+  final IconData icon;
+  final IconData? selectedIcon;
+  final Color color;
+  final bool isSelected;
+  final bool isLoading;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final outlineColor = Theme.of(context).colorScheme.outlineVariant;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: isSelected
+              ? color.withValues(alpha: 0.12)
+              : Colors.transparent,
+          shape: CircleBorder(
+            side: BorderSide(color: isSelected ? color : outlineColor),
+          ),
+          child: SizedBox(
+            width: 62,
+            height: 62,
+            child: IconButton(
+              tooltip: tooltip,
+              onPressed: onPressed,
+              color: isSelected
+                  ? color
+                  : Theme.of(context).colorScheme.onSurface,
+              icon: isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(isSelected ? selectedIcon ?? icon : icon, size: 26),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value ?? label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: isSelected ? color : null,
+            fontWeight: isSelected ? FontWeight.w700 : null,
+          ),
         ),
       ],
     );

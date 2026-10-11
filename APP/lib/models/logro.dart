@@ -1,3 +1,9 @@
+/*
+ * Representa un logro que el usuario puede desbloquear.
+ * fromMap convierte el registro recibido de la base de datos en un objeto Logro,
+ * y metricKey relaciona el requisito del logro con la estadística que debe medir
+ * la app.
+ */
 class Logro {
   const Logro({
     required this.id,

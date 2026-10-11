@@ -3,6 +3,12 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/clima_sendero.dart';
 
+/*
+ * Tarjeta que muestra el clima del lugar asociado a una ruta.
+ * Presenta estados de carga o error cuando aún no hay datos y, cuando el
+ * pronóstico está disponible, muestra condiciones actuales, métricas y el
+ * pronóstico de varios días.
+ */
 class ClimaSenderoCard extends StatelessWidget {
   const ClimaSenderoCard({
     super.key,
@@ -21,18 +27,21 @@ class ClimaSenderoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mientras llega la primera respuesta, muestra un indicador de carga.
     if (isLoading && weather == null) {
       return const SizedBox(
         height: 80,
         child: Center(child: CircularProgressIndicator()),
       );
     }
+    // Sin una ruta o coordenadas no hay un lugar concreto para consultar el clima.
     if (!hasRoute || location == null) {
       return const _WeatherMessage(
         icon: Icons.location_off_outlined,
         message: 'No hay puntos GPX para ubicar el clima.',
       );
     }
+    // Si ya terminó la carga pero no hay datos, permite volver a intentarlo.
     if (weather == null) {
       return _WeatherMessage(
         icon: Icons.cloud_off_outlined,
@@ -42,6 +51,7 @@ class ClimaSenderoCard extends StatelessWidget {
     }
 
     final currentWeather = weather!;
+    // Con datos disponibles, muestra el tiempo actual y el pronóstico diario.
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -53,6 +63,7 @@ class ClimaSenderoCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              // Icono y texto principal describen las condiciones actuales.
               Icon(_weatherIcon(currentWeather.code), size: 30),
               const SizedBox(width: 8),
               Expanded(
@@ -71,6 +82,7 @@ class ClimaSenderoCard extends StatelessWidget {
               ),
               IconButton(
                 tooltip: 'Actualizar clima',
+                // Evita iniciar otra consulta mientras ya hay una en curso.
                 onPressed: isLoading ? null : onRefresh,
                 icon: isLoading
                     ? const SizedBox.square(
@@ -86,6 +98,7 @@ class ClimaSenderoCard extends StatelessWidget {
             spacing: 12,
             runSpacing: 6,
             children: [
+              // Métricas complementarias del momento: sensación, humedad, lluvia y viento.
               _WeatherMetric(
                 icon: Icons.thermostat,
                 label:
@@ -121,6 +134,7 @@ class ClimaSenderoCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Cada elemento representa un día del pronóstico.
                 for (final day in currentWeather.dailyForecast)
                   _DailyForecastItem(
                     forecast: day,
@@ -135,6 +149,7 @@ class ClimaSenderoCard extends StatelessWidget {
   }
 
   String _weatherDescription(int code) {
+    // Traduce los códigos meteorológicos recibidos del servicio a texto visible.
     if (code == 0) return 'Despejado';
     if (code <= 3) return 'Parcialmente nublado';
     if (code <= 48) return 'Niebla';
@@ -145,6 +160,7 @@ class ClimaSenderoCard extends StatelessWidget {
   }
 }
 
+// Muestra mensajes de carga, falta de ubicación o error, con reintento opcional.
 class _WeatherMessage extends StatelessWidget {
   const _WeatherMessage({
     required this.icon,
@@ -170,6 +186,7 @@ class _WeatherMessage extends StatelessWidget {
           Icon(icon, size: 20),
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
+          // El botón solo aparece para los mensajes que permiten volver a consultar.
           if (onRetry != null)
             IconButton(
               tooltip: 'Reintentar',
@@ -182,6 +199,7 @@ class _WeatherMessage extends StatelessWidget {
   }
 }
 
+// Presenta una métrica del clima junto a su icono, por ejemplo humedad o viento.
 class _WeatherMetric extends StatelessWidget {
   const _WeatherMetric({required this.icon, required this.label});
 
@@ -201,17 +219,20 @@ class _WeatherMetric extends StatelessWidget {
   }
 }
 
+// Dibuja la columna de un día del pronóstico: nombre, icono, temperaturas y lluvia.
 class _DailyForecastItem extends StatelessWidget {
   const _DailyForecastItem({required this.forecast, required this.isToday});
 
   final PronosticoClimaDiario forecast;
   final bool isToday;
 
+  // Abreviaturas para mostrar el día de la semana en español.
   static const _weekdays = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    // Convierte la fecha en nombre del día y destaca el día actual.
     final date = DateTime.parse(forecast.date);
     final dayLabel = isToday ? 'Hoy' : _weekdays[date.weekday - 1];
 
@@ -275,6 +296,7 @@ class _DailyForecastItem extends StatelessWidget {
   }
 }
 
+// Elige el icono apropiado según el código meteorológico del servicio.
 IconData _weatherIcon(int code) {
   if (code == 0) return Icons.sunny;
   if (code <= 3) return Icons.wb_cloudy;

@@ -1,3 +1,9 @@
+/*
+ * Representa un sendero que la app muestra al explorar o consultar rutas.
+ * Agrupa sus datos (nombre, dificultad, distancia, autor, fotos y GPX) y ofrece
+ * conversiones desde Supabase o desde la metadata de una ruta descargada.
+ * También convierte claves de archivos de R2 en URLs públicas para mostrarlos.
+ */
 class ExploreTrail {
   static const r2PublicBaseUrl = String.fromEnvironment(
     'R2_PUBLIC_BASE_URL',

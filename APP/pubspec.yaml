@@ -23,7 +23,10 @@ environment:
 
 flutter_launcher_icons:
   android: true
-  image_path: "assets/app_icon.png"
+  ios: false
+  image_path: "assets/icono_senderos.png"
+  adaptive_icon_background: "#163D2E"
+  adaptive_icon_foreground: "assets/icono_senderos.png"
   min_sdk_android: 21
 
 
@@ -76,9 +79,9 @@ dev_dependencies:
 flutter:
 
   assets:
-    - assets/Logo.png
     - assets/usuario.png
     - assets/arbol.jpg
+    - assets/icono_senderos.png
     - assets/waypoints/waypoint_mirador.png
     - assets/waypoints/waypoint_bebedero.png
 

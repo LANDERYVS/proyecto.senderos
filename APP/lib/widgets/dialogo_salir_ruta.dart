@@ -1,4 +1,8 @@
+// Aquí se define un componente visual reutilizable.
+
+
 import 'package:flutter/material.dart';
+// Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
 Future<bool> showConfirmExitRecordingDialog({
   required BuildContext context,
@@ -21,6 +25,7 @@ Future<bool> showConfirmExitRecordingDialog({
       ) ??
       false;
 }
+// La clase ConfirmExitRecordingDialog reúne los datos y las acciones de esta parte de la app.
 
 class ConfirmExitRecordingDialog extends StatelessWidget {
   const ConfirmExitRecordingDialog({
@@ -42,6 +47,7 @@ class ConfirmExitRecordingDialog extends StatelessWidget {
   final String? summary;
   final String continueLabel;
   final String exitLabel;
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

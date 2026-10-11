@@ -1,4 +1,8 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
+// La clase GrabarStyles reúne los datos y las acciones de esta parte de la app.
 
 class GrabarStyles {
   static const Color primaryGreen = Color(0xff4f683c);

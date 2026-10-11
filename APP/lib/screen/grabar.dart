@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -8,28 +10,34 @@ import 'package:latlong2/latlong.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/ubicacion_app.dart';
 import '../widgets/barra_navegacion.dart';
-import '../widgets/compartir_ubicacion_button.dart';
-import '../widgets/enviar_alerta_button.dart';
-import '../widgets/grabar_metrics_panel.dart';
-import '../widgets/waypoint_markers_layer.dart';
+import '../widgets/boton_espectador.dart';
+import '../widgets/boton_alerta.dart';
+import '../widgets/boton_sos_visual.dart';
+import '../widgets/metricas_senderos.dart';
+import '../widgets/waypoints_mapa.dart';
+import '../widgets/no_transition_page_route.dart';
 import '../utils/route_calculator.dart';
 import 'grabar_controller.dart';
 import 'grabar_styles.dart';
 import 'inicio.dart';
+// La clase GrabarPage reúne los datos y las acciones de esta parte de la app.
 
 class GrabarPage extends StatefulWidget {
   const GrabarPage({
     super.key,
     this.initialRoutePoints = const [],
     this.senderoId,
+    this.onNavigateHome,
   });
 
   final List<LatLng> initialRoutePoints;
   final int? senderoId;
+  final ValueChanged<int>? onNavigateHome;
 
   @override
   State<GrabarPage> createState() => _GrabarPageState();
 }
+// La clase _GrabarPageState reúne los datos y las acciones de esta parte de la app.
 
 class _GrabarPageState extends State<GrabarPage> {
   final GrabarController _controller = GrabarController();
@@ -37,6 +45,7 @@ class _GrabarPageState extends State<GrabarPage> {
   final DraggableScrollableController _markerSheetController =
       DraggableScrollableController();
   bool _stoppingSharing = false;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -63,6 +72,7 @@ class _GrabarPageState extends State<GrabarPage> {
     if (mounted) setState(() {});
     if (!UbicacionApp.enabled.value) unawaited(_stopSharingIfActive());
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -72,12 +82,14 @@ class _GrabarPageState extends State<GrabarPage> {
     _controller.dispose();
     super.dispose();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadOfflineMap() async {
     await _controller.loadOfflineMap();
     if (!mounted) return;
     setState(() {});
   }
+  // Cambia entre activar y desactivar esta función.
 
   Future<void> _toggleRecording() async {
     if (!_controller.isRecording && _controller.hasUnrecordedWalk) {
@@ -119,17 +131,12 @@ class _GrabarPageState extends State<GrabarPage> {
       if (mounted) setState(() {});
     }
   }
+  // Cambia entre activar y desactivar esta función.
 
   void _togglePause() {
     _controller.togglePause();
     if (mounted) setState(() {});
   }
-
-  Future<void> _addInterestPoint(LatLng point) async {
-    await _controller.addInterestPoint(context, point);
-    if (mounted) setState(() {});
-  }
-
   Future<void> _selectDestination(int index) async {
     if (index == 2) return;
 
@@ -138,9 +145,16 @@ class _GrabarPageState extends State<GrabarPage> {
     await _stopSharingIfActive();
     if (!mounted) return;
 
+    final onNavigateHome = widget.onNavigateHome;
+    if (onNavigateHome != null) {
+      onNavigateHome(index);
+      Navigator.pop(context);
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => HomePage(initialIndex: index)),
+      NoTransitionPageRoute(builder: (_) => HomePage(initialIndex: index)),
     );
   }
 
@@ -151,7 +165,6 @@ class _GrabarPageState extends State<GrabarPage> {
       options: MapOptions(
         initialCenter: initialCenter,
         initialZoom: widget.initialRoutePoints.isNotEmpty ? 15 : 14,
-        onLongPress: (_, point) => _addInterestPoint(point),
       ),
       children: [
         _controller.offlineTileLayer ??
@@ -173,40 +186,47 @@ class _GrabarPageState extends State<GrabarPage> {
                 point: _controller.interestPoints[index].point,
                 child: Transform.translate(
                   offset: markerOffsets[index]!,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      WaypointIcon(
-                        type:
-                            _controller
-                                .interestPoints[index]
-                                .type
-                                ?.databaseType ??
-                            _controller.interestPoints[index].name,
-                        fallbackIcon:
-                            _controller.interestPoints[index].type?.icon,
-                        fallbackColor:
-                            _controller.interestPoints[index].type?.color ??
-                            GrabarStyles.primaryGreen,
-                        size: 12,
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
+                  child: Tooltip(
+                    message: _controller.interestPoints[index].review.isEmpty
+                        ? _controller.interestPoints[index].name
+                        : '${_controller.interestPoints[index].name}\n'
+                              '${_controller.interestPoints[index].review}',
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        WaypointIcon(
+                          type: _controller
+                              .interestPoints[index]
+                              .type
+                              .databaseType,
+                          fallbackIcon: _controller
+                              .interestPoints[index]
+                              .type
+                              .icon,
+                          fallbackColor: _controller
+                              .interestPoints[index]
+                              .type
+                              .color,
+                          size: 20,
                         ),
-                        color: Colors.white,
-                        child: Text(
-                          _controller.interestPoints[index].name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          color: Colors.white,
+                          child: Text(
+                            _controller.interestPoints[index].name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -217,21 +237,9 @@ class _GrabarPageState extends State<GrabarPage> {
             polylines: [
               Polyline(
                 points: _controller.recordedRoute,
-                color: GrabarStyles.primaryPink,
+                color: const Color(0xffff9800),
                 strokeWidth: 7,
               ),
-            ],
-          ),
-        if (_controller.recordedRoute.isNotEmpty)
-          MarkerLayer(
-            markers: [
-              if (_controller.recordedRoute.length > 1)
-                Marker(
-                  width: 42,
-                  height: 48,
-                  point: _controller.recordedRoute.last,
-                  child: const Icon(Icons.flag, color: Colors.red, size: 34),
-                ),
             ],
           ),
       ],
@@ -247,7 +255,7 @@ class _GrabarPageState extends State<GrabarPage> {
       top: 16,
       left: 16,
       child: SafeArea(
-        child: CompartirUbicacionButton(
+        child: BotonEspectador(
           sharingService: _sharingService,
           heroTag: 'share-location',
           senderoId: widget.senderoId,
@@ -266,26 +274,30 @@ class _GrabarPageState extends State<GrabarPage> {
     return Positioned(
       top: 16,
       right: 16,
-      child: Material(
-        color: Colors.white,
-        elevation: 3,
-        shape: const CircleBorder(),
-        child: IconButton(
-          tooltip: 'Centrar en mi ubicación',
-          onPressed: _controller.markers.isEmpty
-              ? null
-              : () => _controller.mapController.move(
-                  _controller.markers.first.point,
-                  16,
-                ),
-          icon: const Icon(Icons.my_location_outlined),
-          color: GrabarStyles.primaryGreen,
+      child: SafeArea(
+        child: Material(
+          color: Colors.white,
+          elevation: 3,
+          shape: const CircleBorder(),
+          child: IconButton(
+            tooltip: 'Centrar en mi ubicación',
+            onPressed: _controller.markers.isEmpty
+                ? null
+                : () => _controller.mapController.move(
+                    _controller.markers.first.point,
+                    16,
+                  ),
+            icon: const Icon(Icons.my_location_outlined),
+            color: GrabarStyles.primaryGreen,
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMarkerPicker() {
+    if (!_controller.canAddWaypoint) return const SizedBox.shrink();
+
     return Positioned.fill(
       child: DraggableScrollableSheet(
         controller: _markerSheetController,
@@ -373,6 +385,7 @@ class _GrabarPageState extends State<GrabarPage> {
       ),
     );
   }
+  // Cambia entre activar y desactivar esta función.
 
   void _toggleMarkerPicker() {
     if (!_markerSheetController.isAttached) return;
@@ -428,6 +441,7 @@ class _GrabarPageState extends State<GrabarPage> {
 
     return offsets;
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -474,6 +488,11 @@ class _GrabarPageState extends State<GrabarPage> {
                         ),
                       ),
                     ),
+                  Positioned(
+                    top: 16,
+                    left: _sharingService.sharingFriend != null ? 128 : 72,
+                    child: const SafeArea(child: BotonSosVisual()),
+                  ),
                   _buildCenterLocationButton(),
                   _buildMarkerPicker(),
                 ],
@@ -502,12 +521,14 @@ class _GrabarPageState extends State<GrabarPage> {
     );
   }
 }
+// La clase _MarkerTypeButton reúne los datos y las acciones de esta parte de la app.
 
 class _MarkerTypeButton extends StatelessWidget {
   const _MarkerTypeButton({required this.type, required this.onTap});
 
   final GrabarMarkerType type;
   final VoidCallback onTap;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Botón ancho para iniciar, pausar o finalizar una acción de grabación.
 class GrabarActionButton extends StatelessWidget {
   const GrabarActionButton({
     super.key,
@@ -13,11 +14,14 @@ class GrabarActionButton extends StatelessWidget {
   final bool isRecording;
   final VoidCallback onPressed;
   final String label;
+  // Si no se pasa un icono, usa el de reproducción.
   final IconData? icon;
+  // Permite reemplazar el estilo predeterminado desde la pantalla que lo utiliza.
   final ButtonStyle? style;
 
   @override
   Widget build(BuildContext context) {
+    // Ocupa el ancho disponible y cambia a rojo mientras hay una grabación activa.
     return SizedBox(
       width: double.infinity,
       height: 48,

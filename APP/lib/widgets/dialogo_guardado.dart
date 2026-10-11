@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../models/detalles_sendero.dart';
 
+// Solicita los datos y las fotos necesarios para guardar una ruta.
+// Devuelve sus detalles al confirmar o null si se descarta el diálogo.
 Future<RouteDetails?> showSaveRouteDialog(
   BuildContext context, {
   required String duration,
@@ -12,6 +14,7 @@ Future<RouteDetails?> showSaveRouteDialog(
   required double elevationGainMeters,
   String initialName = '',
 }) async {
+  // Conserva los valores del formulario mientras el diálogo está abierto.
   final nameController = TextEditingController(text: initialName);
   final descriptionController = TextEditingController();
   final imagePicker = ImagePicker();
@@ -60,6 +63,7 @@ Future<RouteDetails?> showSaveRouteDialog(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Resume los datos de la ruta que ya se obtuvieron durante la grabación.
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 8,
@@ -95,6 +99,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                 ),
               ),
               const SizedBox(height: 16),
+              // El nombre es obligatorio; la descripción es opcional.
               TextField(
                 controller: nameController,
                 autofocus: true,
@@ -115,6 +120,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                 ),
               ),
               const SizedBox(height: 16),
+              // Permite clasificar la ruta por actividad y dificultad.
               DropdownButtonFormField<String>(
                 initialValue: sport,
                 decoration: const InputDecoration(labelText: 'Deporte *'),
@@ -138,8 +144,8 @@ Future<RouteDetails?> showSaveRouteDialog(
                 items: const [
                   DropdownMenuItem(value: 'Fácil', child: Text('Fácil')),
                   DropdownMenuItem(
-                    value: 'Intermedio',
-                    child: Text('Intermedio'),
+                    value: 'Moderada',
+                    child: Text('Moderada'),
                   ),
                   DropdownMenuItem(value: 'Difícil', child: Text('Difícil')),
                 ],
@@ -150,6 +156,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                 },
               ),
               const SizedBox(height: 14),
+              // La ruta debe incluir al menos una foto, añadida desde galería o cámara.
               Row(
                 children: [
                   Text(
@@ -170,6 +177,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
+                    // Muestra las fotos seleccionadas y permite quitarlas antes de guardar.
                     for (final photo in photos) ...[
                       Stack(
                         children: [
@@ -209,6 +217,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                       tooltip: 'Elegir de la galería',
                       onPressed: () async {
                         final selected = await imagePicker.pickMultiImage();
+                        // Actualiza la lista y oculta el error al añadir fotos.
                         if (selected.isNotEmpty) {
                           setDialogState(() {
                             photos.addAll(selected);
@@ -244,6 +253,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
+              // Informa qué requisito falta cuando el usuario intenta guardar.
               if (validationMessage != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -255,6 +265,7 @@ Future<RouteDetails?> showSaveRouteDialog(
           ),
         ),
         actions: [
+          // Cierra el diálogo sin devolver datos.
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Descartar'),
@@ -262,6 +273,7 @@ Future<RouteDetails?> showSaveRouteDialog(
           FilledButton.icon(
             onPressed: () {
               final name = nameController.text.trim();
+              // Valida primero los campos obligatorios y mantiene abierto el diálogo si faltan.
               if (photos.isEmpty) {
                 setDialogState(
                   () => validationMessage =
@@ -276,6 +288,7 @@ Future<RouteDetails?> showSaveRouteDialog(
                 );
                 return;
               }
+              // Devuelve una copia de las fotos para que no dependa de la lista temporal.
               Navigator.pop(
                 dialogContext,
                 RouteDetails(
@@ -295,17 +308,20 @@ Future<RouteDetails?> showSaveRouteDialog(
     ),
   );
 
+  // Libera los controladores del formulario al terminar, se haya guardado o descartado.
   nameController.dispose();
   descriptionController.dispose();
   return details;
 }
 
+// Separa visualmente las métricas resumidas en la cabecera del formulario.
 Widget _summaryDivider(BuildContext context) => Container(
   width: 1,
   height: 34,
   color: Theme.of(context).colorScheme.outlineVariant,
 );
 
+// Presenta una métrica de la ruta con su etiqueta y valor.
 class _RouteSummaryMetric extends StatelessWidget {
   const _RouteSummaryMetric({required this.label, required this.value});
 

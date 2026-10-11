@@ -1,11 +1,16 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'dart:ui' show Color;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../services/ubicacion_app.dart';
+// La clase LocalizacionService reúne los datos y las acciones de esta parte de la app.
 
 class LocalizacionService {
   /// Solicita permisos de ubicación y comienza a rastrear
+// Solicita el permiso o la información necesaria para continuar.
   Future<bool> requestPermissionAndStartTracking() async {
     if (!UbicacionApp.enabled.value) return false;
 
@@ -16,6 +21,7 @@ class LocalizacionService {
     await Permission.notification.request();
     return UbicacionApp.enabled.value;
   }
+// Solicita el permiso o la información necesaria para continuar.
 
   Future<bool> requestLocationPermission() async {
     var locationPermission = await Geolocator.checkPermission();

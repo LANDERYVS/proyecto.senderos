@@ -1,7 +1,11 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/premium_access_service.dart';
+// La clase PremiumAccessScreen reúne los datos y las acciones de esta parte de la app.
 
 class PremiumAccessScreen extends StatefulWidget {
   const PremiumAccessScreen({super.key});
@@ -9,6 +13,7 @@ class PremiumAccessScreen extends StatefulWidget {
   @override
   State<PremiumAccessScreen> createState() => _PremiumAccessScreenState();
 }
+// La clase _PremiumAccessScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _PremiumAccessScreenState extends State<PremiumAccessScreen> {
   final PremiumAccessService _premiumAccessService = PremiumAccessService();
@@ -16,12 +21,14 @@ class _PremiumAccessScreenState extends State<PremiumAccessScreen> {
   bool _isSaving = false;
   bool _isPremium = false;
   String? _errorMessage;
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadPremiumAccess();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadPremiumAccess() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -135,6 +142,7 @@ class _PremiumAccessScreenState extends State<PremiumAccessScreen> {
       ),
     );
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

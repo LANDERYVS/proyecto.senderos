@@ -1,5 +1,9 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+// La clase EditarPerfilScreen reúne los datos y las acciones de esta parte de la app.
 
 class EditarPerfilScreen extends StatefulWidget {
   const EditarPerfilScreen({super.key});
@@ -7,6 +11,7 @@ class EditarPerfilScreen extends StatefulWidget {
   @override
   State<EditarPerfilScreen> createState() => _EditarPerfilScreenState();
 }
+// La clase _EditarPerfilScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -17,12 +22,14 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _email;
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
   }
+// Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -30,6 +37,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     _phoneController.dispose();
     super.dispose();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadProfile() async {
     final user = _client.auth.currentUser;
@@ -90,6 +98,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     }
     return null;
   }
+// Guarda los cambios para que la información no se pierda al salir.
 
   Future<void> _saveProfile() async {
     if (_isSaving || !(_formKey.currentState?.validate() ?? false)) return;
@@ -136,6 +145,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       if (mounted) setState(() => _isSaving = false);
     }
   }
+// Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -143,6 +153,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +229,7 @@ class _EditarPerfilScreenState extends State<EditarPerfilScreen> {
     );
   }
 }
+// La clase _ProfileUpdateException reúne los datos y las acciones de esta parte de la app.
 
 class _ProfileUpdateException implements Exception {
   const _ProfileUpdateException(this.message);

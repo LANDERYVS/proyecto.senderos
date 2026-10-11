@@ -1,8 +1,12 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
+// La clase ObtenerSenderoException reúne los datos y las acciones de esta parte de la app.
 
 class ObtenerSenderoException implements Exception {
   const ObtenerSenderoException(this.message, {this.cause});
@@ -13,6 +17,7 @@ class ObtenerSenderoException implements Exception {
   @override
   String toString() => message;
 }
+// La clase ObtenerSenderoService reúne los datos y las acciones de esta parte de la app.
 
 class ObtenerSenderoService {
   final _supabase = Supabase.instance.client;

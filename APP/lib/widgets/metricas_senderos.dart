@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../screen/grabar_styles.dart';
 import 'grabar_action_button.dart';
-import 'grabar_metric_indicator.dart';
 
+// Panel con el tiempo, la distancia, el desnivel y los controles del trayecto.
 class GrabarMetricsPanel extends StatelessWidget {
   const GrabarMetricsPanel({
     super.key,
@@ -35,13 +35,12 @@ class GrabarMetricsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    // La tarjeta se apoya en la parte inferior y se adapta al tema de la app.
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border(
-          top: BorderSide(color: colors.outlineVariant),
-        ),
+        border: Border(top: BorderSide(color: colors.outlineVariant)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -53,6 +52,7 @@ class GrabarMetricsPanel extends StatelessWidget {
       padding: GrabarStyles.panelPadding,
       child: Column(
         children: [
+          // Muestra si el trayecto está activo o pausado, junto con su estado actual.
           if (status != null) ...[
             Row(
               children: [
@@ -92,19 +92,21 @@ class GrabarMetricsPanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              GrabarMetricIndicator(label: 'TIEMPO', value: duration),
-              GrabarMetricIndicator(
+              // Resume las tres métricas principales del trayecto.
+              _GrabarMetricIndicator(label: 'TIEMPO', value: duration),
+              _GrabarMetricIndicator(
                 label: 'DISTANCIA',
                 value: '${distanceKm.toStringAsFixed(1)} km',
                 alignment: CrossAxisAlignment.end,
               ),
-              GrabarMetricIndicator(
+              _GrabarMetricIndicator(
                 label: 'SUBIDA',
                 value: '${elevationGainMeters.toStringAsFixed(0)} m',
                 alignment: CrossAxisAlignment.end,
               ),
             ],
           ),
+          // Durante la grabación ofrece pausar/reanudar y detener el trayecto.
           if (isRecording && (onTogglePause != null || onStop != null)) ...[
             const SizedBox(height: 12),
             Row(
@@ -134,6 +136,7 @@ class GrabarMetricsPanel extends StatelessWidget {
               ],
             ),
           ] else if (!isRecording && onStart != null) ...[
+            // Si todavía no se graba, muestra el botón para iniciar.
             const SizedBox(height: 12),
             GrabarActionButton(
               isRecording: false,
@@ -145,6 +148,35 @@ class GrabarMetricsPanel extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+// Muestra una etiqueta y su valor, como "DISTANCIA" y "2.4 km".
+class _GrabarMetricIndicator extends StatelessWidget {
+  const _GrabarMetricIndicator({
+    required this.label,
+    required this.value,
+    this.alignment = CrossAxisAlignment.start,
+  });
+
+  final String label;
+  final String value;
+  final CrossAxisAlignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Column(
+          crossAxisAlignment: alignment,
+          children: [
+            Text(label, style: GrabarStyles.metricLabelStyle(context)),
+            Text(value, style: GrabarStyles.metricValueStyle(context)),
+          ],
+        ),
+      ],
     );
   }
 }

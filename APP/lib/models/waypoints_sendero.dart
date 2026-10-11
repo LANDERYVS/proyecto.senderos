@@ -1,12 +1,23 @@
 import 'package:latlong2/latlong.dart';
 
+/*
+ * Representa un punto de interés marcado sobre un sendero, con su tipo y
+ * ubicación geográfica. fromMetadata/fromMap convierten y validan los datos
+ * guardados; toMap los prepara para almacenarlos nuevamente.
+ */
 class TrailWaypoint {
-  const TrailWaypoint({required this.type, required this.point});
+  const TrailWaypoint({
+    required this.type,
+    required this.point,
+    this.review = '',
+  });
 
   static List<TrailWaypoint> fromMetadata(Object? value) {
     if (value == null) return const [];
     if (value is! List) {
-      throw const FormatException('La lista de puntos de interés no es válida.');
+      throw const FormatException(
+        'La lista de puntos de interés no es válida.',
+      );
     }
     return value.map((entry) {
       if (entry is! Map<String, dynamic>) {
@@ -35,15 +46,18 @@ class TrailWaypoint {
     return TrailWaypoint(
       type: type,
       point: LatLng(latitude, longitude),
+      review: map['review']?.toString() ?? '',
     );
   }
 
   final String type;
   final LatLng point;
+  final String review;
 
   Map<String, dynamic> toMap() => {
     'type': type,
     'lat': point.latitude,
     'long': point.longitude,
+    'review': review,
   };
 }

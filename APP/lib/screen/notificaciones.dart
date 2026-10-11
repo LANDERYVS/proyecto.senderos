@@ -1,8 +1,12 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../widgets/content_state_view.dart';
-import '../widgets/default_user_avatar.dart';
+import '../widgets/avatar_usuario.dart';
+// La clase NotificacionesAlertasScreen reúne los datos y las acciones de esta parte de la app.
 
 class NotificacionesAlertasScreen extends StatefulWidget {
   const NotificacionesAlertasScreen({super.key, required this.onAlertSelected});
@@ -13,6 +17,7 @@ class NotificacionesAlertasScreen extends StatefulWidget {
   State<NotificacionesAlertasScreen> createState() =>
       _NotificacionesAlertasScreenState();
 }
+// La clase _NotificacionesAlertasScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _NotificacionesAlertasScreenState
     extends State<NotificacionesAlertasScreen> {
@@ -23,12 +28,14 @@ class _NotificacionesAlertasScreenState
   Map<String, String> _trailNamesById = const {};
   String? _errorMessage;
   bool _isLoading = true;
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadAlerts();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadAlerts() async {
     if (mounted) {
@@ -180,6 +187,7 @@ class _NotificacionesAlertasScreenState
       _showError('No se pudo marcar la alerta como vista: $error');
     }
   }
+// Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteAlert(Map<String, dynamic> alert) async {
     final userId = _client.auth.currentUser?.id;
@@ -199,6 +207,7 @@ class _NotificacionesAlertasScreenState
       _showError('No se pudo eliminar la alerta: $error');
     }
   }
+// Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openAlert(Map<String, dynamic> alert) async {
     await _markAsRead(alert);
@@ -206,6 +215,7 @@ class _NotificacionesAlertasScreenState
     Navigator.pop(context);
     await widget.onAlertSelected(alert);
   }
+// Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
   void _showError(String message) {
     if (!mounted) return;
@@ -306,6 +316,7 @@ class _NotificacionesAlertasScreenState
         return value;
     }
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -532,6 +543,7 @@ class _NotificacionesAlertasScreenState
     }
   }
 }
+// La clase NotificacionesScreen reúne los datos y las acciones de esta parte de la app.
 
 class NotificacionesScreen extends StatefulWidget {
   const NotificacionesScreen({super.key});
@@ -539,6 +551,7 @@ class NotificacionesScreen extends StatefulWidget {
   @override
   State<NotificacionesScreen> createState() => _NotificacionesScreenState();
 }
+// La clase _NotificacionesScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _NotificacionesScreenState extends State<NotificacionesScreen> {
   final _client = Supabase.instance.client;
@@ -552,6 +565,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   bool _isLoading = true;
   String? _loadError;
   RealtimeChannel? _requestChannel;
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -559,6 +573,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     _subscribeToRequests();
     _loadNotifications();
   }
+// Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -610,6 +625,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         )
         .subscribe();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadNotifications() async {
     if (mounted) {
@@ -764,6 +780,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       if (mounted) setState(() {});
     }
   }
+// Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteRequest(Map<String, dynamic> request) async {
     try {
@@ -791,6 +808,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       return;
     }
   }
+// Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteRequestRows(Map<String, dynamic> request) async {
     final deleted = await _client
@@ -859,6 +877,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       if (mounted) setState(() {});
     }
   }
+// Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteLocationRequest(Map<String, dynamic> request) async {
     final userId = _client.auth.currentUser?.id;
@@ -901,6 +920,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       _showMessage('No se pudo marcar el aviso como visto: $error');
     }
   }
+// Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteGlobalNotification(
     Map<String, dynamic> notification,
@@ -922,6 +942,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       _showMessage('No se pudo eliminar el aviso: $error');
     }
   }
+// Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -937,6 +958,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     return '${date.day.toString().padLeft(2, '0')}/'
         '${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

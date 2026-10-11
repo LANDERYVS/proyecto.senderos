@@ -1,11 +1,13 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'package:flutter/material.dart';
 import 'dart:io';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/explore_trail.dart';
-import '../models/saved_route.dart';
-import '../models/trail_waypoint.dart';
+import '../models/modelo_sendero.dart';
+import '../models/modelo_ruta.dart';
+import '../models/waypoints_sendero.dart';
 import '../services/guardado_local.dart';
 import '../services/gpx_import.dart';
 import '../services/logros_service.dart';
@@ -13,10 +15,12 @@ import '../services/obtener_sendero.dart';
 import '../services/senderos_favoritos.dart';
 import '../services/senderos_locales.dart';
 import '../widgets/content_state_view.dart';
-import '../widgets/edit_saved_route_dialog.dart';
+import '../widgets/dialogo_editar_ruta.dart';
+import '../widgets/no_transition_page_route.dart';
 import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
 import 'previsualizar_gpx.dart';
+// Muestra las rutas creadas, publicadas, descargadas y guardadas como favoritas.
 
 class SavedContent extends StatefulWidget {
   const SavedContent({
@@ -35,6 +39,7 @@ class SavedContent extends StatefulWidget {
   @override
   State<SavedContent> createState() => _SavedContentState();
 }
+// Mantiene las rutas y filtros que se muestran en la pantalla de guardados.
 
 class _SavedContentState extends State<SavedContent> {
   final SenderosLocalesService _savedRoutesService = SenderosLocalesService();
@@ -46,14 +51,17 @@ class _SavedContentState extends State<SavedContent> {
   List<ExploreTrail> _favoriteTrails = [];
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
+  String _sportFilter = 'Deporte';
   int _selectedTab = 0;
   int _selectedSection = 0;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadRoutes();
   }
+  // Carga las rutas del dispositivo y, si hay sesión iniciada, también las publicadas y favoritas.
 
   Future<void> _loadRoutes() async {
     final routes = await _savedRoutesService.loadRoutes();
@@ -106,6 +114,7 @@ class _SavedContentState extends State<SavedContent> {
       });
     }
   }
+  // Quita el elemento seleccionado de la lista o de los datos guardados.
 
   Future<void> _removeFavorite(ExploreTrail trail) async {
     final senderoId = trail.id;
@@ -135,6 +144,7 @@ class _SavedContentState extends State<SavedContent> {
       ).showSnackBar(SnackBar(content: Text('No se pudo quitar: $error')));
     }
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openGpx() async {
     try {
@@ -169,17 +179,7 @@ class _SavedContentState extends State<SavedContent> {
       debugPrint('Error al abrir GPX: $error');
     }
   }
-
-  Future<void> _shareRoute(SavedRoute route) async {
-    try {
-      await _savedRoutesService.shareRoute(route);
-    } on Exception {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo compartir el trayecto')),
-      );
-    }
-  }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openSavedRoute(SavedRoute route) async {
     try {
@@ -192,7 +192,7 @@ class _SavedContentState extends State<SavedContent> {
           : 'trail_${senderoId ?? sourceKey}';
       await Navigator.push<void>(
         context,
-        MaterialPageRoute(
+        NoTransitionPageRoute(
           builder: (_) => PrevisualizarGpxScreen(
             file: route.file,
             route: data,
@@ -215,6 +215,7 @@ class _SavedContentState extends State<SavedContent> {
       );
     }
   }
+  // Elimina el elemento seleccionado y actualiza la información guardada.
 
   Future<void> _deleteRoute(SavedRoute route) async {
     final confirmed = await showDialog<bool>(
@@ -268,10 +269,12 @@ class _SavedContentState extends State<SavedContent> {
     }
   }
 
+  // Después de publicar, vuelve a cargar la lista. Si falla, avisa que la publicación pudo completarse igualmente.
   Future<void> _refreshRoutesAfterPublish() async {
     try {
       await _loadRoutes();
     } on Exception catch (error) {
+      // El fallo de actualización no deshace la publicación; se informa para que el usuario sepa que la lista está desactualizada.
       debugPrint('No se pudo actualizar la lista tras publicar: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -285,25 +288,33 @@ class _SavedContentState extends State<SavedContent> {
     }
   }
 
+  // Sube la ruta, actualiza la lista y comprueba si publicar desbloqueó algún logro.
   Future<void> _publishRoute(SavedRoute route) async {
     try {
+      // Envía el archivo y sus datos al servicio de almacenamiento/publicación.
       await _routeStorageService.publishRoute(route);
       if (!mounted) return;
+      // Refresca la pantalla para reflejar que la ruta ya fue publicada.
       await _refreshRoutesAfterPublish();
       if (!mounted) return;
+      // Confirma al usuario que la publicación terminó correctamente.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Sendero "${route.name}" publicado')),
       );
       try {
+        // La publicación puede sumar progreso y desbloquear logros.
         final session = await LogrosService().loadAndSync();
         try {
+          // Muestra los logros nuevos solo si esta pantalla sigue activa.
           if (mounted) {
             await showLogroNotifications(context, session.newlyUnlocked);
           }
         } finally {
+          // Libera los recursos temporales usados para revisar los logros.
           session.controller.dispose();
         }
       } on Object catch (error) {
+        // Un error de logros no invalida la publicación, así que solo se informa por separado.
         debugPrint('No se pudieron sincronizar los logros: $error');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -316,6 +327,7 @@ class _SavedContentState extends State<SavedContent> {
         }
       }
     } on RoutePublishException catch (error) {
+      // Error esperado al publicar, por ejemplo por permisos o por un problema de almacenamiento.
       if (!mounted) return;
       await _refreshRoutesAfterPublish();
       if (!mounted) return;
@@ -324,6 +336,7 @@ class _SavedContentState extends State<SavedContent> {
       ).showSnackBar(SnackBar(content: Text(error.message)));
       debugPrint('Error al publicar sendero: $error');
     } on Exception catch (error) {
+      // Captura otros fallos para avisar sin cerrar la pantalla.
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -334,6 +347,7 @@ class _SavedContentState extends State<SavedContent> {
     }
   }
 
+  // Botón flotante que permite elegir e importar un archivo GPX.
   Widget _buildOpenGpxButton() {
     return FloatingActionButton.extended(
       onPressed: _openGpx,
@@ -344,6 +358,7 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  // Muestra las dos secciones principales, salvo cuando esta vista se limita a descargas.
   Widget _buildRouteTabs() {
     if (widget.downloadsOnly) return const SizedBox.shrink();
 
@@ -358,10 +373,12 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  // Dibuja una pestaña y cambia la sección activa cuando el usuario la toca.
   Widget _tabButton({required String label, required int index}) {
     final isSelected = _selectedTab == index;
     final colors = Theme.of(context).colorScheme;
     return GestureDetector(
+      // Al cambiar de pestaña, vuelve a la primera categoría de esa sección.
       onTap: () => setState(() {
         _selectedTab = index;
         _selectedSection = 0;
@@ -389,6 +406,7 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  // Según la pestaña principal, muestra sus dos categorías correspondientes.
   Widget _buildCategoryTabs() {
     if (widget.downloadsOnly) return const SizedBox.shrink();
 
@@ -399,9 +417,11 @@ class _SavedContentState extends State<SavedContent> {
       padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
       child: Row(
         children: [
+          // Cada etiqueta es una categoría; el borde indica cuál está seleccionada.
           for (var index = 0; index < labels.length; index++)
             Expanded(
               child: GestureDetector(
+                // Al tocar una categoría, actualiza qué grupo de rutas se muestra.
                 onTap: () => setState(() => _selectedSection = index),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -436,7 +456,9 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  // Combina rutas locales, publicadas y favoritas en una sola lista de tarjetas.
   Widget _buildRouteList() {
+    // Obtiene las listas ya filtradas según la pestaña, búsqueda y filtros actuales.
     final localRoutes = _filteredRoutes;
     final remoteUploaded = _filteredUploadedTrails;
     final remoteFavorites = widget.downloadsOnly
@@ -445,9 +467,11 @@ class _SavedContentState extends State<SavedContent> {
     if (localRoutes.isEmpty &&
         remoteUploaded.isEmpty &&
         remoteFavorites.isEmpty) {
+      // Si ningún grupo tiene rutas, muestra el mensaje adecuado para la sección elegida.
       return ContentStateView(message: _emptyRouteMessage);
     }
 
+    // Construye una tarjeta por cada ruta, usando el tipo de tarjeta adecuado para cada origen.
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
       itemCount:
@@ -456,57 +480,65 @@ class _SavedContentState extends State<SavedContent> {
       itemBuilder: (context, index) {
         if (index < localRoutes.length) {
           final route = localRoutes[index];
+          // En la vista de descargas, las rutas locales se muestran como rutas descargadas.
           if (widget.downloadsOnly ||
               (_selectedTab == 1 && _selectedSection == 0)) {
             return SenderoCard(
               trail: ExploreTrail.fromDownloadedMetadata(route.metadata ?? {}),
-              isFavorite: false,
-              isSavingFavorite: false,
-              onFavorite: null,
               topAction: _downloadedRouteMenu(route),
             );
           }
+          // En "Creados", muestra las rutas creadas en este dispositivo con editar/publicar/borrar.
           if (_selectedTab == 0) {
             return SenderoCard(
               trail: _createdRouteTrail(route),
-              isFavorite: false,
-              isSavingFavorite: false,
-              onFavorite: null,
               onTap: () => _openSavedRoute(route),
               topAction: _createdRouteMenu(route),
             );
           }
+          // En "Favoritos", permite quitar la ruta de favoritos y administrar su copia local.
           final trail = _favoriteRouteTrail(route);
           return SenderoCard(
             trail: trail,
-            isFavorite: true,
-            isSavingFavorite: false,
-            onFavorite: () => _removeFavorite(trail),
             topAction: _downloadedRouteMenu(route),
           );
         }
 
+        // Una vez terminadas las rutas locales, calcula el índice dentro de las publicadas.
         final uploadedIndex = index - localRoutes.length;
         if (uploadedIndex < remoteUploaded.length) {
-          return SenderoCard(
-            trail: remoteUploaded[uploadedIndex],
-            isFavorite: false,
-            isSavingFavorite: false,
-            onFavorite: null,
-          );
+          // Las publicadas se muestran directamente con sus datos remotos.
+          return SenderoCard(trail: remoteUploaded[uploadedIndex]);
         }
 
+        // Los elementos restantes son favoritos cargados desde el servidor.
         final trail = remoteFavorites[uploadedIndex - remoteUploaded.length];
-        return SenderoCard(
-          trail: trail,
-          isFavorite: true,
-          isSavingFavorite: false,
-          onFavorite: () => _removeFavorite(trail),
-        );
+        return SenderoCard(trail: trail, topAction: _favoriteTrailMenu(trail));
       },
     );
   }
 
+  Widget _favoriteTrailMenu(ExploreTrail trail) {
+    return PopupMenuButton<bool>(
+      tooltip: 'Más opciones',
+      icon: const Icon(Icons.more_vert),
+      onSelected: (_) => _removeFavorite(trail),
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: true,
+          child: Row(
+            children: [
+              Icon(Icons.favorite_border, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Quitar de favoritos'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Adapta una ruta creada localmente al modelo que esperan las tarjetas de senderos.
   ExploreTrail _createdRouteTrail(SavedRoute route) => ExploreTrail(
     name: route.name,
     description: route.description,
@@ -521,13 +553,16 @@ class _SavedContentState extends State<SavedContent> {
         : '${route.file.parent.path}${Platform.pathSeparator}${route.photos.first}',
   );
 
+  // Convierte una ruta favorita guardada localmente al modelo común de senderos.
   ExploreTrail _favoriteRouteTrail(SavedRoute route) {
+    // Recupera datos adicionales y prepara la ruta de su primera foto local, si existe.
     final metadata = route.metadata ?? {};
     final senderoId = route.favoriteSenderoId;
     final photoPath = route.photos.isEmpty
         ? null
         : '${route.file.parent.path}${Platform.pathSeparator}${route.photos.first}';
 
+    // Reúne datos locales y del servidor para que la tarjeta muestre autor, foto y GPX.
     return ExploreTrail(
       id: senderoId,
       userId: metadata['userId']?.toString(),
@@ -547,15 +582,18 @@ class _SavedContentState extends State<SavedContent> {
     );
   }
 
+  // Convierte el desnivel guardado en metadata a un texto para mostrar en pantalla.
   String _routeElevation(SavedRoute route) {
     final gain = (route.metadata?['elevationGainMeters'] as num?)?.toDouble();
     return gain == null ? 'Desnivel no disponible' : '${gain.round()} m';
   }
 
+  // Menú de acciones para una ruta creada por el usuario.
   Widget _createdRouteMenu(SavedRoute route) {
     return PopupMenuButton<_CreatedRouteAction>(
       tooltip: 'Más opciones',
       icon: const Icon(Icons.more_vert),
+      // Ejecuta la acción elegida en el menú.
       onSelected: (action) {
         switch (action) {
           case _CreatedRouteAction.edit:
@@ -564,8 +602,6 @@ class _SavedContentState extends State<SavedContent> {
             _publishRoute(route);
           case _CreatedRouteAction.delete:
             _deleteRoute(route);
-          case _CreatedRouteAction.share:
-            _shareRoute(route);
         }
       },
       itemBuilder: (context) => const [
@@ -599,16 +635,6 @@ class _SavedContentState extends State<SavedContent> {
             ],
           ),
         ),
-        PopupMenuItem(
-          value: _CreatedRouteAction.share,
-          child: Row(
-            children: [
-              Icon(Icons.share_outlined),
-              SizedBox(width: 8),
-              Text('Compartir'),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -636,6 +662,7 @@ class _SavedContentState extends State<SavedContent> {
       );
     }
   }
+  // Muestra las opciones disponibles para una ruta descargada.
 
   Widget _downloadedRouteMenu(SavedRoute route) {
     return PopupMenuButton<_SavedRouteAction>(
@@ -645,8 +672,6 @@ class _SavedContentState extends State<SavedContent> {
         switch (action) {
           case _SavedRouteAction.delete:
             _deleteRoute(route);
-          case _SavedRouteAction.share:
-            _shareRoute(route);
         }
       },
       itemBuilder: (context) => const [
@@ -660,19 +685,10 @@ class _SavedContentState extends State<SavedContent> {
             ],
           ),
         ),
-        PopupMenuItem(
-          value: _SavedRouteAction.share,
-          child: Row(
-            children: [
-              Icon(Icons.share_outlined),
-              SizedBox(width: 8),
-              Text('Compartir'),
-            ],
-          ),
-        ),
       ],
     );
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -687,6 +703,7 @@ class _SavedContentState extends State<SavedContent> {
               onDifficultyChanged: (value) =>
                   setState(() => _difficultyFilter = value),
               onLengthChanged: (value) => setState(() => _lengthFilter = value),
+              onSportChanged: (value) => setState(() => _sportFilter = value),
             ),
             _buildRouteTabs(),
             _buildCategoryTabs(),
@@ -746,8 +763,11 @@ class _SavedContentState extends State<SavedContent> {
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           route.difficulty == _difficultyFilter;
+      final matchesSport =
+          _sportFilter == 'Deporte' || route.sport == _sportFilter;
       return matchesSearch &&
           matchesDifficulty &&
+          matchesSport &&
           _matchesLength(route.distanceKm);
     }).toList();
   }
@@ -765,8 +785,11 @@ class _SavedContentState extends State<SavedContent> {
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           trail.difficulty == _difficultyFilter;
+      final matchesSport =
+          _sportFilter == 'Deporte' || trail.sport == _sportFilter;
       return matchesSearch &&
           matchesDifficulty &&
+          matchesSport &&
           _matchesLength(trail.distanceKm);
     }).toList();
   }
@@ -781,8 +804,11 @@ class _SavedContentState extends State<SavedContent> {
       final matchesDifficulty =
           _difficultyFilter == 'Dificultad' ||
           trail.difficulty == _difficultyFilter;
+      final matchesSport =
+          _sportFilter == 'Deporte' || trail.sport == _sportFilter;
       return matchesSearch &&
           matchesDifficulty &&
+          matchesSport &&
           _matchesLength(trail.distanceKm);
     }).toList();
   }
@@ -799,7 +825,9 @@ class _SavedContentState extends State<SavedContent> {
         : 'Todavía no hay senderos favoritos';
   }
 }
+// Esta enumeración lista las opciones disponibles para esta función.
 
-enum _SavedRouteAction { delete, share }
+enum _SavedRouteAction { delete }
+// Esta enumeración lista las opciones disponibles para esta función.
 
-enum _CreatedRouteAction { edit, publish, delete, share }
+enum _CreatedRouteAction { edit, publish, delete }

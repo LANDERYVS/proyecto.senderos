@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -9,10 +11,11 @@ import '../services/offline_tile_service.dart';
 import '../services/guardado_local.dart';
 import '../services/walking_stats_service.dart';
 import '../utils/route_calculator.dart';
-import '../widgets/confirm_exit_recording_dialog.dart';
-import '../widgets/save_route_dialog.dart';
+import '../widgets/dialogo_salir_ruta.dart';
+import '../widgets/dialogo_guardado.dart';
 import 'grabar_styles.dart';
 import 'localizacion.dart';
+// Esta enumeración lista las opciones disponibles para esta función.
 
 enum GrabarMarkerType {
   mirador(
@@ -37,6 +40,8 @@ enum GrabarMarkerType {
   final IconData icon;
   final Color color;
 }
+
+// Controla la grabación del recorrido: GPS, distancia, duración, desnivel y puntos de interés.
 
 class GrabarController extends ChangeNotifier {
   GrabarController() {
@@ -63,10 +68,11 @@ class GrabarController extends ChangeNotifier {
   static const double userWeightKg = 70;
   static const double caloriesPerKgKm = 0.75;
   static const double minimumElevationChangeMeters = 2;
-  static const double minimumWaypointDistanceMeters = 8;
+  static const double minimumWaypointDistanceMeters = 15;
 
   bool isRecording = false;
   bool isPaused = false;
+  bool get canAddWaypoint => isRecording && !isPaused;
   bool _hasCenteredOnInitialLocation = false;
   int _locationGeneration = 0;
   double distanceKm = 0;
@@ -77,12 +83,14 @@ class GrabarController extends ChangeNotifier {
   String status = '';
   String recordingStatus = 'Inicia la grabación para comenzar tu trayecto';
   TileLayer? offlineTileLayer;
+  // Prepara la capa del mapa sin conexión cuando hay mapas descargados.
 
   Future<void> loadOfflineMap() async {
     if (!await offlineTileService.hasDownloadedTiles()) return;
     final layer = await offlineTileService.offlineTileLayer();
     offlineTileLayer = layer;
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -92,6 +100,7 @@ class GrabarController extends ChangeNotifier {
     recordingTimer?.cancel();
     super.dispose();
   }
+  // Pide permiso para usar el GPS y comienza a seguir la ubicación.
 
   Future<void> requestPermissionAndStartTracking() async {
     final generation = ++_locationGeneration;
@@ -119,6 +128,7 @@ class GrabarController extends ChangeNotifier {
       await startLocationUpdates();
     }
   }
+  // Obtiene la ubicación actual y después deja activo el seguimiento por GPS.
 
   Future<void> startLocationUpdates() async {
     if (!UbicacionApp.enabled.value) return;
@@ -141,6 +151,7 @@ class GrabarController extends ChangeNotifier {
     updateLocation(position);
     startLocationStream(showNotification: false);
   }
+  // Inicia el proceso necesario para esta función.
 
   void startLocationStream({required bool showNotification}) {
     if (!UbicacionApp.enabled.value) return;
@@ -156,6 +167,7 @@ class GrabarController extends ChangeNotifier {
       refreshCurrentLocation();
     });
   }
+  // Vuelve a cargar los datos para reflejar los cambios más recientes.
 
   Future<void> refreshCurrentLocation() async {
     if (!UbicacionApp.enabled.value ||
@@ -192,10 +204,12 @@ class GrabarController extends ChangeNotifier {
     if (isRecording) recordingStatus = 'Obteniendo ubicación...';
     unawaited(requestPermissionAndStartTracking());
   }
+  // Este bloque maneja un error o evento del sistema para evitar que la app se rompa.
 
   void handleLocationError(Object error) {
     status = 'No hay conexión a internet.';
   }
+  // Actualiza los datos existentes con la información nueva.
 
   void updateLocation(Position position) {
     final point = LatLng(position.latitude, position.longitude);
@@ -241,8 +255,13 @@ class GrabarController extends ChangeNotifier {
       }
     }
   }
+  // Agrega el nuevo elemento a la lista que muestra la pantalla.
 
-  void addCurrentLocationMarker(BuildContext context, GrabarMarkerType type) {
+  Future<void> addCurrentLocationMarker(
+    BuildContext context,
+    GrabarMarkerType type,
+  ) async {
+    if (!_requireActiveRecordingForWaypoint(context)) return;
     if (markers.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -258,14 +277,26 @@ class GrabarController extends ChangeNotifier {
       return;
     }
 
+    final details = await _showWaypointDetailsDialog(
+      context,
+      initialName: type.label,
+    );
+    if (!context.mounted || details == null) return;
+
     interestPoints.add(
-      GrabarInterestPoint(point: point, name: type.label, type: type),
+      GrabarInterestPoint(
+        point: point,
+        name: details.name,
+        review: details.review,
+        type: type,
+      ),
     );
     notifyListeners();
   }
 
   double get estimatedCalories => distanceKm * userWeightKg * caloriesPerKgKm;
   bool get hasUnrecordedWalk => !_walkingDistanceRecorded && distanceKm > 0;
+  // Añade al recorrido la ubicación o métrica recibida del GPS.
 
   void _recordElevationChange(double altitude) {
     final validAltitude = _validAltitude(altitude);
@@ -290,15 +321,29 @@ class GrabarController extends ChangeNotifier {
         routeCalculator.calculateIncrementMeters(waypoint.point, point) <=
         minimumWaypointDistanceMeters,
   );
+  // Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
   void _showExistingWaypointMessage(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Ya hay un marcador en esa posición.')),
+      const SnackBar(
+        content: Text('Debe haber al menos 15 metros entre waypoints.'),
+      ),
     );
+  }
+
+  bool _requireActiveRecordingForWaypoint(BuildContext context) {
+    if (canAddWaypoint) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Inicia o reanuda la grabación para agregar waypoints.'),
+      ),
+    );
+    return false;
   }
 
   double? _validAltitude(double altitude) =>
       altitude.isFinite ? altitude : null;
+  // Cambia entre activar y desactivar esta función.
 
   Future<void> toggleRecording() async {
     if (isRecording) {
@@ -335,6 +380,7 @@ class GrabarController extends ChangeNotifier {
     startRecordingTimer();
     if (UbicacionApp.enabled.value) await refreshCurrentLocation();
   }
+  // Inicia el proceso necesario para esta función.
 
   void startRecordingTimer() {
     recordingTimer?.cancel();
@@ -352,6 +398,7 @@ class GrabarController extends ChangeNotifier {
     final seconds = twoDigits(recordingDuration.inSeconds.remainder(60));
     return '$hours:$minutes:$seconds';
   }
+  // Termina este proceso y guarda el resultado cuando corresponde.
 
   Future<void> finishAndSaveRoute(BuildContext context) async {
     if (recordedRoute.isEmpty) {
@@ -376,6 +423,7 @@ class GrabarController extends ChangeNotifier {
       return;
     }
 
+    if (!context.mounted) return;
     final details = await showSaveRouteDialog(
       context,
       duration: formattedDuration,
@@ -398,9 +446,10 @@ class GrabarController extends ChangeNotifier {
         waypoints: [
           for (final waypoint in interestPoints)
             {
-              'type': waypoint.type?.databaseType ?? waypoint.name,
+              'type': waypoint.type.databaseType,
               'lat': waypoint.point.latitude,
               'long': waypoint.point.longitude,
+              'review': waypoint.review,
             },
         ],
       );
@@ -440,6 +489,7 @@ class GrabarController extends ChangeNotifier {
       }
     }
   }
+  // Cambia entre activar y desactivar esta función.
 
   void togglePause() {
     if (!isRecording) return;
@@ -456,60 +506,72 @@ class GrabarController extends ChangeNotifier {
       startRecordingTimer();
     }
   }
-
-  Future<void> addInterestPoint(BuildContext context, LatLng point) async {
-    final routePoint = routeCalculator.findNearestRoutePoint(
-      point,
-      recordedRoute,
-    );
-    if (routePoint == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('El punto debe estar sobre el camino trazado'),
+  Future<_WaypointDetails?> _showWaypointDetailsDialog(
+    BuildContext context, {
+    String? initialName,
+  }) async {
+    final nameController = TextEditingController(text: initialName);
+    final reviewController = TextEditingController();
+    try {
+      return await showDialog<_WaypointDetails>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Agregar punto de interés'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                autofocus: initialName == null,
+                readOnly: initialName != null,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del lugar',
+                  hintText: 'Ej. Mirador',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reviewController,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: 300,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Reseña (opcional)',
+                  hintText: 'Describe este lugar o comparte una recomendación',
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(
+                  dialogContext,
+                  _WaypointDetails(
+                    name: name,
+                    review: reviewController.text.trim(),
+                  ),
+                );
+              },
+              child: const Text('Agregar'),
+            ),
+          ],
         ),
       );
-      return;
+    } finally {
+      nameController.dispose();
+      reviewController.dispose();
     }
-    if (_hasWaypointNear(routePoint)) {
-      _showExistingWaypointMessage(context);
-      return;
-    }
-
-    final nameController = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Agregar punto de interés'),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Nombre del lugar',
-            hintText: 'Ej. Mirador',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, nameController.text),
-            child: const Text('Agregar'),
-          ),
-        ],
-      ),
-    );
-    nameController.dispose();
-
-    final trimmedName = name?.trim();
-    if (!context.mounted || trimmedName == null || trimmedName.isEmpty) return;
-
-    interestPoints.add(
-      GrabarInterestPoint(point: routePoint, name: trimmedName),
-    );
   }
+  // Pide confirmación antes de continuar con esta acción.
 
   Future<bool> confirmExitIfRecording(BuildContext context) async {
     if (!isRecording) {
@@ -545,15 +607,25 @@ class GrabarController extends ChangeNotifier {
     return confirmed ?? false;
   }
 }
+// La clase GrabarInterestPoint reúne los datos y las acciones de esta parte de la app.
 
 class GrabarInterestPoint {
   const GrabarInterestPoint({
     required this.point,
     required this.name,
-    this.type,
+    required this.type,
+    this.review = '',
   });
 
   final LatLng point;
   final String name;
-  final GrabarMarkerType? type;
+  final String review;
+  final GrabarMarkerType type;
+}
+
+class _WaypointDetails {
+  const _WaypointDetails({required this.name, required this.review});
+
+  final String name;
+  final String review;
 }

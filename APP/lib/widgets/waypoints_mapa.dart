@@ -1,30 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
-import '../models/trail_waypoint.dart';
+import '../models/waypoints_sendero.dart';
 
+// Convierte los puntos de interés de una ruta en marcadores visibles sobre el mapa.
 class WaypointMarkersLayer extends StatelessWidget {
   const WaypointMarkersLayer({super.key, required this.waypoints});
 
   final List<TrailWaypoint> waypoints;
 
   @override
-  Widget build(BuildContext context) => MarkerLayer(
-    markers: [
-      for (final waypoint in waypoints)
-        Marker(
-          width: 16,
-          height: 16,
-          point: waypoint.point,
-          child: Tooltip(
-            message: waypoint.type,
-            child: WaypointIcon(type: waypoint.type, size: 12),
+  Widget build(BuildContext context) {
+    return MarkerLayer(
+      markers: [
+        // Sitúa cada marcador en sus coordenadas y muestra su tipo al mantenerlo pulsado.
+        for (final waypoint in waypoints)
+          Marker(
+            width: 24,
+            height: 24,
+            point: waypoint.point,
+            child: Tooltip(
+              message: waypoint.review.trim().isEmpty
+                  ? waypoint.type
+                  : '${waypoint.type}\n${waypoint.review.trim()}',
+              child: WaypointIcon(type: waypoint.type, size: 20),
+            ),
           ),
-        ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
+// Elige el símbolo del punto de interés según su tipo y admite estilos alternativos.
 class WaypointIcon extends StatelessWidget {
   const WaypointIcon({
     super.key,
@@ -41,8 +48,10 @@ class WaypointIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Normaliza el texto para que mayúsculas y espacios no afecten la selección del icono.
     final normalizedType = type.trim().toLowerCase();
     if (normalizedType == 'peligro' || normalizedType == 'descanso') {
+      // Estos dos tipos se dibujan como insignias personalizadas en lugar de usar un icono estándar.
       return CustomPaint(
         size: Size.square(size),
         painter: _WaypointBadgePainter(
@@ -54,6 +63,7 @@ class WaypointIcon extends StatelessWidget {
       );
     }
 
+    // Usa imágenes propias para los tipos que tienen un recurso gráfico dedicado.
     final asset = switch (normalizedType) {
       'vista' || 'mirador' => 'assets/waypoints/waypoint_mirador.png',
       'bebedero' => 'assets/waypoints/waypoint_bebedero.png',
@@ -61,6 +71,7 @@ class WaypointIcon extends StatelessWidget {
     };
 
     if (asset != null) {
+      // Si el recurso no se encuentra o no puede cargarse, muestra un icono alternativo.
       return Image.asset(
         asset,
         width: size,
@@ -74,6 +85,7 @@ class WaypointIcon extends StatelessWidget {
       );
     }
 
+    // Los demás tipos se representan con un icono Material según su categoría.
     return Icon(
       fallbackIcon ?? _iconForType(normalizedType),
       color: fallbackColor ?? _colorForType(normalizedType),
@@ -81,12 +93,14 @@ class WaypointIcon extends StatelessWidget {
     );
   }
 
+  // Asigna un símbolo Material para cada categoría que no usa una imagen propia.
   IconData _iconForType(String normalizedType) => switch (normalizedType) {
     'peligro' => Icons.warning_rounded,
     'descanso' => Icons.weekend_outlined,
     _ => Icons.place,
   };
 
+  // Mantiene un color coherente con la categoría del punto de interés.
   Color _colorForType(String normalizedType) => switch (normalizedType) {
     'peligro' => const Color(0xffd73737),
     'descanso' => const Color(0xff7650a2),
@@ -94,6 +108,7 @@ class WaypointIcon extends StatelessWidget {
   };
 }
 
+// Dibuja las insignias circulares de peligro y descanso usando formas vectoriales.
 class _WaypointBadgePainter extends CustomPainter {
   const _WaypointBadgePainter({required this.color, required this.isBridge});
 
@@ -102,6 +117,7 @@ class _WaypointBadgePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Adapta el círculo y su borde al tamaño disponible para el marcador.
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.shortestSide / 2;
     canvas.drawCircle(center, radius, Paint()..color = Colors.white);
@@ -114,6 +130,7 @@ class _WaypointBadgePainter extends CustomPainter {
     }
   }
 
+  // Dibuja el signo de advertencia en blanco dentro de la insignia de peligro.
   void _paintDanger(Canvas canvas, Size size) {
     final whitePaint = Paint()..color = Colors.white;
     final centerX = size.width / 2;
@@ -134,6 +151,7 @@ class _WaypointBadgePainter extends CustomPainter {
     );
   }
 
+  // Compone una ilustración de puente con trazos blancos dentro de la insignia.
   void _paintBridge(Canvas canvas, Size size) {
     final unit = size.shortestSide;
     final whitePaint = Paint()..color = Colors.white;
@@ -217,6 +235,7 @@ class _WaypointBadgePainter extends CustomPainter {
   }
 
   @override
+  // Solo vuelve a dibujar la insignia si cambian su color o su forma.
   bool shouldRepaint(_WaypointBadgePainter oldDelegate) =>
       color != oldDelegate.color || isBridge != oldDelegate.isBridge;
 }

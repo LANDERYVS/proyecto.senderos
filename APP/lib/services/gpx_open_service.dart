@@ -1,3 +1,6 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'dart:async';
 import 'dart:io';
 
@@ -5,6 +8,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/services.dart';
 
 import 'gpx_import.dart';
+// La clase IncomingGpxPreview reúne los datos y las acciones de esta parte de la app.
 
 class IncomingGpxPreview {
   const IncomingGpxPreview({required this.file, required this.route});
@@ -12,6 +16,7 @@ class IncomingGpxPreview {
   final File file;
   final GpxRouteData route;
 }
+// La clase GpxOpenService reúne los datos y las acciones de esta parte de la app.
 
 class GpxOpenService {
   static const _gpxChannel = MethodChannel('proyecto.senderos/gpx_files');

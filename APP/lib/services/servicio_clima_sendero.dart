@@ -1,9 +1,13 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:latlong2/latlong.dart';
 
 import '../models/clima_sendero.dart';
+// La clase ServicioClimaSendero reúne los datos y las acciones de esta parte de la app.
 
 class ServicioClimaSendero {
   Future<ClimaSendero> obtenerClima(LatLng location) async {

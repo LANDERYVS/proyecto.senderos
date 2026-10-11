@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 
-import 'search_field.dart';
+import 'barra_busqueda.dart';
 
+/*
+ * Barra reutilizable para buscar senderos y filtrarlos por dificultad,
+ * distancia o deporte.
+ * Notifica a la pantalla que la contiene cuando el usuario cambia la búsqueda
+ * o selecciona un filtro.
+ */
 class FilterBar extends StatefulWidget {
   const FilterBar({
     super.key,
     this.onSearch,
     this.onDifficultyChanged,
     this.onLengthChanged,
+    this.onSportChanged,
     this.showSearchField = true,
     this.showFilters = true,
   });
@@ -15,6 +22,7 @@ class FilterBar extends StatefulWidget {
   final ValueChanged<String>? onSearch;
   final ValueChanged<String>? onDifficultyChanged;
   final ValueChanged<String>? onLengthChanged;
+  final ValueChanged<String>? onSportChanged;
   final bool showSearchField;
   final bool showFilters;
 
@@ -23,12 +31,14 @@ class FilterBar extends StatefulWidget {
 }
 
 class _FilterBarState extends State<FilterBar> {
-  // Variables que guardan el estado actual de cada filtro
+  // Selecciones actuales; el texto inicial significa que todavía no se filtró.
   String _difficulty = 'Dificultad';
-  String _length = 'Longitud';
+  String _length = 'Distancia';
+  String _sport = 'Deporte';
+  // Permite mostrar los filtros al tocar el campo de búsqueda.
   bool _filtersExpanded = false;
 
-  // Listas de opciones para cada filtro
+  // Opciones que se muestran al abrir el filtro de dificultad.
   static const _difficultyOptions = [
     'Dificultad',
     'Fácil',
@@ -36,16 +46,24 @@ class _FilterBarState extends State<FilterBar> {
     'Difícil',
   ];
 
+  // Opciones que se muestran al abrir el filtro de distancia.
   static const _lengthOptions = [
-    'Longitud',
+    'Distancia',
     'Menos de 3 km',
     '3 a 8 km',
     'Más de 8 km',
   ];
 
-  /// Muestra un BottomSheet con las opciones del filtro seleccionado
-  /// [filter] = valor actual del filtro
-  /// [options] = lista de opciones a mostrar
+  // Opciones disponibles en el filtro de deporte.
+  static const _sportOptions = [
+    'Deporte',
+    'Senderismo',
+    'Ciclismo',
+    'Trekking',
+    'Otro',
+  ];
+
+  // Abre un panel inferior con las opciones disponibles para el filtro elegido.
   void _chooseFilter(String filter, List<String> options) {
     final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet<void>(
@@ -59,22 +77,25 @@ class _FilterBarState extends State<FilterBar> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // El título cambia según el tipo de filtro seleccionado.
             ListTile(
               title: Text(
                 options == _difficultyOptions
                     ? 'Dificultad del sendero'
-                    : 'Distancia del sendero',
+                    : options == _lengthOptions
+                    ? 'Distancia del sendero'
+                    : 'Deporte del sendero',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-            // Recorre cada opción y crea un ListTile
+            // Cada fila representa una opción que el usuario puede seleccionar.
             for (final option in options)
               ListTile(
                 selected: option == filter,
                 title: Text(option),
-                // Muestra un checkmark si es la opción seleccionada
+                // Marca visualmente la opción que ya está activa.
                 trailing: option == filter
                     ? Icon(
                         Icons.check,
@@ -84,17 +105,21 @@ class _FilterBarState extends State<FilterBar> {
                 selectedColor: Theme.of(context).colorScheme.primary,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 24),
                 onTap: () {
+                  // Guarda en el widget la nueva selección.
                   setState(() {
-                    // Actualiza el valor del filtro correspondiente
                     if (options == _difficultyOptions) _difficulty = option;
                     if (options == _lengthOptions) _length = option;
+                    if (options == _sportOptions) _sport = option;
                   });
+                  // Avisa a la pantalla contenedora para que filtre sus resultados.
                   if (options == _difficultyOptions) {
                     widget.onDifficultyChanged?.call(option);
                   } else if (options == _lengthOptions) {
                     widget.onLengthChanged?.call(option);
+                  } else if (options == _sportOptions) {
+                    widget.onSportChanged?.call(option);
                   }
-                  // Cierra el BottomSheet
+                  // Cierra el panel después de aplicar la selección.
                   Navigator.pop(context);
                 },
               ),
@@ -107,13 +132,16 @@ class _FilterBarState extends State<FilterBar> {
 
   @override
   Widget build(BuildContext context) {
+    // Los filtros aparecen si se habilitaron desde fuera o si se expandieron al buscar.
     final filtersVisible = widget.showFilters || _filtersExpanded;
     final colorScheme = Theme.of(context).colorScheme;
 
+    // Organiza el campo de búsqueda y los filtros horizontales.
     return Container(
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+        border: Border(
+          bottom: BorderSide(color: colorScheme.outlineVariant.withAlpha(90)),
+        ),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -124,14 +152,16 @@ class _FilterBarState extends State<FilterBar> {
         ),
         child: Column(
           children: [
+            // El campo es opcional; al tocarlo se despliegan también los filtros.
             if (widget.showSearchField) ...[
-              SearchField(
+              BarraBusqueda(
                 onChanged: widget.onSearch,
                 onTap: () => setState(() => _filtersExpanded = true),
                 hintText: 'Encontrar senderos',
               ),
               if (filtersVisible) const SizedBox(height: 12),
             ],
+            // Los botones abren los paneles para elegir los criterios de filtro.
             if (filtersVisible)
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -149,6 +179,12 @@ class _FilterBarState extends State<FilterBar> {
                       isSelected: _length != _lengthOptions.first,
                       onPressed: () => _chooseFilter(_length, _lengthOptions),
                     ),
+                    const SizedBox(width: 10),
+                    _FilterButton(
+                      label: _sport,
+                      isSelected: _sport != _sportOptions.first,
+                      onPressed: () => _chooseFilter(_sport, _sportOptions),
+                    ),
                   ],
                 ),
               ),
@@ -159,6 +195,7 @@ class _FilterBarState extends State<FilterBar> {
   }
 }
 
+// Botón visual de un filtro; resalta su aspecto cuando tiene una opción aplicada.
 class _FilterButton extends StatelessWidget {
   const _FilterButton({
     required this.label,
@@ -173,6 +210,7 @@ class _FilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    // Muestra la opción actual y abre su selector cuando el usuario lo toca.
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: const Icon(Icons.keyboard_arrow_down, size: 22),
@@ -183,7 +221,7 @@ class _FilterButton extends StatelessWidget {
             : colorScheme.onSurface,
         backgroundColor: isSelected
             ? colorScheme.primaryContainer
-            : colorScheme.surface,
+            : Colors.transparent,
         side: BorderSide(
           color: isSelected ? colorScheme.primary : colorScheme.outlineVariant,
         ),

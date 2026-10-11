@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto/main.dart';
-import 'package:proyecto/models/explore_trail.dart';
+import 'package:proyecto/models/modelo_sendero.dart';
 import 'package:proyecto/screen/detalle_sendero.dart';
-import 'package:proyecto/widgets/default_user_avatar.dart';
+import 'package:proyecto/widgets/avatar_usuario.dart';
 import 'package:proyecto/widgets/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

@@ -1,9 +1,13 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'package:achievement_view/achievement_view.dart';
 import 'package:fifty_achievement_engine/fifty_achievement_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/logro.dart';
+// La clase LogrosSession reúne los datos y las acciones de esta parte de la app.
 
 class LogrosSession {
   const LogrosSession({
@@ -22,12 +26,14 @@ class LogrosSession {
   final double distanceKm;
   final int waypoints;
 }
+// La clase LogrosService reúne los datos y las acciones de esta parte de la app.
 
 class LogrosService {
   LogrosService({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<LogrosSession> loadAndSync() async {
     final user = _client.auth.currentUser;
@@ -156,6 +162,7 @@ class LogrosService {
     );
   }
 }
+// Muestra al usuario las opciones o el aviso que corresponde a esta acción.
 
 Future<void> showLogroNotifications(
   BuildContext context,

@@ -1,8 +1,12 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../models/trail_waypoint.dart';
+import '../models/waypoints_sendero.dart';
 import 'seguimiento_sendero_screen.dart';
+// La clase SeguirSenderoPage reúne los datos y las acciones de esta parte de la app.
 
 class SeguirSenderoPage extends StatelessWidget {
   const SeguirSenderoPage({

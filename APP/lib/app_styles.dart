@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-class LoginStyles {
+class AppStyles {
   static const Color primaryGreen = Color(0xFF2E7D32);
   static const Color deepGreen = Color(0xFF163D2E);
   static const Color forestGreen = Color(0xFF2E5E47);
@@ -11,40 +11,137 @@ class LoginStyles {
   static const Color warmBeige = Color(0xFFEAE1D2);
   static const Color softCream = Color(0xFFF5F0E8);
 
-  static const LinearGradient screenGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [deepGreen, forestGreen, warmBeige],
-  );
+  static LinearGradient backgroundGradient(Brightness brightness) {
+    final colors = brightness == Brightness.dark
+        ? const [Color(0xFF101914), Color(0xFF163D2E), Color(0xFF214D36)]
+        : const [Color(0xFFE8F5E9), Color(0xFFC8E6C9), Color(0xFFA5D6A7)];
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: colors,
+    );
+  }
+
+  static ThemeData theme(Brightness brightness) {
+    final isDark = brightness == Brightness.dark;
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: primaryGreen,
+          brightness: brightness,
+        ).copyWith(
+          primary: primaryGreen,
+          onPrimary: Colors.white,
+          secondary: accentGold,
+          surface: isDark ? const Color(0xFF202923) : Colors.white,
+          onSurface: isDark ? const Color(0xFFF5F0E8) : const Color(0xFF1F2E1D),
+        );
+    final textTheme = (isDark ? ThemeData.dark() : ThemeData.light()).textTheme
+        .apply(
+          bodyColor: colorScheme.onSurface,
+          displayColor: colorScheme.onSurface,
+        );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: Colors.transparent,
+      textTheme: textTheme,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: colorScheme.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: colorScheme.surface,
+        elevation: 1,
+        shadowColor: deepGreen.withAlpha(isDark ? 45 : 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(
+            color: colorScheme.outlineVariant.withAlpha(isDark ? 120 : 90),
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isDark ? const Color(0xFF303A33) : softCream,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: colorScheme.outlineVariant.withAlpha(120),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.8),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: colorScheme.primary,
+          side: BorderSide(color: colorScheme.primary),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: deepGreen,
+        contentTextStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: colorScheme.primary.withAlpha(isDark ? 70 : 35),
+      ),
+    );
+  }
 
   static Widget buildLogo(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
+        Image.asset(
+          'assets/icono_senderos.png',
           width: 118,
           height: 118,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [primaryGreen, accentGold],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(34),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1F4D3D).withAlpha(90),
-                blurRadius: 20,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.terrain_rounded,
-            size: 58,
-            color: Colors.white,
-          ),
+          fit: BoxFit.contain,
         ),
         const SizedBox(height: 22),
         Text(
@@ -84,6 +181,7 @@ class LoginStyles {
     required String labelText,
     bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
+    Widget? suffixIcon,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
@@ -100,6 +198,7 @@ class LoginStyles {
           color: isDark ? Colors.white70 : const Color(0xFF5E665F),
         ),
         floatingLabelStyle: TextStyle(color: colorScheme.primary),
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
           borderSide: BorderSide.none,
@@ -176,7 +275,7 @@ class LoginStyles {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: isDark ? Colors.white : const Color(0xFF2E5E47),
+            color: isDark ? Colors.white : forestGreen,
           ),
         ),
       ],

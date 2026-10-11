@@ -1,4 +1,6 @@
+// Aquí se define un componente visual reutilizable.
 import 'package:flutter/material.dart';
+// La clase ContentStateView reúne los datos y las acciones de esta parte de la app.
 
 class ContentStateView extends StatelessWidget {
   const ContentStateView({
@@ -11,6 +13,7 @@ class ContentStateView extends StatelessWidget {
   final String? message;
   final bool isLoading;
   final VoidCallback? onRetry;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:proyecto/widgets/content_state_view.dart';
-import 'package:proyecto/widgets/confirm_exit_recording_dialog.dart';
-import 'package:proyecto/widgets/route_polyline_map.dart';
-import 'package:proyecto/widgets/grabar_metrics_panel.dart';
+import 'package:proyecto/widgets/dialogo_salir_ruta.dart';
+import 'package:proyecto/widgets/mapa_trazado_sendero.dart';
+import 'package:proyecto/widgets/metricas_senderos.dart';
+import 'package:proyecto/widgets/no_transition_page_route.dart';
 
 void main() {
+  test('NoTransitionPageRoute no anima al entrar ni al salir', () {
+    final route = NoTransitionPageRoute<void>(
+      builder: (_) => const SizedBox.shrink(),
+    );
+
+    expect(route.transitionDuration, Duration.zero);
+    expect(route.reverseTransitionDuration, Duration.zero);
+  });
+
   testWidgets('ContentStateView muestra un indicador de carga', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

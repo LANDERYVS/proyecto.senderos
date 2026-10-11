@@ -153,10 +153,10 @@ Define estructuras para representar el clima del sendero, por ejemplo temperatur
 #### `detalles_sendero.dart`
 Modelo orientado a detalle técnico de un sendero. Normalmente se usa para mapear la respuesta de datos asociados a una ruta, sus propiedades y su metadata condicional.
 
-#### `explore_trail.dart`
+#### `modelo_sendero.dart`
 Representa un sendero del catálogo de exploración. Tiene campos típicos como nombre, dificultad, resumen, distancia, foto, autor y enlace de origen o GPX. Es esencial para listar rutas públicas o compartidas.
 
-#### `saved_route.dart`
+#### `modelo_ruta.dart`
 Modelo de ruta local guardada por el usuario. Tiene un rol crítico en persistencia offline, almacenamiento local y reproducción de rutas sincronizadas con GPX.
 
 ### `lib/screen/`
@@ -240,6 +240,9 @@ Servicio para compartir ubicación entre usuarios. Interactúa con Supabase o al
 #### `senderos_favoritos.dart`
 Módulo de favoritos. Gestiona la relación entre usuario y rutas destacadas. Permite agregar, eliminar y cargar favoritos sin depender de un servicio global de alta complejidad.
 
+#### `sendero_reacciones.dart`
+Gestiona los likes y dislikes usando únicamente los contadores de la tabla `senderos`. La app guarda localmente la reacción para bloquear un segundo voto en el mismo dispositivo y cuenta; al volver a tocar la reacción activa, permite quitarla y decrementa el contador. Esa restricción no se puede garantizar entre dispositivos porque el backend no registra quién votó.
+
 #### `senderos_locales.dart`
 Encapsula la lógica de rutas locales, cache y estado persistente en dispositivo. En la práctica, ayuda a distinguir rutas almacenadas localmente de rutas públicas.
 
@@ -273,16 +276,13 @@ Widget de filtrado para explorar senderos. Normalmente encapsula inputs visuales
 #### `grabar_action_button.dart`
 Botón reutilizable para iniciar, pausar, reanudar o detener la grabación de una ruta.
 
-#### `grabar_metric_indicator.dart`
-Mostrador de métricas durante la grabación: tiempo, distancia, elevación acumulada, velocidad, etc.
+#### `metricas_senderos.dart`
+Panel reutilizable que muestra el tiempo, la distancia y el desnivel de un trayecto, junto con los controles para iniciar, pausar, reanudar o detenerlo. Incluye internamente el componente que presenta cada métrica.
 
-#### `grabar_metrics_panel.dart`
-Panel que organiza las métricas de grabación.
-
-#### `confirm_exit_recording_dialog.dart`
+#### `dialogo_salir_ruta.dart`
 Confirmación para salir mientras se graba.
 
-#### `compartir_ubicacion_button.dart`
+#### `boton_espectador.dart`
 Control para iniciar o detener el envío de ubicación a un amigo.
 
 #### `config_card.dart`
@@ -291,22 +291,25 @@ Tarjeta reutilizable para opciones de configuración dentro de la pantalla de aj
 #### `clima_sendero_card.dart`
 Widget visual para mostrar el clima del sendero. Reutiliza la capa de `servicio_clima_sendero.dart` y la de modelos meteorológicos.
 
-#### `save_route_dialog.dart`
+#### `dialogo_guardado.dart`
 Diálogo para guardar una ruta en proceso, completar la metadata y decidir si se publica o se mantiene local.
 
-#### `search_field.dart`
-Campo reutilizable para búsqueda por texto dentro de la app.
+#### `barra_busqueda.dart`
+Barra de búsqueda reutilizable; cada pantalla define qué hacer con el texto ingresado.
 
 #### `content_state_view.dart`
 Estados reutilizables de carga, error y contenido vacío.
 
-#### `edit_saved_route_dialog.dart`
+#### `dialogo_editar_ruta.dart`
 Diálogo para editar los datos de una ruta guardada.
 
-#### `route_polyline_map.dart` y `seguimiento_sendero_map.dart`
+#### `mapa_trazado_sendero.dart` y `seguimiento_sendero_map.dart`
 Mapas reutilizables para previsualizar un trazado y mostrar el seguimiento GPS.
 
-#### `default_user_avatar.dart`
+#### `waypoints_mapa.dart`
+Dibuja en el mapa los puntos de interés del sendero con un marcador adecuado a cada tipo.
+
+#### `avatar_usuario.dart`
 Asset o widget de fallback para usuarios sin avatar personalizado.
 
 #### `login_styles.dart`
@@ -371,6 +374,8 @@ El backend principal está enfocado en:
 - comunidad y relaciones de amistad
 - disponibilidad de rutas externas
 
+Para habilitar los likes y dislikes, ejecuta `supabase/senderos_reacciones.sql` en el SQL Editor de Supabase. El script no crea tablas: agrega funciones RPC autenticadas que incrementan o decrementan `senderos.likes` y `senderos.dislikes`. Al tocar nuevamente el botón activo, la app quita el voto local y resta uno al contador (sin permitir valores negativos). La app bloquea otro voto desde la misma instalación mediante `shared_preferences`; al reinstalar o usar otro dispositivo, se podrá votar de nuevo.
+
 ## Pruebas
 
 La carpeta `test/` incluye pruebas para validar el comportamiento crítico del sistema.
@@ -422,5 +427,3 @@ Este proyecto tiene una estructura sólida para una app móvil de senderismo con
 - lógica de comunidad
 
 Es un proyecto orientado a una experiencia de usuario completa centrada en rutas de senderismo, pero con una fachadqa técnica suficientemente modular para crecer en varias direcciones: comunidad, geolocalización, planificación, social features y análisis de recorridos.
-
-

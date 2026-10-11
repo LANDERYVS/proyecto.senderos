@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:proyecto/widgets/save_route_dialog.dart';
+import 'package:proyecto/widgets/dialogo_guardado.dart';
 
 void main() {
   testWidgets('uses the imported route name as the initial name', (

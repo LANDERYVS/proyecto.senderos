@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
+// Aquí se define un componente visual reutilizable.
 
-class SearchField extends StatelessWidget {
-  const SearchField({
+
+import 'package:flutter/material.dart';
+// Barra de búsqueda reutilizable cuya interacción se define desde la pantalla que la usa.
+
+class BarraBusqueda extends StatelessWidget {
+  const BarraBusqueda({
     super.key,
     this.controller,
     this.onChanged,
@@ -15,6 +19,7 @@ class SearchField extends StatelessWidget {
   final VoidCallback? onTap;
   final String hintText;
   final Widget? suffixIcon;
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

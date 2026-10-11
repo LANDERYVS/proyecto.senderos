@@ -1,3 +1,10 @@
+/*
+ * Modelos para representar el clima actual y el pronóstico diario de un sendero.
+ * ClimaSendero.fromJson convierte y valida la respuesta meteorológica;
+ * PronosticoClimaDiario agrupa los datos de cada día.
+ * Las funciones privadas del final comprueban que la respuesta tenga los valores
+ * esperados antes de usarlos.
+ */
 class ClimaSendero {
   const ClimaSendero({
     required this.temperature,
@@ -58,7 +65,6 @@ class ClimaSendero {
   final String currentLocalDate;
   final List<PronosticoClimaDiario> dailyForecast;
 }
-
 class PronosticoClimaDiario {
   const PronosticoClimaDiario({
     required this.date,

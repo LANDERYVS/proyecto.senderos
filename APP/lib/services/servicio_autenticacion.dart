@@ -1,3 +1,6 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -5,6 +8,7 @@ import '../screen/inicio.dart';
 import '../widgets/login.dart';
 
 /// Servicio centralizado para todas las operaciones de autenticación.
+// Centraliza el inicio de sesión, el registro y el cierre de sesión.
 class ServicioAutenticacion {
   static final _supabase = Supabase.instance.client;
 

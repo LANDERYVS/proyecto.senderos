@@ -1,4 +1,8 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+// La clase WalkingStatsException reúne los datos y las acciones de esta parte de la app.
 
 class WalkingStatsException implements Exception {
   const WalkingStatsException(this.message);
@@ -8,12 +12,14 @@ class WalkingStatsException implements Exception {
   @override
   String toString() => message;
 }
+// La clase WalkingStatsService reúne los datos y las acciones de esta parte de la app.
 
 class WalkingStatsService {
   WalkingStatsService({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
+// Añade al recorrido la ubicación o métrica recibida del GPS.
 
   Future<void> recordCompletedWalk({
     required double distanceKm,

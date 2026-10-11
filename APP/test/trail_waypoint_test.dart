@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:proyecto/models/trail_waypoint.dart';
+import 'package:proyecto/models/waypoints_sendero.dart';
 
 void main() {
   test('lee y serializa un waypoint con el formato de Supabase', () {
@@ -12,7 +12,12 @@ void main() {
 
     expect(waypoint.type, 'vista');
     expect(waypoint.point, const LatLng(-37.32, -59.13));
-    expect(waypoint.toMap(), {'type': 'vista', 'lat': -37.32, 'long': -59.13});
+    expect(waypoint.toMap(), {
+      'type': 'vista',
+      'lat': -37.32,
+      'long': -59.13,
+      'review': '',
+    });
   });
 
   test('rechaza coordenadas y tipos inválidos', () {

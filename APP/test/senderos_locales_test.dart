@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:proyecto/models/saved_route.dart';
+import 'package:proyecto/models/modelo_ruta.dart';
 import 'package:proyecto/services/senderos_locales.dart';
 
 void main() {

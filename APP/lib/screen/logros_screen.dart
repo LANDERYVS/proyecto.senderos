@@ -1,7 +1,11 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
 
 import '../models/logro.dart';
 import '../services/logros_service.dart';
+// La clase LogrosScreen reúne los datos y las acciones de esta parte de la app.
 
 class LogrosScreen extends StatefulWidget {
   const LogrosScreen({super.key});
@@ -9,24 +13,28 @@ class LogrosScreen extends StatefulWidget {
   @override
   State<LogrosScreen> createState() => _LogrosScreenState();
 }
+// La clase _LogrosScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _LogrosScreenState extends State<LogrosScreen> {
   final LogrosService _logrosService = LogrosService();
   LogrosSession? _session;
   String? _errorMessage;
   bool _isLoading = true;
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadAchievements();
   }
+// Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
     _session?.controller.dispose();
     super.dispose();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadAchievements() async {
     setState(() {
@@ -59,6 +67,7 @@ class _LogrosScreenState extends State<LogrosScreen> {
     previousSession?.controller.dispose();
     await showLogroNotifications(context, nextSession.newlyUnlocked);
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +161,7 @@ class _LogrosScreenState extends State<LogrosScreen> {
     );
   }
 }
+// La clase _AchievementProgressTile reúne los datos y las acciones de esta parte de la app.
 
 class _AchievementProgressTile extends StatelessWidget {
   const _AchievementProgressTile({
@@ -163,6 +173,7 @@ class _AchievementProgressTile extends StatelessWidget {
   final Logro achievement;
   final double progress;
   final bool unlocked;
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

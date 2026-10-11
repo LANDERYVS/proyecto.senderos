@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,17 +7,19 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../models/trail_waypoint.dart';
+import '../models/waypoints_sendero.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/offline_tile_service.dart';
 import '../services/ubicacion_app.dart';
 import '../services/walking_stats_service.dart';
-import '../widgets/confirm_exit_recording_dialog.dart';
-import '../widgets/compartir_ubicacion_button.dart';
-import '../widgets/enviar_alerta_button.dart';
-import '../widgets/grabar_metrics_panel.dart';
+import '../widgets/dialogo_salir_ruta.dart';
+import '../widgets/boton_espectador.dart';
+import '../widgets/boton_alerta.dart';
+import '../widgets/boton_sos_visual.dart';
+import '../widgets/metricas_senderos.dart';
 import '../widgets/seguimiento_sendero_map.dart';
 import 'seguimiento_sendero_controller.dart';
+// La clase SeguimientoSenderoScreen reúne los datos y las acciones de esta parte de la app.
 
 class SeguimientoSenderoScreen extends StatefulWidget {
   const SeguimientoSenderoScreen({
@@ -41,6 +45,7 @@ class SeguimientoSenderoScreen extends StatefulWidget {
   State<SeguimientoSenderoScreen> createState() =>
       _SeguimientoSenderoScreenState();
 }
+// La clase _SeguimientoSenderoScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
   final MapController _mapController = MapController();
@@ -54,6 +59,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
   bool _allowPop = false;
   bool _stoppingSharing = false;
   bool _isSharingLocation = false;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -66,11 +72,13 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
     _isLoadingMap = widget.offlineRegionId != null;
     _loadOfflineMap();
   }
+  // Vuelve a cargar los datos para reflejar los cambios más recientes.
 
   void _refresh() {
     if (mounted) setState(() {});
     if (!UbicacionApp.enabled.value) unawaited(_stopSharingIfActive());
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadOfflineMap() async {
     final regionId = widget.offlineRegionId;
@@ -86,6 +94,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
       if (mounted) setState(() => _isLoadingMap = false);
     }
   }
+  // Pide confirmación antes de continuar con esta acción.
 
   Future<void> _confirmExit() async {
     final shouldExit = await showConfirmExitRecordingDialog(
@@ -103,9 +112,9 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
       );
     } on WalkingStatsException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
       debugPrint('No se pudieron registrar los kilómetros caminados: $error');
       return;
@@ -134,6 +143,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
     if (!mounted) return;
     setState(() => _isSharingLocation = _sharingService.sharingFriend != null);
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openDirectionsToStart() async {
     if (widget.routePoints.isEmpty) return;
@@ -163,6 +173,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
       );
     }
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -172,6 +183,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
       ..dispose();
     super.dispose();
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +221,7 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
                     top: 16,
                     left: 16,
                     child: SafeArea(
-                      child: CompartirUbicacionButton(
+                      child: BotonEspectador(
                         sharingService: _sharingService,
                         heroTag: 'share-follow-location',
                         senderoId: widget.senderoId,
@@ -229,6 +241,11 @@ class _SeguimientoSenderoScreenState extends State<SeguimientoSenderoScreen> {
                         ),
                       ),
                     ),
+                  Positioned(
+                    top: 16,
+                    left: _isSharingLocation ? 128 : 72,
+                    child: const SafeArea(child: BotonSosVisual()),
+                  ),
                   if (routePoints.isNotEmpty)
                     Positioned(
                       right: 16,

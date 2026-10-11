@@ -1,9 +1,11 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
 import '../services/compartir_ubicacion.dart';
 import '../services/logros_service.dart';
 import 'amigos.dart';
@@ -13,9 +15,11 @@ import 'espectador.dart';
 import 'grabar.dart';
 import 'notificaciones.dart';
 import '../widgets/barra_navegacion.dart';
-import '../widgets/default_user_avatar.dart';
-import '../widgets/search_field.dart';
+import '../widgets/avatar_usuario.dart';
+import '../widgets/barra_busqueda.dart';
+import '../widgets/no_transition_page_route.dart';
 import 'perfil.dart';
+// La clase HomePage reúne los datos y las acciones de esta parte de la app.
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.initialIndex = 0});
@@ -25,6 +29,7 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 }
+// La clase _HomePageState reúne los datos y las acciones de esta parte de la app.
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _client = Supabase.instance.client;
@@ -43,6 +48,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   bool _checkingAchievements = false;
   bool _hasSharedLocation = false;
   bool _checkingSharedLocation = false;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -54,18 +60,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _loadSharedLocationStatus();
     _checkAchievements();
     _subscribeToNotifications();
-    _notificationRefreshTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) {
-        _loadNotificationCount();
-        _loadSharedLocationStatus();
-      },
-    );
+    _notificationRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _loadNotificationCount();
+      _loadSharedLocationStatus();
+    });
     _achievementRefreshTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => _checkAchievements(),
     );
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -88,6 +92,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _checkAchievements();
     }
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadSharedLocationStatus() async {
     if (!mounted ||
@@ -111,6 +116,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _checkingSharedLocation = false;
     }
   }
+  // Comprueba si se cumplen las condiciones necesarias antes de continuar.
 
   Future<void> _checkAchievements() async {
     if (!mounted || _checkingAchievements || _client.auth.currentUser == null) {
@@ -173,6 +179,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         )
         .subscribe();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadNotificationCount() async {
     final user = _client.auth.currentUser;
@@ -209,6 +216,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       debugPrint('No se pudo cargar el conteo de notificaciones: $error');
     }
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadCurrentUserPhoto() async {
     final user = _client.auth.currentUser;
@@ -270,7 +278,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildExploreSearchField() {
-    return SearchField(
+    return BarraBusqueda(
       onChanged: (value) => setState(() => _exploreSearchTerm = value),
       onTap: () => setState(() => _filtersExpanded = true),
       hintText: 'Encontrar senderos',
@@ -278,14 +286,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildFriendsSearchField() {
-    return SearchField(
+    return BarraBusqueda(
       onChanged: (value) => setState(() => _friendsSearchTerm = value),
       hintText: 'Buscar por nombre o usuario',
     );
   }
 
   Widget _buildSavedSearchField() {
-    return SearchField(
+    return BarraBusqueda(
       onChanged: (value) => setState(() => _savedSearchTerm = value),
       onTap: () => setState(() => _filtersExpanded = true),
       hintText: 'Buscar guardados',
@@ -294,12 +302,31 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   void _selectDestination(int index) {
     if (index == 2) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const GrabarPage()),
-      );
-      return;
+      _openRecordingScreen();
+    } else {
+      _showDestination(index);
     }
+  }
+
+  Future<void> _openRecordingScreen() async {
+    final previousIndex = _selectedIndex;
+    setState(() {
+      _selectedIndex = 2;
+      _filtersExpanded = false;
+    });
+
+    await Navigator.push<void>(
+      context,
+      NoTransitionPageRoute(
+        builder: (_) => GrabarPage(onNavigateHome: _showDestination),
+      ),
+    );
+
+    if (!mounted) return;
+    if (_selectedIndex == 2) _showDestination(previousIndex);
+  }
+
+  void _showDestination(int index) {
     setState(() {
       _selectedIndex = index;
       _filtersExpanded = false;
@@ -324,7 +351,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const ProfilePage()),
+          NoTransitionPageRoute(builder: (_) => const ProfilePage()),
         );
       },
       child: Container(
@@ -343,6 +370,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
     );
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +380,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           ? null
           : AppBar(
               toolbarHeight: 78,
-              backgroundColor: Theme.of(context).colorScheme.surface,
+              backgroundColor: Colors.transparent,
               surfaceTintColor: Colors.transparent,
               elevation: 0,
               scrolledUnderElevation: 0,

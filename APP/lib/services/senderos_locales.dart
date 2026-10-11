@@ -1,3 +1,5 @@
+// Aquí se implementa un servicio de la aplicación.
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,9 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/explore_trail.dart';
-import '../models/saved_route.dart';
-import 'waypoint_service.dart';
+import '../models/modelo_sendero.dart';
+import '../models/modelo_ruta.dart';
+import 'traer_waypoints.dart';
+// La clase SenderosLocalesService reúne los datos y las acciones de esta parte de la app.
 
 class SenderosLocalesService {
   static const _uuid = Uuid();
@@ -49,6 +52,7 @@ class SenderosLocalesService {
     }
     return routes;
   }
+  // Actualiza los datos existentes con la información nueva.
 
   Future<void> updateRouteDetails({
     required SavedRoute route,
@@ -96,6 +100,7 @@ class SenderosLocalesService {
     }
     await metadataFile.writeAsString(jsonEncode(metadata));
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<File?> findDownloadedTrail(ExploreTrail trail) async {
     final sourceKey = trail.gpxKey;
@@ -110,6 +115,7 @@ class SenderosLocalesService {
     }
     return null;
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<File> downloadTrailForOffline(ExploreTrail trail) async {
     final sourceKey = trail.gpxKey;
@@ -225,6 +231,7 @@ class SenderosLocalesService {
       ..['senderoId'] = trail.id;
     await metadataFile.writeAsString(jsonEncode(metadata));
   }
+  // Guarda los cambios para que la información no se pierda al salir.
 
   Future<void> saveFavorite(ExploreTrail trail) async {
     final senderoId = trail.id;
@@ -297,6 +304,7 @@ class SenderosLocalesService {
       client.close(force: true);
     }
   }
+  // Quita el elemento seleccionado de la lista o de los datos guardados.
 
   Future<void> removeFavoriteCache(ExploreTrail trail) async {
     final routes = await loadRoutes();
@@ -315,22 +323,5 @@ class SenderosLocalesService {
       final metadataFile = File(route.file.path.replaceFirst('.gpx', '.json'));
       await metadataFile.writeAsString(jsonEncode(metadata));
     }
-  }
-
-  Future<void> shareRoute(SavedRoute route) async {
-    final files = <XFile>[XFile(route.file.path)];
-    final metadataFile = File(route.file.path.replaceFirst('.gpx', '.json'));
-    if (await metadataFile.exists()) {
-      files.add(XFile(metadataFile.path));
-    }
-
-    for (final photoPath in route.photos) {
-      final photo = File('${route.file.parent.path}/$photoPath');
-      if (await photo.exists()) {
-        files.add(XFile(photo.path));
-      }
-    }
-
-    await SharePlus.instance.share(ShareParams(files: files, text: route.name));
   }
 }

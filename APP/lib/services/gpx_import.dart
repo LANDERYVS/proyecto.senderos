@@ -1,9 +1,13 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:xml/xml.dart';
+// La clase GpxRouteData reúne los datos y las acciones de esta parte de la app.
 
 class GpxRouteData {
   const GpxRouteData({
@@ -20,6 +24,7 @@ class GpxRouteData {
   final double elevationGainMeters;
   final double elevationLossMeters;
 }
+// La clase GpxImportException reúne los datos y las acciones de esta parte de la app.
 
 class GpxImportException implements Exception {
   const GpxImportException(this.message);
@@ -29,6 +34,7 @@ class GpxImportException implements Exception {
   @override
   String toString() => message;
 }
+// La clase GpxImportService reúne los datos y las acciones de esta parte de la app.
 
 class GpxImportService {
   Future<File?> pickGpxFile() async {

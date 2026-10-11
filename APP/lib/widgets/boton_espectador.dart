@@ -4,10 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../services/compartir_ubicacion.dart';
-import 'default_user_avatar.dart';
+import 'avatar_usuario.dart';
 
-class CompartirUbicacionButton extends StatefulWidget {
-  const CompartirUbicacionButton({
+/*
+ * Botón para iniciar o detener el uso compartido de ubicación con un amigo.
+ * También permite elegir a quién solicitarle ubicación y espera la aprobación
+ * de solicitudes pendientes.
+ */
+class BotonEspectador extends StatefulWidget {
+  const BotonEspectador({
     super.key,
     required this.sharingService,
     required this.getCurrentLocation,
@@ -23,21 +28,26 @@ class CompartirUbicacionButton extends StatefulWidget {
   final VoidCallback? onSharingChanged;
 
   @override
-  State<CompartirUbicacionButton> createState() =>
-      _CompartirUbicacionButtonState();
+  State<BotonEspectador> createState() =>
+      _BotonEspectadorState();
 }
 
-class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
+class _BotonEspectadorState extends State<BotonEspectador> {
+  // Revisa periódicamente si el amigo aceptó la solicitud.
   Timer? _approvalTimer;
+  // Evita continuar revisando después de aceptar o abandonar el flujo.
   bool _waitingForApproval = false;
+  // Impide que dos consultas de aprobación se ejecuten al mismo tiempo.
   bool _checkingApproval = false;
 
   @override
   void dispose() {
+    // Detiene el temporizador al cerrar el widget para que no siga consultando.
     _approvalTimer?.cancel();
     super.dispose();
   }
 
+  // Carga los amigos y muestra sus solicitudes o el estado de ubicación compartida.
   Future<void> _chooseFriend() async {
     try {
       final friends = await widget.sharingService.loadFriends();
@@ -64,6 +74,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
                   'Solicita acceso o comparte tu ubicación con quien te la pidió.',
                 ),
               ),
+              // Cada fila muestra el perfil del amigo y el estado de la solicitud.
               for (final friend in friends)
                 ListTile(
                   leading: DefaultUserAvatar(
@@ -80,6 +91,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
         ),
       );
       if (friend != null) {
+        // Decide qué hacer según el estado de la solicitud entre ambos usuarios.
         if (friend.requestToFriendStatus == 'aceptada') {
           await _requestLocation(friend);
         } else if (friend.requestFromFriendStatus == 'aceptada') {
@@ -106,9 +118,10 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     }
   }
 
+  // Elige el texto o icono de cada amigo según el estado de sus solicitudes.
   Widget _buildFriendAction(ShareFriend friend) {
     if (friend.requestFromFriendStatus == 'aceptada') {
-      return const Icon(Icons.location_on_outlined);
+      return const Icon(Icons.visibility);
     }
     if (friend.requestToFriendStatus == 'aceptada') {
       return const Text('Solicitar de nuevo');
@@ -122,6 +135,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     return const Icon(Icons.chevron_right);
   }
 
+  // Envía una solicitud para poder ver la ubicación del amigo.
   Future<void> _requestLocation(ShareFriend friend) async {
     try {
       await widget.sharingService.requestLocation(friend);
@@ -134,6 +148,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     }
   }
 
+  // Inicia una revisión cada cinco segundos hasta que el amigo responda.
   void _watchForApproval(String friendId) {
     _waitingForApproval = true;
     _approvalTimer?.cancel();
@@ -143,6 +158,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     );
   }
 
+  // Consulta si el amigo aceptó; al confirmarlo, empieza a compartir ubicación.
   Future<void> _checkApproval(String friendId) async {
     if (!mounted || !_waitingForApproval || _checkingApproval) return;
     _checkingApproval = true;
@@ -150,6 +166,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       final friends = await widget.sharingService.loadFriends();
       if (!mounted || !_waitingForApproval) return;
       ShareFriend? approvedFriend;
+      // Busca al amigo solicitado y confirma que su respuesta sea afirmativa.
       for (final friend in friends) {
         if (friend.id == friendId &&
             friend.requestToFriendStatus == 'aceptada') {
@@ -163,10 +180,12 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     } on Exception catch (error) {
       debugPrint('No se pudo comprobar la aprobación de ubicación: $error');
     } finally {
+      // Permite que la siguiente consulta periódica pueda ejecutarse.
       _checkingApproval = false;
     }
   }
 
+  // Empieza a compartir la ubicación actual cuando el GPS está disponible.
   Future<void> _startSharing(ShareFriend friend) async {
     try {
       if (await widget.getCurrentLocation() == null) {
@@ -178,6 +197,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
         _publishCurrentLocation,
         senderoId: widget.senderoId,
       );
+      // La solicitud ya fue atendida; detiene las revisiones periódicas.
       _waitingForApproval = false;
       _approvalTimer?.cancel();
       _approvalTimer = null;
@@ -189,10 +209,12 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     } on Exception catch (error) {
       _showMessage('No se pudo compartir la ubicación: $error');
     } finally {
+      // Avisa a la pantalla contenedora para que actualice el estado relacionado.
       widget.onSharingChanged?.call();
     }
   }
 
+  // Obtiene la ubicación más reciente y la envía al servicio de compartición.
   Future<void> _publishCurrentLocation() async {
     final location = await widget.getCurrentLocation();
     if (location == null) {
@@ -201,6 +223,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
     await widget.sharingService.publishLocation(location);
   }
 
+  // Detiene el envío de ubicación y actualiza el estado visual del botón.
   Future<void> _stopSharing() async {
     try {
       await widget.sharingService.stopSharing();
@@ -211,10 +234,12 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       if (mounted) setState(() {});
       _showMessage('No se pudo dejar de compartir la ubicación: $error');
     } finally {
+      // Notifica a la pantalla contenedora que cambió el estado de compartición.
       widget.onSharingChanged?.call();
     }
   }
 
+  // Muestra mensajes breves de éxito o error en la parte inferior de la pantalla.
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -226,6 +251,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
   Widget build(BuildContext context) {
     final isSharing = widget.sharingService.sharingFriend != null;
     final colorScheme = Theme.of(context).colorScheme;
+    // El botón cambia su icono, color y acción según se esté compartiendo o no.
     return FloatingActionButton.small(
       heroTag: widget.heroTag,
       tooltip: isSharing
@@ -234,7 +260,7 @@ class _CompartirUbicacionButtonState extends State<CompartirUbicacionButton> {
       backgroundColor: isSharing ? colorScheme.primary : Colors.white,
       foregroundColor: isSharing ? Colors.white : Colors.black87,
       onPressed: isSharing ? _stopSharing : _chooseFriend,
-      child: Icon(isSharing ? Icons.location_on : Icons.location_on_outlined),
+      child: Icon(isSharing ? Icons.visibility : Icons.visibility_off),
     );
   }
 }

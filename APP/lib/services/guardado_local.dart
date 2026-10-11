@@ -1,3 +1,6 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -7,8 +10,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/saved_route.dart';
+import '../models/modelo_ruta.dart';
 import 'almacenamiento_r2.dart';
+// La clase RoutePublishException reúne los datos y las acciones de esta parte de la app.
 
 class RoutePublishException implements Exception {
   const RoutePublishException(this.message);
@@ -18,6 +22,7 @@ class RoutePublishException implements Exception {
   @override
   String toString() => message;
 }
+// La clase RouteStorageService reúne los datos y las acciones de esta parte de la app.
 
 class RouteStorageService {
   static const _uuid = Uuid();
@@ -34,6 +39,7 @@ class RouteStorageService {
       );
     }
   }
+// Guarda los cambios para que la información no se pierda al salir.
 
   Future<bool> saveRoute({
     required List<LatLng> points,
@@ -117,6 +123,7 @@ $pointsXml
 
     return true;
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> uploadToR2Only(SavedRoute route) async {
     _requirePhoto(route);
@@ -204,6 +211,7 @@ $pointsXml
 
     await metadataFile.writeAsString(jsonEncode(savedMetadata));
   }
+// Publica este contenido para que otros usuarios puedan verlo.
 
   Future<void> publishRoute(SavedRoute route) async {
     _requirePhoto(route);

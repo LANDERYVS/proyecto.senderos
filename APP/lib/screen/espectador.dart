@@ -1,3 +1,5 @@
+// Aquí se implementa una pantalla de la app.
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,8 +10,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/compartir_ubicacion.dart';
 import '../services/gpx_import.dart';
-import '../widgets/default_user_avatar.dart';
+import '../widgets/avatar_usuario.dart';
+import '../widgets/no_transition_page_route.dart';
 import 'notificaciones.dart';
+// La clase EspectadorContent reúne los datos y las acciones de esta parte de la app.
 
 class EspectadorContent extends StatefulWidget {
   const EspectadorContent({super.key});
@@ -17,6 +21,7 @@ class EspectadorContent extends StatefulWidget {
   @override
   State<EspectadorContent> createState() => _EspectadorContentState();
 }
+// La clase _EspectadorContentState reúne los datos y las acciones de esta parte de la app.
 
 class _EspectadorContentState extends State<EspectadorContent> {
   final CompartirUbicacionService _locationService =
@@ -32,6 +37,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
   int _unreadAlertCount = 0;
   Timer? _refreshTimer;
   Timer? _alertCountRefreshTimer;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -48,6 +54,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       (_) => _loadUnreadAlertCount(),
     );
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -56,6 +63,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
     _locationService.dispose();
     super.dispose();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadViewerPhoto() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -82,6 +90,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       setState(() => _viewerPhotoUrl = metadataPhoto);
     }
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadUnreadAlertCount() async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -105,6 +114,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       debugPrint('No se pudo cargar el conteo de alertas: $error');
     }
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openAlertInbox() async {
     await Navigator.push<void>(
@@ -116,6 +126,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
     );
     if (mounted) await _loadUnreadAlertCount();
   }
+  // Abre el contenido seleccionado para que el usuario pueda consultarlo.
 
   Future<void> _openAlertTarget(Map<String, dynamic> alert) async {
     final friendshipId = (alert['amistad_id'] as num?)?.toInt();
@@ -147,7 +158,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
     final targetGroup = group;
     await Navigator.push<void>(
       context,
-      MaterialPageRoute<void>(
+      NoTransitionPageRoute<void>(
         builder: (_) => _ObservedTrailMapPage(
           group: targetGroup,
           routePoints: _routePointsByTrailId[targetGroup.trailId] ?? const [],
@@ -168,6 +179,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
     }
     return null;
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadObservedTrails() async {
     if (_isLoadingGroups) return;
@@ -198,6 +210,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       _isLoadingGroups = false;
     }
   }
+  // Vuelve a cargar los datos para reflejar los cambios más recientes.
 
   Future<void> _refreshLocations() async {
     if (_isRefreshingLocations || _trailGroups.isEmpty) return;
@@ -229,6 +242,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       _isRefreshingLocations = false;
     }
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadTrailPreview(ObservedTrailGroup group) async {
     final url = group.gpxUrl;
@@ -256,6 +270,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       .map((friend) => friend.id)
       .toSet()
       .length;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -296,7 +311,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
     required String? viewerPhoto,
   }) {
     return Container(
-      color: colorScheme.primary,
+      color: Colors.transparent,
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -314,14 +329,14 @@ class _EspectadorContentState extends State<EspectadorContent> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: colorScheme.onPrimary,
+                        color: colorScheme.onSurface,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
                       'ESPECTADOR',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: colorScheme.onPrimary.withValues(alpha: 0.78),
+                        color: colorScheme.onSurface.withValues(alpha: 0.78),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -331,7 +346,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
                         Icon(
                           Icons.visibility,
                           size: 18,
-                          color: colorScheme.onPrimary,
+                          color: colorScheme.onSurface,
                         ),
                         const SizedBox(width: 7),
                         Expanded(
@@ -341,7 +356,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: colorScheme.onPrimary),
+                                ?.copyWith(color: colorScheme.onSurface),
                           ),
                         ),
                       ],
@@ -482,7 +497,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
       child: InkWell(
         onTap: () => Navigator.push<void>(
           context,
-          MaterialPageRoute<void>(
+          NoTransitionPageRoute<void>(
             builder: (_) =>
                 _ObservedTrailMapPage(group: group, routePoints: routePoints),
           ),
@@ -616,6 +631,7 @@ class _EspectadorContentState extends State<EspectadorContent> {
     child: const Text('Trayecto no disponible'),
   );
 }
+// La clase _ObservedTrailMap reúne los datos y las acciones de esta parte de la app.
 
 class _ObservedTrailMap extends StatelessWidget {
   const _ObservedTrailMap({
@@ -633,6 +649,7 @@ class _ObservedTrailMap extends StatelessWidget {
   final Key? mapKey;
   final double? height;
   final bool interactive;
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -762,6 +779,7 @@ class _ObservedTrailMap extends StatelessWidget {
         : SizedBox(height: height, child: map);
   }
 }
+// La clase _ObservedTrailMapPage reúne los datos y las acciones de esta parte de la app.
 
 class _ObservedTrailMapPage extends StatefulWidget {
   const _ObservedTrailMapPage({required this.group, required this.routePoints});
@@ -772,6 +790,7 @@ class _ObservedTrailMapPage extends StatefulWidget {
   @override
   State<_ObservedTrailMapPage> createState() => _ObservedTrailMapPageState();
 }
+// La clase _ObservedTrailMapPageState reúne los datos y las acciones de esta parte de la app.
 
 class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
   final CompartirUbicacionService _locationService =
@@ -782,6 +801,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
   bool _isRefreshing = false;
   bool _isLoadingRoute = false;
   int _mapRevision = 0;
+  // Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
@@ -796,6 +816,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
       (_) => _refreshLocations(),
     );
   }
+  // Al salir de esta pantalla, se cancelan las tareas activas y se liberan sus recursos.
 
   @override
   void dispose() {
@@ -803,6 +824,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
     _locationService.dispose();
     super.dispose();
   }
+  // Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadRoute() async {
     final url = widget.group.gpxUrl;
@@ -821,6 +843,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
       if (mounted) setState(() => _isLoadingRoute = false);
     }
   }
+  // Vuelve a cargar los datos para reflejar los cambios más recientes.
 
   Future<void> _refreshLocations({bool refreshMap = false}) async {
     if (_isRefreshing) return;
@@ -881,6 +904,7 @@ class _ObservedTrailMapPageState extends State<_ObservedTrailMapPage> {
       );
     }
   }
+  // Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

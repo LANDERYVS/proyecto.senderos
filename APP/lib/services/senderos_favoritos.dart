@@ -1,4 +1,8 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'package:supabase_flutter/supabase_flutter.dart';
+// La clase SenderosFavoritosException reúne los datos y las acciones de esta parte de la app.
 
 class SenderosFavoritosException implements Exception {
   const SenderosFavoritosException(this.message);
@@ -8,6 +12,7 @@ class SenderosFavoritosException implements Exception {
   @override
   String toString() => message;
 }
+// La clase SenderosFavoritosService reúne los datos y las acciones de esta parte de la app.
 
 class SenderosFavoritosService {
   final SupabaseClient _client = Supabase.instance.client;
@@ -31,6 +36,7 @@ class SenderosFavoritosService {
       );
     }
   }
+// Agrega el nuevo elemento a la lista que muestra la pantalla.
 
   Future<void> addFavorite(int senderoId) async {
     final user = _client.auth.currentUser;
@@ -51,6 +57,7 @@ class SenderosFavoritosService {
       );
     }
   }
+// Quita el elemento seleccionado de la lista o de los datos guardados.
 
   Future<void> removeFavorite(int senderoId) async {
     final user = _client.auth.currentUser;

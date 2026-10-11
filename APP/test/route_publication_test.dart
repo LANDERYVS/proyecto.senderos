@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:proyecto/models/saved_route.dart';
+import 'package:proyecto/models/modelo_ruta.dart';
 import 'package:proyecto/services/guardado_local.dart';
 
 void main() {

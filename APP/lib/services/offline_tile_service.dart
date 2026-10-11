@@ -1,3 +1,6 @@
+// Aquí se implementa un servicio de la aplicación.
+
+
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -7,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 typedef TileDownloadProgress = void Function(int completed, int total);
 
 /// Descarga y sirve teselas raster para poder consultar una zona sin red.
+// La clase OfflineTileService reúne los datos y las acciones de esta parte de la app.
 class OfflineTileService {
   static const _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const _userAgent = 'proyecto.senderos/1.0 contacto@ejemplo.com';
@@ -28,6 +32,7 @@ class OfflineTileService {
 
   /// Descarga todas las teselas dentro de [bounds] y entre los zooms indicados.
   /// Devuelve cuantas teselas nuevas se guardaron.
+// Carga los datos necesarios para mostrar la información más reciente.
   Future<int> downloadRegion({
     required LatLngBounds bounds,
     String? regionId,
@@ -110,6 +115,7 @@ class OfflineTileService {
   }
 
   /// Indica si ya existe al menos una tesela descargada en el dispositivo.
+// Carga los datos necesarios para mostrar la información más reciente.
   Future<bool> hasDownloadedTiles({String? regionId}) async {
     final directory = await _tilesDirectory(regionId: regionId);
     if (!await directory.exists()) return false;
@@ -133,6 +139,7 @@ class OfflineTileService {
     return _TileCoordinate(x, y, zoom);
   }
 }
+// La clase _TileCoordinate reúne los datos y las acciones de esta parte de la app.
 
 class _TileCoordinate {
   const _TileCoordinate(this.x, this.y, this.zoom);

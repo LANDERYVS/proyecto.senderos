@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
 
+// Datos del amigo necesarios para solicitar, compartir o consultar su ubicación.
 class ShareFriend {
   const ShareFriend({
     required this.id,
@@ -18,6 +19,7 @@ class ShareFriend {
     this.requestFromFriendStatus,
   });
 
+  // Adapta el perfil de Supabase y los datos de la relación al modelo de esta función.
   factory ShareFriend.fromMap(
     Map<String, dynamic> profile, {
     required int friendshipId,
@@ -51,6 +53,7 @@ class ShareFriend {
   final String? requestToFriendStatus;
   final String? requestFromFriendStatus;
 
+  // Crea una copia del amigo con una ubicación nueva y conserva el resto de sus datos.
   ShareFriend withLocation(LatLng? value) => ShareFriend(
     id: id,
     name: name,
@@ -64,6 +67,7 @@ class ShareFriend {
   );
 }
 
+// Agrupa las personas que observan un sendero guardado o una grabación en curso.
 class ObservedTrailGroup {
   const ObservedTrailGroup({
     required this.trailId,
@@ -81,6 +85,7 @@ class ObservedTrailGroup {
   final List<ShareFriend> observers;
   final bool isLive;
 
+  // Crea una copia del grupo con la lista de observadores actualizada.
   ObservedTrailGroup withObservers(List<ShareFriend> value) =>
       ObservedTrailGroup(
         trailId: trailId,
@@ -92,7 +97,9 @@ class ObservedTrailGroup {
       );
 }
 
+// Coordina solicitudes, relaciones de observación y publicación de ubicaciones con Supabase.
 class CompartirUbicacionService {
+  // Permite inyectar un cliente alternativo, por ejemplo, durante las pruebas.
   CompartirUbicacionService({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
 
@@ -101,12 +108,15 @@ class CompartirUbicacionService {
   ShareFriend? _sharingFriend;
   int? _sharingRelationId;
 
+  // Amigo asociado al proceso de ubicación que este servicio está compartiendo.
   ShareFriend? get sharingFriend => _sharingFriend;
 
+  // Carga amistades, solicitudes de ubicación y perfiles para mostrarlos en la interfaz.
   Future<List<ShareFriend>> loadFriends() async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null) return [];
 
+    // Consulta relaciones en ambas direcciones y asocia cada amistad con su otro usuario.
     final friendships = await _client
         .from('amistades')
         .select('id, users_id, target_id')
@@ -125,6 +135,7 @@ class CompartirUbicacionService {
 
     if (friendIds.isEmpty) return [];
 
+    // Obtiene las solicitudes y las ordena de más reciente a más antigua.
     final locationRequests = await _client
         .from('notificaciones_espectador')
         .select('user_id, target_id, estado, created_at')
@@ -139,6 +150,7 @@ class CompartirUbicacionService {
       return bCreatedAt.compareTo(aCreatedAt);
     });
     final requestStatusesByFriend = <String, Map<String, String>>{};
+    // Conserva el estado más reciente en cada dirección: solicitud enviada o recibida.
     for (final request in locationRequests) {
       final requesterId = request['user_id'].toString();
       final targetId = request['target_id'].toString();
@@ -147,10 +159,13 @@ class CompartirUbicacionService {
         friendId,
         () => <String, String>{},
       );
-      final direction = requesterId == currentUser.id ? 'toFriend' : 'fromFriend';
+      final direction = requesterId == currentUser.id
+          ? 'toFriend'
+          : 'fromFriend';
       statuses.putIfAbsent(direction, () => request['estado'].toString());
     }
 
+    // Completa las relaciones con los datos de perfil de cada amigo.
     final profiles = await _client
         .from('usuarios')
         .select('id, name, email, telefono, user_photo')
@@ -167,12 +182,14 @@ class CompartirUbicacionService {
     }).toList();
   }
 
+  // Envía una solicitud para que el amigo autorice recibir su ubicación.
   Future<void> requestLocation(ShareFriend friend) async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null) {
       throw StateError('Inicia sesión para solicitar una ubicación.');
     }
 
+    // Evita duplicar una solicitud que todavía está pendiente.
     final existingRequests = await _client
         .from('notificaciones_espectador')
         .select('id, estado')
@@ -184,6 +201,7 @@ class CompartirUbicacionService {
       );
     }
 
+    // Limpia solicitudes anteriores ya resueltas para permitir iniciar una nueva.
     if (existingRequests.isNotEmpty) {
       final deleted = await _client
           .from('notificaciones_espectador')
@@ -197,6 +215,7 @@ class CompartirUbicacionService {
         );
       }
     }
+    // Registra la solicitud con estado pendiente y la fecha actual en UTC.
     await _client.from('notificaciones_espectador').insert({
       'user_id': currentUser.id,
       'target_id': friend.id,
@@ -205,10 +224,12 @@ class CompartirUbicacionService {
     });
   }
 
+  // Reúne los amigos que observan senderos guardados o grabaciones activas.
   Future<List<ObservedTrailGroup>> loadObservedTrails() async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null) return [];
 
+    // Obtiene las relaciones de observación habilitadas para el usuario actual.
     final relations = await _client
         .from('relaciones_espectadores')
         .select('amistad, sendero_id')
@@ -216,6 +237,7 @@ class CompartirUbicacionService {
         .eq('enabled', true);
     final trailIdsByFriendship = <int, int>{};
     final liveFriendshipIds = <int>{};
+    // Separa las relaciones vinculadas a un sendero de las grabaciones en vivo.
     for (final relation in relations) {
       final friendshipId = (relation['amistad'] as num?)?.toInt();
       final trailId = (relation['sendero_id'] as num?)?.toInt();
@@ -232,6 +254,7 @@ class CompartirUbicacionService {
     }.toList();
     if (friendshipIds.isEmpty) return [];
 
+    // Resuelve qué amigo corresponde a cada relación de amistad.
     final friendships = await _client
         .from('amistades')
         .select('id, users_id, target_id')
@@ -247,6 +270,7 @@ class CompartirUbicacionService {
 
     final friendIds = friendIdsByFriendship.values.toSet().toList();
     final trailIds = trailIdsByFriendship.values.toSet().toList();
+    // Carga perfiles, datos de los senderos asociados y ubicaciones autorizadas.
     final profiles = await _client
         .from('usuarios')
         .select('id, name, email, telefono, user_photo')
@@ -259,6 +283,7 @@ class CompartirUbicacionService {
               .inFilter('id', trailIds);
     final locations = await loadLocations(friendIds);
 
+    // Indexa los perfiles y agrupa los observadores por sendero.
     final profilesById = {
       for (final profile in profiles) profile['id'].toString(): profile,
     };
@@ -281,6 +306,7 @@ class CompartirUbicacionService {
           );
     }
 
+    // Construye grupos para los senderos guardados que tengan observadores.
     final trailGroups = trails
         .map<ObservedTrailGroup>((trail) {
           final trailId = (trail['id'] as num).toInt();
@@ -297,6 +323,7 @@ class CompartirUbicacionService {
         })
         .where((group) => group.observers.isNotEmpty)
         .toList();
+    // Representa por separado las relaciones que corresponden a grabaciones activas.
     final liveGroups = <ObservedTrailGroup>[];
     for (final friendshipId in liveFriendshipIds) {
       final friendId = friendIdsByFriendship[friendshipId];
@@ -321,6 +348,7 @@ class CompartirUbicacionService {
     return [...trailGroups, ...liveGroups];
   }
 
+  // Devuelve las ubicaciones visibles para el usuario, limitadas a quienes dieron permiso.
   Future<Map<String, LatLng>> loadLocations(Iterable<String> userIds) async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null) return {};
@@ -328,6 +356,7 @@ class CompartirUbicacionService {
     final ids = userIds.toSet().toList();
     if (ids.isEmpty) return {};
 
+    // Solo consulta ubicaciones de usuarios con una solicitud aceptada por la cuenta actual.
     final acceptedRequests = await _client
         .from('notificaciones_espectador')
         .select('user_id')
@@ -340,6 +369,7 @@ class CompartirUbicacionService {
         .toList();
     if (authorizedUserIds.isEmpty) return {};
 
+    // Convierte las coordenadas de la base de datos en ubicaciones indexadas por ID de usuario.
     final rows = await _client
         .from('ubicacion')
         .select('user_id, lat, long')
@@ -353,6 +383,7 @@ class CompartirUbicacionService {
     };
   }
 
+  // Activa el envío periódico de ubicación a un amigo que ya autorizó compartirla.
   Future<void> startSharing(
     ShareFriend friend,
     Future<void> Function() publishLocation, {
@@ -361,6 +392,7 @@ class CompartirUbicacionService {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null) return;
 
+    // Comprueba el consentimiento antes de crear o reactivar la relación de observación.
     final approvedRequest = await _client
         .from('notificaciones_espectador')
         .select('id')
@@ -374,6 +406,7 @@ class CompartirUbicacionService {
       );
     }
 
+    // Busca una relación anterior para reactivarla en lugar de generar duplicados.
     final existing = await _client
         .from('relaciones_espectadores')
         .select('id')
@@ -383,6 +416,7 @@ class CompartirUbicacionService {
 
     late final int relationId;
     if (existing == null) {
+      // Registra quién observará al usuario y, si corresponde, el sendero que está siguiendo.
       final inserted = await _client
           .from('relaciones_espectadores')
           .insert({
@@ -395,6 +429,7 @@ class CompartirUbicacionService {
           .single();
       relationId = (inserted['id'] as num).toInt();
     } else {
+      // Habilita de nuevo la relación y la asocia al sendero actual.
       final updated = await _client
           .from('relaciones_espectadores')
           .update({'enabled': true, 'sendero_id': senderoId})
@@ -406,6 +441,7 @@ class CompartirUbicacionService {
       }
       relationId = (existing['id'] as num).toInt();
     }
+    // Reinicia el temporizador, publica la primera ubicación y luego repite cada cinco segundos.
     _sharingTimer?.cancel();
     _sharingFriend = friend;
     _sharingRelationId = relationId;
@@ -416,6 +452,7 @@ class CompartirUbicacionService {
     await publishLocation();
   }
 
+  // Guarda la posición actual para que los observadores autorizados puedan consultarla.
   Future<void> publishLocation(LatLng point) async {
     final currentUser = _client.auth.currentUser;
     if (currentUser == null || _sharingFriend == null) return;
@@ -425,6 +462,7 @@ class CompartirUbicacionService {
       'lat': point.latitude,
       'long': point.longitude,
     };
+    // Inserta el registro la primera vez y lo actualiza en las publicaciones siguientes.
     final existing = await _client
         .from('ubicacion')
         .select('id')
@@ -440,6 +478,7 @@ class CompartirUbicacionService {
     }
   }
 
+  // Envía una alerta a los espectadores y devuelve cuántas personas la recibieron.
   Future<int> sendAlert({
     required String type,
     required String message,
@@ -464,12 +503,14 @@ class CompartirUbicacionService {
     return result.toInt();
   }
 
+  // Detiene la publicación y elimina la relación y la autorización asociadas.
   Future<void> stopSharing() async {
     final currentUser = _client.auth.currentUser;
     final friend = _sharingFriend;
     final relationId = _sharingRelationId;
     if (currentUser == null || friend == null || relationId == null) return;
 
+    // Detiene las publicaciones periódicas antes de modificar la relación remota.
     _sharingTimer?.cancel();
     _sharingTimer = null;
     final updated = await _client
@@ -485,6 +526,7 @@ class CompartirUbicacionService {
       );
     }
 
+    // Limpia el estado local antes de borrar los permisos y la relación en Supabase.
     _sharingFriend = null;
     _sharingRelationId = null;
 
@@ -495,6 +537,7 @@ class CompartirUbicacionService {
         .eq('target_id', friend.id)
         .eq('estado', 'aceptada');
 
+    // Elimina la relación desactivada y comprueba que se haya quitado un registro.
     final deleted = await _client
         .from('relaciones_espectadores')
         .delete()
@@ -507,10 +550,12 @@ class CompartirUbicacionService {
       throw StateError('La relación se desactivó, pero no se pudo eliminar.');
     }
 
+    // Garantiza que no quede un temporizador activo al terminar la operación.
     _sharingTimer?.cancel();
     _sharingTimer = null;
   }
 
+  // Cancela el temporizador si el servicio se descarta mientras comparte ubicación.
   void dispose() {
     _sharingTimer?.cancel();
   }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
 import 'perfil_publico.dart';
-import '../widgets/default_user_avatar.dart';
+import '../widgets/avatar_usuario.dart';
 
+// Contenido de la pantalla de amistades; recibe el texto de búsqueda desde su pantalla contenedora.
 class AmigosContent extends StatefulWidget {
   const AmigosContent({super.key, this.searchTerm = '', this.onSearchChanged});
 
@@ -16,6 +17,7 @@ class AmigosContent extends StatefulWidget {
 }
 
 class _AmigosContentState extends State<AmigosContent> {
+  // Personas sugeridas, amistades actuales y solicitudes en curso o ya enviadas.
   List<_Friend> _friends = const [];
   List<_Friend> _addedFriends = const [];
   Set<String> _sentRequestIds = <String>{};
@@ -25,10 +27,12 @@ class _AmigosContentState extends State<AmigosContent> {
   @override
   void initState() {
     super.initState();
+    // Obtiene perfiles, amistades existentes y solicitudes enviadas al iniciar la pantalla.
     _loadUsers();
   }
 
   Future<void> _loadUsers() async {
+    // Activa el indicador tanto en la carga inicial como al actualizar con "deslizar para refrescar".
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -38,6 +42,7 @@ class _AmigosContentState extends State<AmigosContent> {
     final client = Supabase.instance.client;
     final currentUser = client.auth.currentUser;
 
+    // Sin una sesión no hay un usuario con el que consultar amistades.
     if (currentUser == null) {
       if (!mounted) return;
       setState(() {
@@ -51,18 +56,21 @@ class _AmigosContentState extends State<AmigosContent> {
 
     var loadingStep = 'notificaciones_solicitudes';
     try {
+      // Recupera a quién ya se le envió una solicitud desde esta cuenta.
       final sentRequests = await client
           .from('notificaciones_solicitudes')
           .select('target_id')
           .eq('users_id', currentUser.id);
 
       loadingStep = 'amistades';
+      // Busca las relaciones donde la cuenta actual aparece como origen o destino.
       final friendships = await client
           .from('amistades')
           .select('users_id, target_id')
           .or('users_id.eq.${currentUser.id},target_id.eq.${currentUser.id}');
 
       loadingStep = 'usuarios';
+      // Carga los perfiles disponibles, excluyendo al usuario que inició sesión.
       final profiles = await client
           .from('usuarios')
           .select('id, name, email, user_photo, premium')
@@ -70,21 +78,25 @@ class _AmigosContentState extends State<AmigosContent> {
           .order('name');
 
       if (!mounted) return;
+      // Convierte los perfiles en un índice por ID para resolver las relaciones fácilmente.
       final profilesById = {
         for (final profile in profiles)
           profile['id'].toString(): _Friend.fromMap(profile),
       };
 
+      // Normaliza cada amistad para obtener el ID de la otra persona, sin importar la dirección.
       final addedFriendIds = friendships.map<String>((friendship) {
         final usersId = friendship['users_id'].toString();
         final targetId = friendship['target_id'].toString();
         return usersId == currentUser.id ? targetId : usersId;
       }).toSet();
 
+      // Guarda los IDs a los que ya se les envió una solicitud.
       final sentRequestIds = sentRequests
           .map<String>((request) => request['target_id'].toString())
           .toSet();
 
+      // Separa los perfiles entre sugerencias y amistades confirmadas.
       final visibleFriends = profilesById.values
           .where((friend) => !addedFriendIds.contains(friend.id))
           .toList();
@@ -94,6 +106,7 @@ class _AmigosContentState extends State<AmigosContent> {
           .whereType<_Friend>()
           .toList();
 
+      // Publica los datos cargados y termina el estado de carga.
       setState(() {
         _friends = visibleFriends;
         _addedFriends = addedFriends;
@@ -102,6 +115,7 @@ class _AmigosContentState extends State<AmigosContent> {
         _isLoading = false;
       });
     } on PostgrestException catch (error) {
+      // Identifica la consulta fallida para facilitar el diagnóstico de errores de Supabase.
       debugPrint(
         'No se pudieron cargar personas desde $loadingStep '
         '(${error.code ?? 'Supabase'}): ${error.message}; '
@@ -125,9 +139,11 @@ class _AmigosContentState extends State<AmigosContent> {
     final currentUser = client.auth.currentUser;
     if (currentUser == null || _requestingIds.contains(friend.id)) return;
 
+    // Evita envíos duplicados y muestra el progreso solo en la fila seleccionada.
     setState(() => _requestingIds = {..._requestingIds, friend.id});
 
     try {
+      // Comprueba si ya existe una solicitud entre estas dos personas antes de insertar otra.
       final existingRequest = await client
           .from('notificaciones_solicitudes')
           .select('id')
@@ -137,6 +153,7 @@ class _AmigosContentState extends State<AmigosContent> {
           .maybeSingle();
 
       if (existingRequest == null) {
+        // Registra la solicitud como pendiente para que el destinatario pueda responderla.
         await client.from('notificaciones_solicitudes').insert({
           'users_id': currentUser.id,
           'target_id': friend.id,
@@ -145,6 +162,7 @@ class _AmigosContentState extends State<AmigosContent> {
       }
 
       if (!mounted) return;
+      // Marca la solicitud como enviada y confirma la acción al usuario.
       setState(() {
         _sentRequestIds = {..._sentRequestIds, friend.id};
       });
@@ -167,6 +185,7 @@ class _AmigosContentState extends State<AmigosContent> {
         SnackBar(content: Text('No se pudo enviar la solicitud: $error')),
       );
     } finally {
+      // Quita el indicador de progreso incluso si la consulta falla.
       if (mounted) {
         setState(() {
           final pending = {..._requestingIds}..remove(friend.id);
@@ -181,6 +200,7 @@ class _AmigosContentState extends State<AmigosContent> {
     final currentUser = client.auth.currentUser;
     if (currentUser == null) return;
 
+    // Pide confirmación antes de eliminar la relación de amistad.
     final shouldRemove = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -202,6 +222,7 @@ class _AmigosContentState extends State<AmigosContent> {
     if (shouldRemove != true) return;
 
     try {
+      // Borra la relación en ambas direcciones, ya que puede estar guardada con cualquiera de ellas.
       await client
           .from('amistades')
           .delete()
@@ -214,6 +235,7 @@ class _AmigosContentState extends State<AmigosContent> {
           .eq('target_id', currentUser.id);
 
       if (!mounted) return;
+      // Mueve a la persona de la lista de amistades a la lista de sugerencias.
       setState(() {
         _addedFriends = [..._addedFriends]
           ..removeWhere((item) => item.id == friend.id);
@@ -239,6 +261,7 @@ class _AmigosContentState extends State<AmigosContent> {
     }
   }
 
+  // Abre el perfil público con los datos ya disponibles para mostrarlo de inmediato.
   void _openFriendProfile(_Friend friend) {
     Navigator.push(
       context,
@@ -254,6 +277,7 @@ class _AmigosContentState extends State<AmigosContent> {
     );
   }
 
+  // Construye el encabezado de cada sección de la lista.
   Widget _buildSectionHeader(String title) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -272,6 +296,7 @@ class _AmigosContentState extends State<AmigosContent> {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
+      // Permite volver a consultar perfiles y relaciones al arrastrar la lista hacia abajo.
       onRefresh: _loadUsers,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -280,6 +305,7 @@ class _AmigosContentState extends State<AmigosContent> {
           const SizedBox(height: 8),
           _buildSectionHeader('Agregar personas'),
           const SizedBox(height: 4),
+          // Muestra el progreso, el estado vacío o las personas que se pueden agregar.
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
           else if (_filteredFriends.isEmpty)
@@ -293,6 +319,7 @@ class _AmigosContentState extends State<AmigosContent> {
                 onSendRequest: () => _sendRequest(friend),
                 onTap: () => _openFriendProfile(friend),
               ),
+          // Separa las sugerencias de las amistades que ya fueron agregadas.
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 20),
             child: Divider(),
@@ -313,6 +340,7 @@ class _AmigosContentState extends State<AmigosContent> {
     );
   }
 
+  // Filtra las sugerencias por nombre o correo usando el texto recibido del buscador.
   List<_Friend> get _filteredFriends {
     final query = widget.searchTerm.trim().toLowerCase();
     if (query.isEmpty) return _friends;
@@ -323,6 +351,7 @@ class _AmigosContentState extends State<AmigosContent> {
   }
 }
 
+// Datos de perfil necesarios para mostrar y gestionar una amistad en esta pantalla.
 class _Friend {
   const _Friend({
     required this.id,
@@ -333,6 +362,7 @@ class _Friend {
     this.photoUrl,
   });
 
+  // Adapta el perfil de Supabase al modelo que utiliza la interfaz de amistades.
   factory _Friend.fromMap(Map<String, dynamic> profile) {
     final name = profile['name']?.toString().trim();
     final email = profile['email']?.toString().trim();
@@ -353,6 +383,7 @@ class _Friend {
     );
   }
 
+  // Identidad, datos visibles y estado premium del perfil.
   final String id;
   final String name;
   final String username;
@@ -361,6 +392,7 @@ class _Friend {
   final bool isPremium;
 }
 
+// Fila de una persona sugerida, con acceso al perfil y acción para enviar solicitud.
 class _FriendTile extends StatelessWidget {
   const _FriendTile({
     required this.friend,
@@ -404,7 +436,9 @@ class _FriendTile extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           subtitle: friend.username.isEmpty ? null : Text(friend.username),
+          // Al tocar los datos de la persona se abre su perfil público.
           onTap: onTap,
+          // Desactiva el botón mientras la solicitud se envía o si ya fue enviada.
           trailing: OutlinedButton.icon(
             onPressed: requestSent || isSending ? null : onSendRequest,
             icon: isSending
@@ -424,6 +458,7 @@ class _FriendTile extends StatelessWidget {
   }
 }
 
+// Fila de una amistad existente, con acceso al perfil y opción para quitarla.
 class _AddedFriendTile extends StatelessWidget {
   const _AddedFriendTile({
     required this.friend,
@@ -444,7 +479,9 @@ class _AddedFriendTile extends StatelessWidget {
         leading: DefaultUserAvatar(radius: 20, imageUrl: friend.photoUrl),
         title: Text(friend.name),
         subtitle: friend.username.isEmpty ? null : Text(friend.username),
+        // Abre el perfil público de esta amistad.
         onTap: onTap,
+        // Solicita confirmar antes de eliminar esta relación.
         trailing: IconButton(
           onPressed: onRemoveFriend,
           tooltip: 'Eliminar amigo',

@@ -1,15 +1,19 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 
-import '../models/trail_waypoint.dart';
+import '../models/waypoints_sendero.dart';
 import '../services/gpx_import.dart';
 import '../services/guardado_local.dart';
 import '../services/offline_tile_service.dart';
-import '../widgets/route_polyline_map.dart';
-import '../widgets/save_route_dialog.dart';
+import '../widgets/mapa_trazado_sendero.dart';
+import '../widgets/dialogo_guardado.dart';
 import 'seguir_sendero_descargado.dart';
+// La clase PrevisualizarGpxScreen reúne los datos y las acciones de esta parte de la app.
 
 class PrevisualizarGpxScreen extends StatefulWidget {
   const PrevisualizarGpxScreen({
@@ -32,16 +36,19 @@ class PrevisualizarGpxScreen extends StatefulWidget {
   @override
   State<PrevisualizarGpxScreen> createState() => _PrevisualizarGpxScreenState();
 }
+// La clase _PrevisualizarGpxScreenState reúne los datos y las acciones de esta parte de la app.
 
 class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
   bool _isImporting = false;
   TileLayer? _offlineTileLayer;
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadOfflineMap();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadOfflineMap() async {
     final regionId = widget.offlineRegionId;
@@ -109,6 +116,7 @@ class _PrevisualizarGpxScreenState extends State<PrevisualizarGpxScreen> {
       ),
     );
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {

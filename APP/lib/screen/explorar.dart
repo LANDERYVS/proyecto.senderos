@@ -1,12 +1,14 @@
+// Aquí se implementa una pantalla de la app.
+
+
 import 'package:flutter/material.dart';
 
-import '../models/explore_trail.dart';
+import '../models/modelo_sendero.dart';
 import '../services/obtener_sendero.dart';
-import '../services/senderos_favoritos.dart';
-import '../services/senderos_locales.dart';
 import '../widgets/content_state_view.dart';
 import '../widgets/sendero_card.dart';
 import '../widgets/filtros.dart';
+// La clase ExploreContent reúne los datos y las acciones de esta parte de la app.
 
 class ExploreContent extends StatefulWidget {
   const ExploreContent({
@@ -23,25 +25,25 @@ class ExploreContent extends StatefulWidget {
   @override
   State<ExploreContent> createState() => _ExploreContentState();
 }
+// La clase _ExploreContentState reúne los datos y las acciones de esta parte de la app.
 
 class _ExploreContentState extends State<ExploreContent> {
   final ObtenerSenderoService _trailService = ObtenerSenderoService();
-  final SenderosFavoritosService _favoritesService = SenderosFavoritosService();
-  final SenderosLocalesService _savedRoutesService = SenderosLocalesService();
   List<ExploreTrail> _trails = [];
-  final Set<int> _favoriteIds = {};
-  final Set<int> _savingFavoriteIds = {};
   bool _isLoading = true;
   String? _loadError;
 
   String _difficultyFilter = 'Dificultad';
   String _lengthFilter = 'Longitud';
+  String _sportFilter = 'Deporte';
+// Al abrir esta pantalla, se cargan los datos iniciales y se preparan las suscripciones necesarias.
 
   @override
   void initState() {
     super.initState();
     _loadTrails();
   }
+// Carga los datos necesarios para mostrar la información más reciente.
 
   Future<void> _loadTrails() async {
     setState(() {
@@ -51,27 +53,11 @@ class _ExploreContentState extends State<ExploreContent> {
 
     try {
       final trails = await _trailService.obtenerSenderos();
-      Set<int> favoriteIds = {};
-      String? favoritesError;
-      try {
-        favoriteIds = await _favoritesService.loadFavoriteIds();
-      } on Exception catch (error) {
-        favoritesError = error.toString();
-        debugPrint('Error al cargar favoritos: $error');
-      }
       if (!mounted) return;
       setState(() {
         _trails = trails;
-        _favoriteIds
-          ..clear()
-          ..addAll(favoriteIds);
         _isLoading = false;
       });
-      if (favoritesError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudieron sincronizar favoritos')),
-        );
-      }
     } on ObtenerSenderoException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -79,60 +65,6 @@ class _ExploreContentState extends State<ExploreContent> {
         _loadError = error.message;
       });
       debugPrint('Error al listar senderos: ${error.cause ?? error}');
-    }
-  }
-
-  Future<void> _toggleFavorite(ExploreTrail trail) async {
-    final senderoId = trail.id;
-    if (senderoId == null) return;
-    final wasFavorite = _favoriteIds.contains(senderoId);
-    setState(() => _savingFavoriteIds.add(senderoId));
-
-    try {
-      if (wasFavorite) {
-        await _favoritesService.removeFavorite(senderoId);
-        try {
-          await _savedRoutesService.removeFavoriteCache(trail);
-        } on Exception catch (error) {
-          debugPrint(
-            'No se pudo actualizar la copia local del favorito: $error',
-          );
-        }
-      } else {
-        await _favoritesService.addFavorite(senderoId);
-        try {
-          await _savedRoutesService.saveFavorite(trail);
-        } on Exception catch (error) {
-          debugPrint(
-            'No se pudo descargar la copia local del favorito: $error',
-          );
-        }
-      }
-      if (!mounted) return;
-      setState(() {
-        if (wasFavorite) {
-          _favoriteIds.remove(senderoId);
-        } else {
-          _favoriteIds.add(senderoId);
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            wasFavorite
-                ? '"${trail.name}" quitado de favoritos'
-                : '"${trail.name}" guardado en favoritos',
-          ),
-        ),
-      );
-    } on Exception catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo guardar el sendero: $error')),
-      );
-    } finally {
-      if (mounted) setState(() => _savingFavoriteIds.remove(senderoId));
     }
   }
 
@@ -152,10 +84,16 @@ class _ExploreContentState extends State<ExploreContent> {
         'Más de 8 km' => trail.distanceKm > 8,
         _ => true,
       };
+      final matchesSport =
+          _sportFilter == 'Deporte' || trail.sport == _sportFilter;
 
-      return matchesSearch && matchesDifficulty && matchesLength;
+      return matchesSearch &&
+          matchesDifficulty &&
+          matchesLength &&
+          matchesSport;
     }).toList();
   }
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
@@ -177,6 +115,8 @@ class _ExploreContentState extends State<ExploreContent> {
                       setState(() => _difficultyFilter = value),
                   onLengthChanged: (value) =>
                       setState(() => _lengthFilter = value),
+                  onSportChanged: (value) =>
+                      setState(() => _sportFilter = value),
                 ),
               ),
               if (_isLoading)
@@ -205,19 +145,7 @@ class _ExploreContentState extends State<ExploreContent> {
                         const SizedBox(height: 16),
                     itemBuilder: (context, index) {
                       final trail = visibleTrails[index];
-                      final senderoId = trail.id;
-                      return SenderoCard(
-                        trail: trail,
-                        isFavorite:
-                            senderoId != null &&
-                            _favoriteIds.contains(senderoId),
-                        isSavingFavorite:
-                            senderoId != null &&
-                            _savingFavoriteIds.contains(senderoId),
-                        onFavorite: senderoId == null
-                            ? null
-                            : () => _toggleFavorite(trail),
-                      );
+                      return SenderoCard(trail: trail);
                     },
                   ),
                 ),

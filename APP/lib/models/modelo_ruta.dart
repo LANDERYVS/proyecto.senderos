@@ -1,5 +1,12 @@
 import 'dart:io';
 
+/*
+ * Representa una ruta guardada en el dispositivo.
+ * Combina el archivo GPX con su metadata opcional, donde se conservan detalles
+ * como nombre, descripción, distancia, fotos y si es favorita, descargada
+ * o publicada. Los getters leen esos valores y aplican un valor predeterminado
+ * cuando algún dato no está guardado.
+ */
 class SavedRoute {
   const SavedRoute({required this.file, this.metadata});
 
@@ -13,6 +20,8 @@ class SavedRoute {
   String get description => metadata?['description'] as String? ?? '';
 
   String get difficulty => metadata?['difficulty'] as String? ?? 'Fácil';
+
+  String get sport => metadata?['sport'] as String? ?? 'Sin especificar';
 
   double? get distanceKm => (metadata?['distanceKm'] as num?)?.toDouble();
 

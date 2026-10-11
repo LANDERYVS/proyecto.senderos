@@ -1,6 +1,10 @@
+// Aquí se define un componente visual reutilizable.
+
+
 import 'package:flutter/material.dart';
 
 /// Widget reutilizable para mostrar cada opción de configuración
+// La clase ConfigCard reúne los datos y las acciones de esta parte de la app.
 class ConfigCard extends StatelessWidget {
   const ConfigCard({
     super.key,
@@ -18,6 +22,7 @@ class ConfigCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isDestructive;
   final Widget? trailing;
+// Construye la interfaz de esta pantalla con los datos y filtros actuales.
 
   @override
   Widget build(BuildContext context) {
